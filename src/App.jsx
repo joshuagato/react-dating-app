@@ -44,7 +44,7 @@ function App() {
         <div>
           <h1>Get started</h1>
           <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
+            Edit <code>src/App.jsx</code> <span className="text-[blue]">and save to test</span> <code className="text-[green]">HMR</code>
           </p>
         </div>
         <button
@@ -55,8 +55,8 @@ function App() {
           Count is {count}
         </button>
 
-        <div className="g-signin2" data-onsuccess="onSignIn"></div>
-        <div id="my-signin2"></div>
+        {/* <div className="g-signin2" data-onsuccess="onSignIn"></div>
+        <div id="my-signin2"></div> */}
       </section>
 
       <div className="ticks"></div>
