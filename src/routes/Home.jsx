@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { NavLink } from "react-router";
+import { Link } from "react-router";
 
 const Home = () => {
     const [user, setUser] = useState(null);
@@ -44,7 +44,7 @@ const Home = () => {
 
                         {user ? (
                             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                                <NavLink
+                                <Link
                                     to="/matches"
                                     className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-pink-500 to-red-500 text-white text-lg font-semibold rounded-full hover:from-pink-600 hover:to-red-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
                                 >
@@ -62,17 +62,17 @@ const Home = () => {
                                             d="M13 7l5 5m0 0l-5 5m5-5H6"
                                         />
                                     </svg>
-                                </NavLink>
-                                <NavLink
+                                </Link>
+                                <Link
                                     to="/profile"
                                     className="inline-flex items-center px-8 py-4 border-2 border-red-400 text-red-400 text-lg font-semibold rounded-full hover:bg-red-400 hover:text-white transition-all duration-300"
                                 >
                                     View Profile
-                                </NavLink>
+                                </Link>
                             </div>
                         ) : (
                             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                                <NavLink
+                                <Link
                                     to="/auth"
                                     className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-pink-500 to-red-500 text-white text-lg font-semibold rounded-full hover:from-pink-600 hover:to-red-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
                                 >
@@ -90,13 +90,13 @@ const Home = () => {
                                             d="M13 7l5 5m0 0l-5 5m5-5H6"
                                         />
                                     </svg>
-                                </NavLink>
-                                <NavLink
+                                </Link>
+                                <Link
                                     to="/matches"
                                     className="inline-flex items-center px-8 py-4 border-2 border-red-400 text-red-400 text-lg font-semibold rounded-full hover:bg-red-400 hover:text-white transition-all duration-300"
                                 >
                                     Explore
-                                </NavLink>
+                                </Link>
                             </div>
                         )}
                     </div>
