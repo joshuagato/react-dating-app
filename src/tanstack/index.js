@@ -1,3 +1,3 @@
-import { loginHandler, signUpHandler } from './auth';
+import { loginHandler, signUpHandler, getProfileHandler } from './auth';
 
-export { loginHandler, signUpHandler };
+export { loginHandler, signUpHandler, getProfileHandler };
