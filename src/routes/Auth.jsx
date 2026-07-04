@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { useQuery } from '@tanstack/react-query';
-import axios from "axios";
-import { unProtectedApi } from "../axios";
-import { loginHandler, signUpHandler } from '../tanstack';
+import { Mail, KeyRound, Eye, EyeOff } from "lucide-react";
+import { loginHandler, signUpHandler, getProfileHandler } from '../tanstack';
+import { lastArrayElement, unsetErrorSetMessage, unsetMessageSetError, unsetEmailPasswordFields, 
+    unsetAllErrors } from "../functions/utils";
 
 import { useUser } from '../store';
 
@@ -12,8 +12,11 @@ const Auth = () => {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [passwordConfirmation, setPasswordConfirmation] = useState("");
+    const [isShowPassword, setIsShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [message, setMessage] = useState("");
     const [error, setError] = useState("");
+    const [errors, setErrors] = useState({});
     // const supabase = createClient();
     const supabase = {};
     // const { user, loading: authLoading } = useAuth();
@@ -36,37 +39,39 @@ const Auth = () => {
         })()
     }, []); 
 
-    // const response = loginHandler({});
-
     async function handleAuth(e) {
         e.preventDefault();
 
         setLoading(true);
-        setError("");
+        unsetAllErrors(setError, setErrors);
 
         try {
             if (isSignUp) {
-                const response = await signUpHandler({ email, password, passwordConfirmation });
+                const response = await signUpHandler({ email, password, passwordConfirmation });                
 
-                console.log({response});
-                if (error) throw error;
-                if (response.success && response.user && !response.session) {
-                    
-                    setError("Please check your email for a confirmation link");
-                    setEmail('');
-                    setPassword('');
-                    setPasswordConfirmation('');
+                if (response.errors) setErrors(response.errors);
+
+                if (response.success && !response.session) {
+                    unsetErrorSetMessage(setError, setMessage, response);
+                    unsetEmailPasswordFields(setEmail, setPassword, setPasswordConfirmation);
                     return;
+                } else {
+                    unsetMessageSetError(setMessage, setError, response);
                 }
             } else {
-                const { error } = await supabase.auth.signInWithPassword({
-                    email,
-                    password,
-                });
-                if (error) throw error;
+                const response = await loginHandler({ email, password });
+
+                if (response.success) {
+                    const profile = await getProfileHandler();
+                    // console.log({profile});
+                    
+                    unsetErrorSetMessage(setError, setMessage, response);
+                } else {
+                    unsetMessageSetError(setMessage, setError, response);
+                }
             }
         } catch (error) {
-            setError(error.message);
+            console.log(error.message);
         } finally {
             setLoading(false);
         }
@@ -74,7 +79,7 @@ const Auth = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-900 to-teal-800">
-        <div className="max-w-md w-full space-y-8 p-8">
+        <div className="md:max-w-md w-full space-y-8 p-2 sm:p-8">
             <div className="text-center">
                 <h1 className="text-4xl font-bold bg-gradient-to-r from-red-600 to-pink-600 bg-clip-text text-transparent mb-2">
                     StreamMatch
@@ -86,78 +91,97 @@ const Auth = () => {
                 </p>
             </div>
 
-            <form className="space-y-6" onSubmit={handleAuth}>
+            <form className="w-full flex flex-col items-center space-y-6" onSubmit={handleAuth}>
+                <label
+                    htmlFor="email"
+                    className="block mb-1.5 self-start text-sm font-medium text-gray-100"
+                >
+                    Email
+                </label>
                 <div>
-                    <label
-                        htmlFor="email"
-                        className="block text-sm font-medium text-gray-100"
-                    >
-                        Email
+                    <label className="input">
+                        <Mail className="h-[1em] opacity-50" />
+                        <input id="email" type="email" placeholder="mail@site.com" className="w-72"
+                            value={email} onChange={(e) => setEmail(e.target.value)} required />
                     </label>
-                    <input
-                        id="email"
-                        type="email"
-                        required
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className="input validator mt-1 block w-full px-3 py-2 border border-gray-600 
-                            rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-green-500 
-                            focus:border-green-500 bg-gray-800 text-white"
-                        placeholder="Enter your email"
-                    />
+                    {errors.email && (
+                    <div className="text-red-400 text-sm text-center mt-1.5">
+                        {lastArrayElement(errors.email)}
+                    </div>
+                )}
                 </div>
 
+                <label
+                    htmlFor="password"
+                    className="block mb-1.5 self-start text-sm font-medium text-gray-100"
+                >
+                    Password
+                </label>
                 <div>
-                    <label
-                        htmlFor="password"
-                        className="block text-sm font-medium text-gray-100"
-                    >
-                        Password
-                    </label>
-                    <input
-                        id="password"
-                        type="password"
-                        required
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        minLength="8"
-                        className="input validator mt-1 block w-full px-3 py-2 border border-gray-600 
-                            rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-green-500 
-                            focus:border-green-500 bg-gray-800 text-white"
-                        placeholder="Enter your password"
-                        pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}"
-                        title="Must be 8 characters or more, including number, lowercase letter, uppercase letter"
-                    />
-                    
+                    <div className="flex">
+                        <div>
+                            <label className="input" htmlFor="password">
+                                <KeyRound className="h-[1em] opacity-50" />
+                                <input
+                                    id="password"
+                                    type={isShowPassword ? "text" : "password"} 
+                                    placeholder="Password" required value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    className="w-56"
+                                    minLength="8" className="w-56"
+                                    pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}"
+                                    title="Must be 8 characters or more, including number, lowercase letter, uppercase letter"
+                                />
+                            </label>
+                        </div>
+                        <button type="button" className="btn btn-neutral" onClick={() => setIsShowPassword(prev => !prev)}>
+                            {isShowPassword ? <EyeOff /> : <Eye />}
+                        </button>
+                    </div>
+                    {errors.password && (
+                        <div className="text-red-400 text-sm text-center mt-1.5">
+                            {lastArrayElement(errors.password)}
+                        </div>
+                    )}
                 </div>
 
-                <div>
+                {isSignUp &&
+                <>
                     <label
-                        htmlFor="password"
-                        className="block text-sm font-medium text-gray-100"
+                        htmlFor="passwordConfirmation"
+                        className="block mb-1.5 self-start text-sm font-medium text-gray-100"
                     >
-                        Password Confirmation
+                        Confirmation Password
                     </label>
-                    <input
-                        id="passwordConfirmation"
-                        type="password"
-                        required
-                        value={passwordConfirmation}
-                        onChange={(e) => setPasswordConfirmation(e.target.value)}
-                        minLength="8"
-                        className="input validator mt-1 block w-full px-3 py-2 border border-gray-600 
-                            rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-green-500 
-                            focus:border-green-500 bg-gray-800 text-white"
-                        placeholder="Enter your password confirmation"
-                        pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}"
-                        title="Must be 8 characters or more, including number, lowercase letter, uppercase letter"
-                    />
-                    
-                </div>
+                    <div>
+                        <label className="input">
+                        <KeyRound className="h-[1em] opacity-50" />
+                        <input
+                            id="passwordConfirmation"
+                            type={isShowPassword ? "text" : "password"}
+                            placeholder="Confirm Password" required value={passwordConfirmation}
+                            onChange={(e) => setPasswordConfirmation(e.target.value)}
+                            minLength="8" className="w-72"
+                            pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}"
+                            title="Must be 8 characters or more, including number, lowercase letter, uppercase letter"
+                        />
+                        </label>
+                        {errors.passwordConfirmation && (
+                            <div className="text-red-400 text-sm text-left mt-1.5">
+                                {lastArrayElement(errors.passwordConfirmation)}
+                            </div>
+                        )}
+                    </div>
+                </>}
 
                 {error && (
-                    <div className="text-red-600 dark:text-red-400 text-sm text-center">
+                    <div className="text-red-400 text-sm text-center">
                         {error}
+                    </div>
+                )}
+                {message && (
+                    <div className="text-green-400 text-sm text-center">
+                        {message}
                     </div>
                 )}
 
