@@ -12,3 +12,5 @@ export const organizeErrors = errorsArray => {
 
     return errorsData;
 }
+
+export const lastArrayElement = array => array[array.length - 1];
