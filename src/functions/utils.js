@@ -14,3 +14,13 @@ export const organizeErrors = errorsArray => {
 }
 
 export const lastArrayElement = array => array[array.length - 1];
+
+export const setMessageUnsetError = (setError, setMessage, response) => {
+    setError('');
+    setMessage(response.message);
+}
+
+export const setErrorUnsetMessage = (setMessage, setError, response) => {
+    setMessage('');
+    setError(response.message);
+}
