@@ -15,14 +15,14 @@ export const organizeErrors = errorsArray => {
 
 export const lastArrayElement = array => array[array.length - 1];
 
-export const unsetErrorSetMessage = (setError, setMessage, response) => {
+export const unsetErrorSetMessage = (setError, setMessage, message) => {
     setError('');
-    setMessage(response.message);
+    setMessage(message);
 }
 
-export const unsetMessageSetError = (setMessage, setError, response) => {
+export const unsetMessageSetError = (setMessage, setError, message) => {
     setMessage('');
-    setError(response.message);
+    setError(message);
 }
 
 export const unsetEmailPasswordFields = (setEmail, setPassword, setPasswordConfirmation) => {
