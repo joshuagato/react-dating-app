@@ -98,7 +98,7 @@ const SignUp = () => {
             </SubmitButton>
         </form>
 
-        <SwitchContextButton route={'/login'}>
+        <SwitchContextButton textColor={'text-purple-600'} textHoverColor={'hover:text-emerald-600'} route={'/login'}>
             {SWITCH_TO_LOGIN_TEXT}
         </SwitchContextButton>
         

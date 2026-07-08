@@ -12,7 +12,8 @@ import SubmitButton from "../components/SubmitButton";
 import { loginHandler, getProfileHandler } from '../tanstack';
 import { unsetErrorSetMessage, unsetMessageSetError, unsetEmailPasswordFields, 
     unsetAllErrors } from "../functions/utils";
-import { LOGIN_TEXT, SWITCH_TO_SIGNUP_TEXT, VERIFICATION_CHANNEL } from "../functions/constants";
+import { LOGIN_TEXT, SWITCH_TO_SIGNUP_TEXT, VERIFICATION_CHANNEL, 
+    SWITCH_TO_PASSWORD_RESET_TEXT } from "../functions/constants";
 
 
 const Auth = () => {
@@ -91,7 +92,11 @@ const Auth = () => {
             </SubmitButton>
         </form>
 
-        <SwitchContextButton route={'/signup'}>
+        <SwitchContextButton textColor={'text-pink-600'} textHoverColor={'hover:text-green-600'} route={'/reset-password'}>
+            {SWITCH_TO_PASSWORD_RESET_TEXT}
+        </SwitchContextButton>
+
+        <SwitchContextButton textColor={'text-purple-600'} textHoverColor={'hover:text-emerald-600'} route={'/signup'}>
             {SWITCH_TO_SIGNUP_TEXT}
         </SwitchContextButton>
 
