@@ -5,8 +5,10 @@ import { toast } from 'react-toastify';
 
 import { verifyEmailHandler } from '../tanstack/auth';
 import { unsetMessageSetError, unsetErrorSetMessage } from '../functions/utils';
+import { VERIFY_EMAIL_TEXT } from '../functions/constants';
 import CountdownTimer from '../components/CountdownTimer';
 import SubmitButton from '../components/SubmitButton';
+import Layout from '../components/Layout';
 
 const Verify = () => {
     const [loading, setLoading] = useState(false);
@@ -50,50 +52,40 @@ const Verify = () => {
     }
     
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-200 to-cyan-800 px-2.5">
-            <div className="md:max-w-md w-full space-y-12 p-2 sm:p-8 bg-[#f8fafc] border border-[#e2e8f0] rounded-sm py-20">
-                <div className="text-center">
-                    <h1 className="text-4xl font-bold bg-gradient-to-r from-red-600 to-pink-600 bg-clip-text text-transparent mb-2">
-                        StreamMatch
-                    </h1>
-                    <p className="text-teal-400">
-                        Verify Your Email
-                    </p>
-                </div>
+        <Layout heading={VERIFY_EMAIL_TEXT}>
 
-                <form className="w-full flex flex-col items-center space-y-12" onSubmit={handleVerification}>
-                    <label className="otp otp-xl otp-success">
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                        <span></span>
+            <form className="w-full flex flex-col items-center space-y-12" onSubmit={handleVerification}>
+                <label className="otp otp-xl otp-success">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    <span></span>
 
-                        <input type="text" autoComplete="one-time-code" inputMode="numeric" maxLength="4" pattern="[0-9]{4}" 
-                            value={verification_code} onChange={e => setCode(e.target.value)} required />
-                    </label>
+                    <input type="text" autoComplete="one-time-code" inputMode="numeric" maxLength="4" pattern="[0-9]{4}" 
+                        value={verification_code} onChange={e => setCode(e.target.value)} required />
+                </label>
 
-                    {error && (
-                        <div role="alert" className="alert alert-error fade-in">
-                            <CircleX />
-                            <span>{error}</span>
-                        </div>
-                    )}
+                {error && (
+                    <div role="alert" className="alert alert-error fade-in">
+                        <CircleX />
+                        <span>{error}</span>
+                    </div>
+                )}
 
-                    {message && (
-                        <div role="alert" className="alert alert-success fade-in">
-                            <CircleCheck />
-                            <span>{message}</span>
-                        </div>
-                    )}
+                {message && (
+                    <div role="alert" className="alert alert-success fade-in">
+                        <CircleCheck />
+                        <span>{message}</span>
+                    </div>
+                )}
 
-                    {counting && <CountdownTimer counting={counting} setCounting={setCounting} />}
+                {counting && <CountdownTimer counting={counting} setCounting={setCounting} />}
 
-                    <SubmitButton loading={loading} counting={counting}>
-                        Submit Code
-                    </SubmitButton>
-                </form>
-            </div>
-        </div>
+                <SubmitButton loading={loading} counting={counting}>
+                    Submit Code
+                </SubmitButton>
+            </form>
+        </Layout>
     )
 }
 
