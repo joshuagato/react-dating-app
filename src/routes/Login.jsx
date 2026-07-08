@@ -12,7 +12,7 @@ import SubmitButton from "../components/SubmitButton";
 import { loginHandler, getProfileHandler } from '../tanstack';
 import { unsetErrorSetMessage, unsetMessageSetError, unsetEmailPasswordFields, 
     unsetAllErrors } from "../functions/utils";
-import { LOGIN_TEXT, SWITCH_TO_SIGNUP_TEXT } from "../functions/constants";
+import { LOGIN_TEXT, SWITCH_TO_SIGNUP_TEXT, VERIFICATION_CHANNEL } from "../functions/constants";
 
 
 const Auth = () => {
@@ -49,7 +49,7 @@ const Auth = () => {
                 
                 unsetErrorSetMessage(setError, setMessage, response.message);
                 toast.success(response.message, { autoClose: 5000, theme: 'colored' });
-                navigate('/verify-email');
+                navigate('/verify-email', { state: { verification_channel: VERIFICATION_CHANNEL.LOGIN } });
             } else {
                 unsetMessageSetError(setMessage, setError, response.message);
                 toast.error(response.message, { autoClose: 5000, theme: 'colored' });

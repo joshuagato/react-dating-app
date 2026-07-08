@@ -13,7 +13,7 @@ import SwitchContextButton from "../components/SwitchContextButton";
 import { signUpHandler, getProfileHandler } from '../tanstack';
 import { unsetErrorSetMessage, unsetMessageSetError, unsetEmailPasswordFields, 
     unsetAllErrors } from "../functions/utils";
-import { SIGNUP_TEXT, SWITCH_TO_LOGIN_TEXT } from "../functions/constants";
+import { SIGNUP_TEXT, SWITCH_TO_LOGIN_TEXT, VERIFICATION_CHANNEL } from "../functions/constants";
 
 
 const SignUp = () => {
@@ -52,7 +52,7 @@ const SignUp = () => {
                 unsetErrorSetMessage(setError, setMessage, response.message);
                 unsetEmailPasswordFields(setEmail, setPassword, setPasswordConfirmation);
                 toast.success(response.message, { autoClose: 5000 });
-                navigate('/verify-email');
+                navigate('/verify-email', { state: { verification_channel: VERIFICATION_CHANNEL.SIGNUP } });
             } else {
                 unsetMessageSetError(setMessage, setError, response.message);
                 toast.error(response.message, { autoClose: 5000 });
