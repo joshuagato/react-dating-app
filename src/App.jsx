@@ -5,6 +5,7 @@ import Login from './routes/Login';
 import SignUp from './routes/SignUp';
 import Verify from './routes/VerifyEmail';
 import ResetPassword from './routes/ResetPassword';
+import Profile from './routes/Profile';
 import Others from "./routes/Others";
 
 import './App.css';
@@ -20,6 +21,7 @@ function App() {
         <Route path="signup" element={<SignUp />} />
         <Route path="verify-email" element={<Verify />} />
         <Route path="reset-password" element={<ResetPassword />} />
+        <Route path="profile" element={<Profile />} />
         <Route path="others" element={<Others />} />
         
         {/* <Route element={<AuthLayout />}>
