@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { Mail, KeyRound, Eye, EyeOff } from "lucide-react";
+import { Mail, KeyRound, Eye, EyeOff, CircleCheck, CircleX } from "lucide-react";
+import { toast } from 'react-toastify';
+
 import { loginHandler, signUpHandler, getProfileHandler } from '../tanstack';
 import { lastArrayElement, unsetErrorSetMessage, unsetMessageSetError, unsetEmailPasswordFields, 
     unsetAllErrors } from "../functions/utils";
@@ -21,16 +23,16 @@ const Auth = () => {
     const supabase = {};
     // const { user, loading: authLoading } = useAuth();
     const { user, loading: authLoading } = { user: {}, loading: true };
-    const router = useNavigate();
+    const navigate = useNavigate();
 
     // const user2 = useUser(state => state.user);
     // console.log({user2});
 
     useEffect(() => {
         if (user && !authLoading) {
-            router.push("/");
+            navigate.push("/");
         }
-    }, [user, authLoading, router]);
+    }, [user, authLoading, navigate]);
 
     useEffect(() => {
         (async () => {
@@ -52,22 +54,27 @@ const Auth = () => {
                 if (response.errors) setErrors(response.errors);
 
                 if (response.success && !response.session) {
-                    unsetErrorSetMessage(setError, setMessage, response);
+                    unsetErrorSetMessage(setError, setMessage, response.message);
                     unsetEmailPasswordFields(setEmail, setPassword, setPasswordConfirmation);
-                    return;
+                    toast.success(response.message, { autoClose: 5000 });
+                    navigate('/verify-email');
                 } else {
-                    unsetMessageSetError(setMessage, setError, response);
+                    unsetMessageSetError(setMessage, setError, response.message);
+                    toast.error(response.message, { autoClose: 5000 });
                 }
             } else {
                 const response = await loginHandler({ email, password });
 
                 if (response.success) {
                     const profile = await getProfileHandler();
-                    // console.log({profile});
+                    console.log({profile});
                     
-                    unsetErrorSetMessage(setError, setMessage, response);
+                    unsetErrorSetMessage(setError, setMessage, response.message);
+                    toast.success(response.message, { autoClose: 5000, theme: 'colored' });
+                    navigate('/verify-email');
                 } else {
-                    unsetMessageSetError(setMessage, setError, response);
+                    unsetMessageSetError(setMessage, setError, response.message);
+                    toast.error(response.message, { autoClose: 5000, theme: 'colored' });
                 }
             }
         } catch (error) {
@@ -78,13 +85,14 @@ const Auth = () => {
     }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-900 to-teal-800">
-        <div className="md:max-w-md w-full space-y-8 p-2 sm:p-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-200 to-cyan-800 px-2.5">
+        <div className="md:max-w-md w-full space-y-8 p-2 sm:p-8 bg-[#f8fafc] border border-[#e2e8f0] rounded-sm py-20 fade-in">
             <div className="text-center">
-                <h1 className="text-4xl font-bold bg-gradient-to-r from-red-600 to-pink-600 bg-clip-text text-transparent mb-2">
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-red-600 to-pink-600 bg-clip-text 
+                    text-transparent mb-2">
                     StreamMatch
                 </h1>
-                <p className="text-gray-100">
+                <p className="text-purple-900">
                     {isSignUp
                         ? "Create Your Account"
                         : "Sign in to your account"}
@@ -94,7 +102,7 @@ const Auth = () => {
             <form className="w-full flex flex-col items-center space-y-6" onSubmit={handleAuth}>
                 <label
                     htmlFor="email"
-                    className="block mb-1.5 self-start text-sm font-medium text-gray-100"
+                    className="block mb-1.5 self-start text-sm font-medium text-purple-900"
                 >
                     Email
                 </label>
@@ -105,7 +113,7 @@ const Auth = () => {
                             value={email} onChange={(e) => setEmail(e.target.value)} required />
                     </label>
                     {errors.email && (
-                    <div className="text-red-400 text-sm text-center mt-1.5">
+                    <div className="text-red-400 text-sm text-center mt-1.5 fade-in">
                         {lastArrayElement(errors.email)}
                     </div>
                 )}
@@ -113,7 +121,7 @@ const Auth = () => {
 
                 <label
                     htmlFor="password"
-                    className="block mb-1.5 self-start text-sm font-medium text-gray-100"
+                    className="block mb-1.5 self-start text-sm font-medium text-purple-900"
                 >
                     Password
                 </label>
@@ -139,7 +147,7 @@ const Auth = () => {
                         </button>
                     </div>
                     {errors.password && (
-                        <div className="text-red-400 text-sm text-center mt-1.5">
+                        <div className="text-red-400 text-sm text-center mt-1.5 fade-in">
                             {lastArrayElement(errors.password)}
                         </div>
                     )}
@@ -149,11 +157,11 @@ const Auth = () => {
                 <>
                     <label
                         htmlFor="passwordConfirmation"
-                        className="block mb-1.5 self-start text-sm font-medium text-gray-100"
+                        className="block mb-1.5 self-start text-sm font-medium text-purple-900 fade-in"
                     >
                         Confirmation Password
                     </label>
-                    <div>
+                    <div className="fade-in">
                         <label className="input">
                         <KeyRound className="h-[1em] opacity-50" />
                         <input
@@ -167,7 +175,7 @@ const Auth = () => {
                         />
                         </label>
                         {errors.passwordConfirmation && (
-                            <div className="text-red-400 text-sm text-left mt-1.5">
+                            <div className="text-red-400 text-sm text-left mt-1.5 fade-in">
                                 {lastArrayElement(errors.passwordConfirmation)}
                             </div>
                         )}
@@ -175,13 +183,15 @@ const Auth = () => {
                 </>}
 
                 {error && (
-                    <div className="text-red-400 text-sm text-center">
-                        {error}
+                    <div role="alert" className="alert alert-error fade-in">
+                        <CircleX />
+                        <span>{error}</span>
                     </div>
                 )}
                 {message && (
-                    <div className="text-green-400 text-sm text-center">
-                        {message}
+                    <div role="alert" className="alert alert-success fade-in">
+                        <CircleCheck />
+                        <span>{message}</span>
                     </div>
                 )}
 
@@ -194,21 +204,21 @@ const Auth = () => {
                         disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                 >
                     {loading
-                        ? <div className="flex items-center gap-2"><span className="loading loading-spinner" /><span>Loading</span></div>
+                        ? <div className="flex items-center gap-2 fade-in"><span className="loading loading-spinner" /><span>Loading</span></div>
                         : isSignUp
-                            ? "Sign Up"
-                            : "Sign In"}
+                            ? <span className="fade-in">Sign Up</span>
+                            : <span className="fade-in">Sign In</span>}
                 </button>
             </form>
 
             <div className="text-center">
                 <button
                     onClick={() => setIsSignUp(!isSignUp)}
-                    className="text-purple-300 hover:text-purple-400 cursor-pointer text-sm"
+                    className="text-purple-600 hover:text-pink-600 cursor-pointer text-sm"
                 >
                     {isSignUp
-                        ? "Already have an account? Sign in"
-                        : "Don't have an account? Sign up"}
+                        ? <span className="fade-in">Already have an account? Sign in</span>
+                        : <span className="fade-in">Don't have an account? Sign up</span>}
                 </button>
             </div>
         </div>

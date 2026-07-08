@@ -17,14 +17,14 @@ const Home = () => {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-teal-900 to-teal-800">
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-200 to-cyan-800">
                 <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-red-500"></div>
             </div>
         );
     }
     
   return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-900 to-teal-800 flex items-center justify-center">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-200 to-cyan-800 flex items-center justify-center">
             {/* Hero Section - Full Page */}
             <section className="relative overflow-hidden w-full">
                 <div className="absolute inset-0 "></div>
@@ -36,7 +36,7 @@ const Home = () => {
                                 StreamMatch
                             </span>
                         </h1>
-                        <p className="text-xl lg:text-2xl text-gray-600 dark:text-gray-300 mb-8 leading-relaxed">
+                        <p className="text-xl lg:text-2xl text-gray-100 mb-8 leading-relaxed">
                             Connect with like-minded people through live
                             streaming, meaningful conversations, and authentic
                             connections.
