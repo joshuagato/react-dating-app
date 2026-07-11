@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { CircleCheck, CircleX } from "lucide-react";
-import { useLocation } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { toast } from 'react-toastify';
 
 import { verifyEmailHandler } from '../tanstack/auth';
 import { unsetMessageSetError, unsetErrorSetMessage } from '../functions/utils';
 import { VERIFY_EMAIL_TEXT } from '../functions/constants';
+
 import CountdownTimer from '../components/CountdownTimer';
 import SubmitButton from '../components/SubmitButton';
 import Layout from '../components/Layout';
@@ -18,6 +19,7 @@ const Verify = () => {
     const [counting, setCounting] = useState(false);
 
     const location = useLocation();
+    const navigate = useNavigate();
     
     const verification_channel = location.state?.verification_channel;
 
@@ -31,21 +33,23 @@ const Verify = () => {
             const response = await verifyEmailHandler({ verification_code, verification_channel });
             const { success, message, exceededLimit } = response;
 
-            if (!success) {
+            if (success) {
+                toast.success(message, { autoClose: 10000, theme: 'colored' });
+                unsetErrorSetMessage(setError, setMessage, message);
+                navigate('/profile');
                 
-                toast.error(message, { autoClose: 5000, theme: 'colored' });
+            } else {
+                toast.error(message, { autoClose: 10000, theme: 'colored' });
                 unsetMessageSetError(setMessage, setError, message);
 
                 if (!exceededLimit) return setCode('');
 
-                return setCounting(true);
+                navigate('/profile');
+                setCounting(true);
             }
-
-            toast.success(message, { autoClose: 5000, theme: 'colored' });
-            unsetErrorSetMessage(setError, setMessage, message);
             
         } catch (error) {
-            console.log(error.message);
+            toast.error(error.message, { autoClose: 5000, theme: 'colored' });
         } finally {
             setLoading(false);
         }
