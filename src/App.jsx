@@ -5,6 +5,8 @@ import Login from './routes/Login';
 import SignUp from './routes/SignUp';
 import Verify from './routes/VerifyEmail';
 import ResetPassword from './routes/ResetPassword';
+import ConfirmPasswordReset from './routes/ConfirmPasswordReset';
+import SetNewPassword from './routes/SetNewPassword';
 import Profile from './routes/Profile';
 import Others from "./routes/Others";
 
@@ -21,6 +23,8 @@ function App() {
         <Route path="signup" element={<SignUp />} />
         <Route path="verify-email" element={<Verify />} />
         <Route path="reset-password" element={<ResetPassword />} />
+        <Route path="confirm-reset-password" element={<ConfirmPasswordReset />} />
+        <Route path="set-new-password" element={<SetNewPassword />} />
         <Route path="profile" element={<Profile />} />
         <Route path="others" element={<Others />} />
         
