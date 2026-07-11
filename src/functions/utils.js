@@ -15,6 +15,11 @@ export const organizeErrors = errorsArray => {
 
 export const lastArrayElement = array => array[array.length - 1];
 
+export const disableSubmitButtonFor = (setCounting, timeout) => {
+    setCounting(true);
+    setTimeout(() => setCounting(false), timeout);
+}
+
 export const unsetErrorSetMessage = (setError, setMessage, message) => {
     setError('');
     setMessage(message);
@@ -27,6 +32,11 @@ export const unsetMessageSetError = (setMessage, setError, message) => {
 
 export const unsetEmailPasswordFields = (setEmail, setPassword, setPasswordConfirmation) => {
     setEmail('');
+    setPassword('');
+    setPasswordConfirmation('');
+}
+
+export const unsetPasswordFields = (setPassword, setPasswordConfirmation) => {
     setPassword('');
     setPasswordConfirmation('');
 }
