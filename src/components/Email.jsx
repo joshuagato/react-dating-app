@@ -13,7 +13,7 @@ const Email = ({ email, setEmail, errors }) => {
         <div>
             <label className="input">
                 <Mail className="h-[1em] opacity-50" />
-                <input id="email" type="email" placeholder="mail@site.com" className="w-72"
+                <input id="email" type="email" placeholder="mail@site.com" className="w-60 sm:w-72"
                     value={email} onChange={(e) => setEmail(e.target.value)} required />
             </label>
             {errors.email && (

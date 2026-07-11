@@ -18,7 +18,7 @@ const ConfirmPassword = ({ passwordConfirmation, setPasswordConfirmation, isShow
                 type={isShowPassword ? "text" : "password"}
                 placeholder="Confirm Password" required value={passwordConfirmation}
                 onChange={(e) => setPasswordConfirmation(e.target.value)}
-                minLength="8" className="w-72"
+                minLength="8" className="w-60 sm:w-72"
                 pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}"
                 title="Must be 8 characters or more, including number, lowercase letter, uppercase letter"
             />

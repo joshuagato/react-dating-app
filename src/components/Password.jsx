@@ -21,8 +21,7 @@ const Password = ({ password, setPassword, isShowPassword, setIsShowPassword, er
                             type={isShowPassword ? "text" : "password"} 
                             placeholder="Password" required value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            className="w-56"
-                            minLength="8" className="w-56"
+                            minLength="8" className="w-44 sm:w-56"
                             pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}"
                             title="Must be 8 characters or more, including number, lowercase letter, uppercase letter"
                         />
