@@ -8,8 +8,9 @@ import Email from "../components/Email";
 import Password from "../components/Password";
 import SwitchContextButton from "../components/SwitchContextButton";
 import SubmitButton from "../components/SubmitButton";
+import HelmetHeader from "../components/HelmetHeader";
 
-import { loginHandler, getProfileHandler } from '../tanstack';
+import { loginHandler, getProfileHandler } from '../tanstack/auth';
 import { unsetErrorSetMessage, unsetMessageSetError, unsetEmailPasswordFields, 
     unsetAllErrors } from "../functions/utils";
 import { LOGIN_TEXT, SWITCH_TO_SIGNUP_TEXT, VERIFICATION_CHANNEL, 
@@ -44,63 +45,69 @@ const Auth = () => {
         try {
             const response = await loginHandler({ email, password });
 
+            if (response.errors) setErrors(response.errors);
+
             if (response.success) {
                 const profile = await getProfileHandler();
                 console.log({profile});
                 
                 unsetErrorSetMessage(setError, setMessage, response.message);
-                toast.success(response.message, { autoClose: 5000, theme: 'colored' });
+                toast.success(response.message, { autoClose: 7000, theme: 'colored' });
                 navigate('/verify-email', { state: { verification_channel: VERIFICATION_CHANNEL.LOGIN } });
             } else {
                 unsetMessageSetError(setMessage, setError, response.message);
-                toast.error(response.message, { autoClose: 5000, theme: 'colored' });
+                toast.error(response.message, { autoClose: 7000, theme: 'colored' });
             }
             
         } catch (error) {
-            console.log(error.message);
+            toast.error(error.message, { autoClose: 5000, theme: 'colored' });
         } finally {
             setLoading(false);
         }
     }
 
   return (
-    <Layout heading={LOGIN_TEXT}>
+    <>
+        <HelmetHeader pageTitle={'Login'} />
 
-        <form className="w-full flex flex-col items-center space-y-6" onSubmit={handleAuth}>
-            <Email email={email} setEmail={setEmail} errors={errors} />
+        <Layout heading={LOGIN_TEXT}>
 
-            <Password password={password} setPassword={setPassword} isShowPassword={isShowPassword} 
-                setIsShowPassword={setIsShowPassword} errors={errors}>
-                Password
-            </Password>
+            <form className="w-full flex flex-col items-center space-y-6" onSubmit={handleAuth}>
+                <Email email={email} setEmail={setEmail} errors={errors} />
 
-            {error && (
-                <div role="alert" className="alert alert-error fade-in">
-                    <CircleX />
-                    <span>{error}</span>
-                </div>
-            )}
-            {message && (
-                <div role="alert" className="alert alert-success fade-in">
-                    <CircleCheck />
-                    <span>{message}</span>
-                </div>
-            )}
+                <Password password={password} setPassword={setPassword} isShowPassword={isShowPassword} 
+                    setIsShowPassword={setIsShowPassword} errors={errors}>
+                    Password
+                </Password>
 
-            <SubmitButton loading={loading}>
-                Sign In
-            </SubmitButton>
-        </form>
+                {error && (
+                    <div role="alert" className="alert alert-error fade-in">
+                        <CircleX />
+                        <span>{error}</span>
+                    </div>
+                )}
+                {message && (
+                    <div role="alert" className="alert alert-success fade-in">
+                        <CircleCheck />
+                        <span>{message}</span>
+                    </div>
+                )}
 
-        <SwitchContextButton textColor={'text-pink-600'} textHoverColor={'hover:text-green-600'} route={'/reset-password'}>
-            {SWITCH_TO_PASSWORD_RESET_TEXT}
-        </SwitchContextButton>
+                <SubmitButton loading={loading}>
+                    Sign In
+                </SubmitButton>
+            </form>
 
-        <SwitchContextButton textColor={'text-purple-600'} textHoverColor={'hover:text-emerald-600'} route={'/signup'}>
-            {SWITCH_TO_SIGNUP_TEXT}
-        </SwitchContextButton>
+            <SwitchContextButton textColor={'text-pink-600'} textHoverColor={'hover:text-green-600'} route={'/reset-password'}>
+                {SWITCH_TO_PASSWORD_RESET_TEXT}
+            </SwitchContextButton>
 
-    </Layout>
+            <SwitchContextButton textColor={'text-purple-600'} textHoverColor={'hover:text-emerald-600'} route={'/signup'}>
+                {SWITCH_TO_SIGNUP_TEXT}
+            </SwitchContextButton>
+
+        </Layout>
+    </>
   )
 }
 
