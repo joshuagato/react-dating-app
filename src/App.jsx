@@ -1,6 +1,5 @@
 import { Routes, Route } from "react-router";
 import Home from './routes/Home';
-import Auth from './routes/Auth';
 import Login from './routes/Login';
 import SignUp from './routes/SignUp';
 import Verify from './routes/VerifyEmail';
@@ -18,7 +17,6 @@ function App() {
     
     <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="auth" element={<Auth />} />
         <Route path="login" element={<Login />} />
         <Route path="signup" element={<SignUp />} />
         <Route path="verify-email" element={<Verify />} />
