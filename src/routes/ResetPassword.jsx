@@ -7,6 +7,7 @@ import Layout from '../components/Layout';
 import Email from '../components/Email';
 import SubmitButton from '../components/SubmitButton';
 import SwitchContextButton from '../components/SwitchContextButton';
+import HelmetHeader from '../components/HelmetHeader';
 
 import { requestPasswordResetHandler } from '../tanstack/auth';
 import { SWITCH_BACK_TO_LOGIN_TEXT, RESET_PASSWORD_TEXT } from '../functions/constants';
@@ -59,6 +60,8 @@ const ResetPassword = () => {
 
   return (
     <Layout heading={RESET_PASSWORD_TEXT}>
+
+        <HelmetHeader pageTitle={'Reset Password'} />
 
         <form className="w-full flex flex-col items-center space-y-6" onSubmit={handlePasswordReset}>
             <Email email={email} setEmail={setEmail} errors={errors} />

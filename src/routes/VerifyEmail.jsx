@@ -10,6 +10,7 @@ import { VERIFY_EMAIL_TEXT } from '../functions/constants';
 import CountdownTimer from '../components/CountdownTimer';
 import SubmitButton from '../components/SubmitButton';
 import Layout from '../components/Layout';
+import HelmetHeader from '../components/HelmetHeader';
 
 const Verify = () => {
     const [loading, setLoading] = useState(false);
@@ -57,6 +58,8 @@ const Verify = () => {
     
     return (
         <Layout heading={VERIFY_EMAIL_TEXT}>
+
+            <HelmetHeader pageTitle={'Verify Email'} />
 
             <form className="w-full flex flex-col items-center space-y-12" onSubmit={handleVerification}>
                 <label className="otp otp-xl otp-success">

@@ -10,6 +10,7 @@ import { RESET_PASSWORD_CONFIRMATION_TEXT } from '../functions/constants';
 import CountdownTimer from '../components/CountdownTimer';
 import SubmitButton from '../components/SubmitButton';
 import Layout from '../components/Layout';
+import HelmetHeader from '../components/HelmetHeader';
 
 const ConfirmPasswordReset = () => {
     const [loading, setLoading] = useState(false);
@@ -53,6 +54,8 @@ const ConfirmPasswordReset = () => {
     
     return (
         <Layout heading={RESET_PASSWORD_CONFIRMATION_TEXT}>
+
+            <HelmetHeader pageTitle={'Confirm Reset Password'} />
 
             <form className="w-full flex flex-col items-center space-y-12" onSubmit={handleVerification}>
                 <label className="otp otp-lg sm:otp-xl otp-success">
