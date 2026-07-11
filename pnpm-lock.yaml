@@ -35,6 +35,9 @@ importers:
       react-dom:
         specifier: ^19.2.6
         version: 19.2.7(react@19.2.7)
+      react-helmet-async:
+        specifier: ^3.0.0
+        version: 3.0.0(react@19.2.7)
       react-router:
         specifier: ^8.0.1
         version: 8.0.1(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -791,6 +794,9 @@ packages:
     resolution: {integrity: sha512-JmXMZ6wuvDmLiHEml9ykzqO6lwFbof0GG4IkcGaENdCRDDmMVnny7s5HsIgHCbaq0w2MyPhDqkhTUgS2LU2PHA==}
     engines: {node: '>=0.8.19'}
 
+  invariant@2.2.4:
+    resolution: {integrity: sha512-phJfQVBuaJM5raOpJjSfkiD6BpbCE4Ns//LaXl6wGYtUBY83nWS6Rf9tXm2e8VaK60JEjYldbPif/A2B1C2gNA==}
+
   is-extglob@2.1.1:
     resolution: {integrity: sha512-SbKbANkN603Vi4jEZv49LeVJMn4yGwsbzZworEoyEiutsN3nJYdbO36zfhGJ6QEDpOZIFkDtnq5JRxmvl3jsoQ==}
     engines: {node: '>=0.10.0'}
@@ -912,6 +918,10 @@ packages:
     resolution: {integrity: sha512-iPZK6eYjbxRu3uB4/WZ3EsEIMJFMqAoopl3R+zuq0UjcAm/MO6KCweDgPfP3elTztoKP3KtnVHxTn2NHBSDVUw==}
     engines: {node: '>=10'}
 
+  loose-envify@1.4.0:
+    resolution: {integrity: sha512-lyuxPGr/Wfhrlem2CL/UcnUc1zcqKAImBDzukY7Y5F/yQiNdko6+fRLevlw1HgMySw7f611UIY408EtxRSoK3Q==}
+    hasBin: true
+
   lru-cache@5.1.1:
     resolution: {integrity: sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==}
 
@@ -1002,6 +1012,14 @@ packages:
     peerDependencies:
       react: ^19.2.7
 
+  react-fast-compare@3.2.2:
+    resolution: {integrity: sha512-nsO+KSNgo1SbJqJEYRE9ERzo7YtYbou/OqjSQKxV7jcKox7+usiUVZOAC+XnDOABXggQTno0Y1CpVnuWEc1boQ==}
+
+  react-helmet-async@3.0.0:
+    resolution: {integrity: sha512-nA3IEZfXiclgrz4KLxAhqJqIfFDuvzQwlKwpdmzZIuC1KNSghDEIXmyU0TKtbM+NafnkICcwx8CECFrZ/sL/1w==}
+    peerDependencies:
+      react: ^16.6.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+
   react-router@8.0.1:
     resolution: {integrity: sha512-5EL/fANovVUhRK50NLS8RYfX0BxrimoKsHWUPPy8v5UEl8i6vzF7e4POo3u+AhPItDwccUAJjMfIOmydxBJmQw==}
     engines: {node: '>=22.22.0'}
@@ -1033,6 +1051,9 @@ packages:
   semver@6.3.1:
     resolution: {integrity: sha512-BR7VvDCVHO+q2xBEWskxS6DJE1qRnb7DxzUrogb71CWoSficBxYsiAGd+Kl0mmq/MprG9yArRkyrQxTO6XjMzA==}
     hasBin: true
+
+  shallowequal@1.1.0:
+    resolution: {integrity: sha512-y0m1JoUZSlPAjXVtPPW70aZWfIL/dSP7AFkRnniLCrK/8MDKog3TySTBmckD+RObVxH0v4Tox67+F14PdED2oQ==}
 
   shebang-command@2.0.0:
     resolution: {integrity: sha512-kHxr2zZpYtdmrN1qDjrrX/Z1rR1kG8Dx+gkpK1G4eXmvXswmcE1hTWBWYUzlraYw1/yZp6YuDY77YtvbN0dmDA==}
@@ -1825,6 +1846,10 @@ snapshots:
 
   imurmurhash@0.1.4: {}
 
+  invariant@2.2.4:
+    dependencies:
+      loose-envify: 1.4.0
+
   is-extglob@2.1.1: {}
 
   is-glob@4.0.3:
@@ -1911,6 +1936,10 @@ snapshots:
     dependencies:
       p-locate: 5.0.0
 
+  loose-envify@1.4.0:
+    dependencies:
+      js-tokens: 4.0.0
+
   lru-cache@5.1.1:
     dependencies:
       yallist: 3.1.1
@@ -1985,6 +2014,15 @@ snapshots:
       react: 19.2.7
       scheduler: 0.27.0
 
+  react-fast-compare@3.2.2: {}
+
+  react-helmet-async@3.0.0(react@19.2.7):
+    dependencies:
+      invariant: 2.2.4
+      react: 19.2.7
+      react-fast-compare: 3.2.2
+      shallowequal: 1.1.0
+
   react-router@8.0.1(react-dom@19.2.7(react@19.2.7))(react@19.2.7):
     dependencies:
       cookie-es: 3.1.1
@@ -2024,6 +2062,8 @@ snapshots:
   scheduler@0.27.0: {}
 
   semver@6.3.1: {}
+
+  shallowequal@1.1.0: {}
 
   shebang-command@2.0.0:
     dependencies:
