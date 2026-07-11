@@ -1,121 +1,91 @@
-import React from 'react'
+import { useState } from 'react';
+import { CircleX, CircleCheck } from 'lucide-react';
+import { toast } from 'react-toastify';
+import { useNavigate } from 'react-router';
+
+import Layout from '../components/Layout';
+import Email from '../components/Email';
+import SubmitButton from '../components/SubmitButton';
+import SwitchContextButton from '../components/SwitchContextButton';
+
+import { requestPasswordResetHandler } from '../tanstack/auth';
+import { SWITCH_BACK_TO_LOGIN_TEXT, RESET_PASSWORD_TEXT } from '../functions/constants';
+import { unsetErrorSetMessage, unsetMessageSetError, unsetAllErrors, disableSubmitButtonFor } from '../functions/utils';
 
 const ResetPassword = () => {
+    const [email, setEmail] = useState("");
+
+    const [loading, setLoading] = useState(false);
+    const [counting, setCounting] = useState(false);
+    const [message, setMessage] = useState("");
+    const [error, setError] = useState("");
+    const [errors, setErrors] = useState({});
+
+    const navigate = useNavigate();
+
+    const handlePasswordReset = async (event) => {
+        event.preventDefault();
+
+        setLoading(true);
+        unsetAllErrors(setError, setErrors);
+
+        try {
+            const response = await requestPasswordResetHandler({ email });
+
+            if (response.errors) setErrors(response.errors);
+
+            const { success, message } = response;
+            const theme = 'colored';
+            const autoClose = 10000;
+
+            if (success) {
+                toast.success(message, { autoClose, theme });
+                unsetErrorSetMessage(setError, setMessage, message);
+                navigate('/confirm-reset-password');
+                
+            } else {
+                toast.error(message, { autoClose, theme });
+                unsetMessageSetError(setMessage, setError, message);
+                disableSubmitButtonFor(setCounting, autoClose + 1000);
+                navigate('/confirm-reset-password');
+            }
+            
+        } catch (error) {
+            toast.error(error.message, { autoClose: 5000, theme: 'colored' });
+        } finally {
+            setLoading(false);
+        }
+    }
+
   return (
-    <div>
-      <button className="btn sm:hidden" popoverTarget="my-megamenu-3">Menu</button>
-                    <div className="megamenu max-sm:megamenu-vertical megamenu-wide p-2 border border-base-300" id="my-megamenu-3" popover>
-                    <span className="megamenu-active"></span>
+    <Layout heading={RESET_PASSWORD_TEXT}>
 
-                    <button popoverTarget="c1">One</button>
-                    <div id="c1" popover>
-                        <div className="flex max-sm:flex-col items-start">
-                        <ul className="menu w-full md:menu-horizontal">
-                            <li>
-                            <a>Enterprise</a>
-                            <ul>
-                                <li><a>CRM software</a></li>
-                                <li><a>Marketing management</a></li>
-                                <li><a>Security</a></li>
-                                <li><a>Consulting</a></li>
-                            </ul>
-                            </li>
-                            <li>
-                            <a>Company</a>
-                            <ul>
-                                <li><a>About us</a></li>
-                                <li><a>Contact us</a></li>
-                                <li><a>Privacy policy</a></li>
-                                <li><a>Press kit</a></li>
-                            </ul>
-                            </li>
-                        </ul>
-                        <img src="https://img.daisyui.com/images/stock/photo-1559181567-c3190ca9959b.webp" className="md:max-w-sm max-md:w-auto" alt="Tailwind CSS megamenu" />
-                        </div>
-                    </div>
+        <form className="w-full flex flex-col items-center space-y-6" onSubmit={handlePasswordReset}>
+            <Email email={email} setEmail={setEmail} errors={errors} />
 
-                    <button popoverTarget="c2">Two</button>
-                    <div id="c2" popover>
-                        <div className="flex max-sm:flex-col items-start">
-                        <ul className="menu w-full md:menu-horizontal">
-                            <li>
-                            <a>Enterprise</a>
-                            <ul>
-                                <li><a>CRM software</a></li>
-                                <li><a>Marketing management</a></li>
-                                <li><a>Security</a></li>
-                                <li><a>Consulting</a></li>
-                                <li><a>Privacy policy</a></li>
-                                <li><a>Press kit</a></li>
-                            </ul>
-                            </li>
-                            <li>
-                            <a>Products</a>
-                            <ul>
-                                <li><a>UI Kit</a></li>
-                                <li><a>WordPress themes</a></li>
-                                <li><a>WordPress plugins</a></li>
-                                <li><a>Color picker app</a></li>
-                                <li><a>About us</a></li>
-                                <li><a>Contact us</a></li>
-                            </ul>
-                            </li>
-                        </ul>
-                        <img src="https://img.daisyui.com/images/stock/photo-1572635148818-ef6fd45eb394.webp" className="md:max-w-sm max-md:w-auto" alt="Tailwind CSS megamenu component" />
-                        </div>
-                    </div>
+            {error && (
+                <div role="alert" className="alert alert-error fade-in">
+                    <CircleX />
+                    <span>{error}</span>
+                </div>
+            )}
+            {message && (
+                <div role="alert" className="alert alert-success fade-in">
+                    <CircleCheck />
+                    <span>{message}</span>
+                </div>
+            )}
 
-                    <button popoverTarget="c3">Three</button>
-                    <div id="c3" popover>
-                        <div className="flex max-sm:flex-col items-start">
-                        <ul className="menu w-full md:menu-horizontal">
-                            <li>
-                            <ul>
-                                <li className="menu-title">Solutions</li>
-                                <li><a>Design</a></li>
-                                <li><a>Development</a></li>
-                                <li><a>Hosting</a></li>
-                                <li><a>Domain register</a></li>
-                            </ul>
-                            </li>
-                            <li>
-                            <ul>
-                                <li className="menu-title">Products</li>
-                                <li><a>UI Kit</a></li>
-                                <li><a>Cloud Platform</a></li>
-                                <li><a>Open source</a></li>
-                                <li>
-                                <ul>
-                                    <li><a>Auth management system</a></li>
-                                    <li><a>VScode theme</a></li>
-                                    <li><a>Color picker app</a></li>
-                                </ul>
-                                </li>
-                            </ul>
-                            </li>
-                            <li>
-                            <ul>
-                                <li className="menu-title">Enterprise</li>
-                                <li><a>CRM software</a></li>
-                                <li><a>Marketing management</a></li>
-                                <li><a>Security</a></li>
-                                <li><a>Consulting</a></li>
-                            </ul>
-                            </li>
-                            <li>
-                            <ul>
-                                <li className="menu-title">Company</li>
-                                <li><a>About us</a></li>
-                                <li><a>Contact us</a></li>
-                                <li><a>Privacy policy</a></li>
-                                <li><a>Press kit</a></li>
-                            </ul>
-                            </li>
-                        </ul>
-                        </div>
-                    </div>
-                    </div>
-    </div>
+            <SubmitButton loading={loading} counting={counting}>
+                Submit Email
+            </SubmitButton>
+        </form>
+
+        <SwitchContextButton textColor={'text-pink-600'} textHoverColor={'hover:text-green-600'} route={'/login'}>
+            {SWITCH_BACK_TO_LOGIN_TEXT}
+        </SwitchContextButton>
+
+    </Layout>
   )
 }
 
