@@ -8,10 +8,12 @@ const SubmitButton = ({ loading, counting = false, children }) => {
             hover:to-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500 
             disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed fade-in"
     >
-        {loading
-            && <div className="flex items-center gap-2 fade-in">
-                <span className="loading loading-spinner" /><span>Loading</span></div>}
-            {children}
+        {loading ? 
+            (<div className="flex items-center gap-2 fade-in">
+                <span className="loading loading-spinner" /><span>Loading</span>
+            </div>):
+            <span>{children}</span>
+        }
     </button>
   )
 }
