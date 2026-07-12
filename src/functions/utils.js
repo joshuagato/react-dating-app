@@ -45,3 +45,5 @@ export const unsetAllErrors = (setError, setErrors) => {
     setError("");
     setErrors({});
 }
+
+export const makeLabelTextId = string => string.split(' ').join('_').toLowerCase();
