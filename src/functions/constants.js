@@ -14,6 +14,7 @@ export const RESET_PASSWORD_TEXT = 'Enter Email to Receive a Password Reset Code
 export const RESET_PASSWORD_CONFIRMATION_TEXT = 'Enter Your Request Confirmation Code';
 
 export const SET_NEW_PASSWORD_TEXT = 'Enter New Password and Confirm';
+export const UPLOAD_PICTURE_TEXT = 'Upload Pictures for Your Profile';
 
 export const disabledColor = 'text-gray-400';
 export const enabledColor = 'text-gray-800';
