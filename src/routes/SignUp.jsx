@@ -11,22 +11,21 @@ import SubmitButton from "../components/SubmitButton";
 import SwitchContextButton from "../components/SwitchContextButton";
 import HelmetHeader from "../components/HelmetHeader";
 
-import { signUpHandler, getProfileHandler } from '../tanstack/auth';
+import { signUpHandler } from '../tanstack/auth';
 import { unsetErrorSetMessage, unsetMessageSetError, unsetEmailPasswordFields, 
     unsetAllErrors } from "../functions/utils";
 import { SIGNUP_TEXT, SWITCH_TO_LOGIN_TEXT, VERIFICATION_CHANNEL } from "../functions/constants";
 
 
 const SignUp = () => {
-    // const [isSignUp, setIsSignUp] = useState(false);
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
-    const [passwordConfirmation, setPasswordConfirmation] = useState("");
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [passwordConfirmation, setPasswordConfirmation] = useState('');
     const [isShowPassword, setIsShowPassword] = useState(false);
 
     const [loading, setLoading] = useState(false);
-    const [message, setMessage] = useState("");
-    const [error, setError] = useState("");
+    const [message, setMessage] = useState('');
+    const [error, setError] = useState('');
     const [errors, setErrors] = useState({});
     
     const { user, loading: authLoading } = { user: {}, loading: true };
