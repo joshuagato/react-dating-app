@@ -11,7 +11,7 @@ import SubmitButton from "../components/SubmitButton";
 import HelmetHeader from "../components/HelmetHeader";
 
 import { loginHandler, getProfileHandler } from '../tanstack/auth';
-import { unsetErrorSetMessage, unsetMessageSetError, unsetEmailPasswordFields, 
+import { unsetErrorSetMessage, unsetMessageSetError, unsetEmailPasswordField, 
     unsetAllErrors } from "../functions/utils";
 import { LOGIN_TEXT, SWITCH_TO_SIGNUP_TEXT, VERIFICATION_CHANNEL, 
     SWITCH_TO_PASSWORD_RESET_TEXT } from "../functions/constants";
@@ -23,8 +23,8 @@ const Auth = () => {
     const [isShowPassword, setIsShowPassword] = useState(false);
 
     const [loading, setLoading] = useState(false);
-    const [message, setMessage] = useState("");
-    const [error, setError] = useState("");
+    const [message, setMessage] = useState('');
+    const [error, setError] = useState('');
     const [errors, setErrors] = useState({});
     
     const { user, loading: authLoading } = { user: {}, loading: true };
@@ -52,6 +52,7 @@ const Auth = () => {
                 console.log({profile});
                 
                 unsetErrorSetMessage(setError, setMessage, response.message);
+                unsetEmailPasswordField(setEmail, setPassword);
                 toast.success(response.message, { autoClose: 7000, theme: 'colored' });
                 navigate('/verify-email', { state: { verification_channel: VERIFICATION_CHANNEL.LOGIN } });
             } else {
