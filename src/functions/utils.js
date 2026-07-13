@@ -36,6 +36,11 @@ export const unsetEmailPasswordFields = (setEmail, setPassword, setPasswordConfi
     setPasswordConfirmation('');
 }
 
+export const unsetEmailPasswordField = (setEmail, setPassword) => {
+    setEmail('');
+    setPassword('');
+}
+
 export const unsetPasswordFields = (setPassword, setPasswordConfirmation) => {
     setPassword('');
     setPasswordConfirmation('');
