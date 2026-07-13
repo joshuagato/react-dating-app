@@ -7,6 +7,7 @@ import ResetPassword from './routes/ResetPassword';
 import ConfirmPasswordReset from './routes/ConfirmPasswordReset';
 import SetNewPassword from './routes/SetNewPassword';
 import Profile from './routes/Profile';
+import ProfilePicture from './routes/ProfilePicture';
 import Others from "./routes/Others";
 
 import './App.css';
@@ -24,6 +25,7 @@ function App() {
         <Route path="confirm-reset-password" element={<ConfirmPasswordReset />} />
         <Route path="set-new-password" element={<SetNewPassword />} />
         <Route path="profile" element={<Profile />} />
+        <Route path="profile-picture" element={<ProfilePicture />} />
         <Route path="others" element={<Others />} />
         
         {/* <Route element={<AuthLayout />}>
