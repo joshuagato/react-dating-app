@@ -13,11 +13,6 @@ const authentication = async (operation, authData) => {
     return response.data;
 }
 
-const profile = async () => {
-    const response = await protectedApi.get('/auth/profile');
-    return response.data;
-}
-
 const verifyEmail = async verificationData => {
     const response = await protectedApi.patch('/auth/verify-email', verificationData);
     return response.data;
@@ -43,8 +38,6 @@ const resetPassword = async requestData => {
 export const loginHandler = async data => await authentication('login', data);
 
 export const signUpHandler = async data => await authentication('signup', data);
-
-export const getProfileHandler = async () => await profile();
 
 export const verifyEmailHandler = async data => await verifyEmail(data);
 
