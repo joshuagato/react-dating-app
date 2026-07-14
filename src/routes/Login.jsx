@@ -63,11 +63,11 @@ const Auth = () => {
                     navigate('/matches', { replace: true });
                 } else {
                     if (!email_verified)
-                        navigate('/verify-email', { replace: true }, { state: { verification_channel: VERIFICATION_CHANNEL.LOGIN } });
+                        return navigate('/verify-email', { replace: true, state: { verification_channel: VERIFICATION_CHANNEL.LOGIN } });
                     
-                    if (!basic_profile_setup) navigate('/basic-profile', { replace: true });
+                    if (!basic_profile_setup) return navigate('/basic-profile', { replace: true });
 
-                    if (!advanced_profile_setup) navigate('/advanced-profile', { replace: true });
+                    if (!advanced_profile_setup) return navigate('/advanced-profile', { replace: true });
 
                 }
             } else {
