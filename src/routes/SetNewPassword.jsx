@@ -10,7 +10,8 @@ import SubmitButton from "../components/SubmitButton";
 import SwitchContextButton from "../components/SwitchContextButton";
 import HelmetHeader from "../components/HelmetHeader";
 
-import { resetPasswordHandler, getProfileHandler } from '../tanstack/auth';
+import { resetPasswordHandler } from '../tanstack/auth';
+// import { getProfileHandler } from '../tanstack/user';
 import { unsetErrorSetMessage, unsetMessageSetError, unsetPasswordFields, disableSubmitButtonFor,
     unsetAllErrors } from "../functions/utils";
 import { SWITCH_TO_LOGIN_TEXT, SET_NEW_PASSWORD_TEXT } from "../functions/constants";
