@@ -1,6 +1,6 @@
 import { makeLabelTextId } from '../functions/utils';
 
-const InterestedIn = ({ label }) => {
+const InterestedIn = ({ label, setInterestedIn }) => {
     const fieldId = makeLabelTextId(label);
 
     return (
@@ -13,9 +13,12 @@ const InterestedIn = ({ label }) => {
                     { label } {<span className='text-red-600'>*</span>}
                 </label>
                 <div id={fieldId} className="interested-in">
-                    <input className="interested-in-item btn w-24" type="radio" name={fieldId} aria-label="Men" required />
-                    <input className="interested-in-item btn w-24" type="radio" name={fieldId} aria-label="Women" required />
-                    <input className="interested-in-item btn w-24" type="radio" name={fieldId} aria-label="Everyone" required />
+                    <input className="interested-in-item btn w-24" type="radio" name={fieldId} aria-label="Men" 
+                        value={'men'} onChange={e => setInterestedIn(e.target.value)} required />
+                    <input className="interested-in-item btn w-24" type="radio" name={fieldId} aria-label="Women" 
+                        value={'women'} onChange={e => setInterestedIn(e.target.value)} required />
+                    <input className="interested-in-item btn w-24" type="radio" name={fieldId} aria-label="Everyone" 
+                        value={'everyone'} onChange={e => setInterestedIn(e.target.value)} required />
                 </div>
             </div>
         </>
