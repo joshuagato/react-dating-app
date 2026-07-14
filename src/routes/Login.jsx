@@ -10,7 +10,8 @@ import SwitchContextButton from "../components/SwitchContextButton";
 import SubmitButton from "../components/SubmitButton";
 import HelmetHeader from "../components/HelmetHeader";
 
-import { loginHandler, getProfileHandler } from '../tanstack/auth';
+import { loginHandler } from '../tanstack/auth';
+import { getProfileHandler } from '../tanstack/user';
 import { unsetErrorSetMessage, unsetMessageSetError, unsetEmailPasswordField, 
     unsetAllErrors } from "../functions/utils";
 import { LOGIN_TEXT, SWITCH_TO_SIGNUP_TEXT, VERIFICATION_CHANNEL, 
@@ -54,7 +55,21 @@ const Auth = () => {
                 unsetErrorSetMessage(setError, setMessage, response.message);
                 unsetEmailPasswordField(setEmail, setPassword);
                 toast.success(response.message, { autoClose: 7000, theme: 'colored' });
-                navigate('/verify-email', { state: { verification_channel: VERIFICATION_CHANNEL.LOGIN } });
+
+                const { email_verified, basic_profile_setup, advanced_profile_setup } = response;
+
+                if (email_verified && basic_profile_setup && advanced_profile_setup) {
+                    // navigate to swipes page
+                    navigate('/matches', { replace: true });
+                } else {
+                    if (!email_verified)
+                        navigate('/verify-email', { replace: true }, { state: { verification_channel: VERIFICATION_CHANNEL.LOGIN } });
+                    
+                    if (!basic_profile_setup) navigate('/basic-profile', { replace: true });
+
+                    if (!advanced_profile_setup) navigate('/advanced-profile', { replace: true });
+
+                }
             } else {
                 unsetMessageSetError(setMessage, setError, response.message);
                 toast.error(response.message, { autoClose: 7000, theme: 'colored' });
