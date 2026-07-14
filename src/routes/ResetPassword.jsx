@@ -48,7 +48,6 @@ const ResetPassword = () => {
                 toast.error(message, { autoClose, theme });
                 unsetMessageSetError(setMessage, setError, message);
                 disableSubmitButtonFor(setCounting, autoClose + 1000);
-                navigate('/confirm-reset-password');
             }
             
         } catch (error) {
