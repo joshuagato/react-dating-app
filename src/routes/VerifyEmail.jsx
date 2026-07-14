@@ -37,7 +37,7 @@ const Verify = () => {
             if (success) {
                 toast.success(message, { autoClose: 10000, theme: 'colored' });
                 unsetErrorSetMessage(setError, setMessage, message);
-                navigate('/profile');
+                navigate('/basic-profile');
                 
             } else {
                 toast.error(message, { autoClose: 10000, theme: 'colored' });
@@ -45,7 +45,6 @@ const Verify = () => {
 
                 if (!exceededLimit) return setCode('');
 
-                navigate('/profile');
                 setCounting(true);
             }
             
