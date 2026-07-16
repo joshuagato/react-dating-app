@@ -7,8 +7,11 @@ import { useDropzone } from 'react-dropzone';
 import Layout from '../components/Layout';
 import { UPLOAD_PICTURE_TEXT } from '../functions/constants';
 import HelmetHeader from '../components/HelmetHeader';
+import { useEffect } from 'react';
 
-function ImageUploadBox({ id }) {
+let imagesArray = new Array(6);
+const imagesObject = {};
+function ImageUploadBox({ id, index }) {
     const [imagePreview, setImagePreview] = useState(null);
 
     const onDrop = useCallback(acceptedFiles => {
@@ -21,7 +24,15 @@ function ImageUploadBox({ id }) {
             // Here you would typically append the file to FormData
             // and upload it to your server using fetch or axios.
             console.log('File ready for upload:', file);
+            imagesArray[index] = file;
+            imagesObject[index] = file;
         }
+    }, [index]);
+
+    console.log({imagesArray, imagesObject})
+
+    useEffect(() => {
+       
     }, []);
 
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -30,12 +41,18 @@ function ImageUploadBox({ id }) {
         multiple: false, // Allow only one image at a time
     });
 
-    const removeImageHander = () => setImagePreview(null);
+    const removeImageHander = event => {
+        event.stopPropagation();
+        setImagePreview(null);
+    }
 
     // Inline styling for the "Box" container
     const boxStyle = {
         // width: '110px',
         // height: '144px',
+        // padding: '2px',
+        // position: 'relative',
+        // overflow: 'hidden',
         width: '100%',
         height: '100%',
         border: isDragActive ? '2px dashed #0070f3' : '2px dashed #cccccc',
@@ -44,11 +61,8 @@ function ImageUploadBox({ id }) {
         alignItems: 'center',
         justifyContent: 'center',
         cursor: 'pointer',
-        // overflow: 'hidden',
         backgroundColor: isDragActive ? '#f0f7ff' : '#fafafa',
         textAlign: 'center',
-        // padding: '2px',
-        // position: 'relative',
     };
 
     return (
@@ -73,7 +87,7 @@ function ImageUploadBox({ id }) {
                 ) : (
                     <div>
                         <p className='text-base'># {id}</p>
-                        <p className='text-[12px]'>Drag & drop an image here, or click to select</p>
+                        <p className='text-[12px]'>Drag & drop an image here, or click to select...index: {index}</p>
                     </div>
                 )}
             </article>
@@ -82,7 +96,7 @@ function ImageUploadBox({ id }) {
 }
 
 // Individual Grid Item Component
-function SortableBox({ id }) {
+function SortableBox({ id, index }) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
 
     const style = {
@@ -102,7 +116,7 @@ function SortableBox({ id }) {
         //     rounded-lg shadow-md cursor-grab active:cursor-grabbing select-none"
     >
         {/* Box {id} */}
-        <ImageUploadBox key={id} id={id} />
+        <ImageUploadBox id={id} index={index} />
     </div>
   );
 }
@@ -127,11 +141,13 @@ export default function AdvancedProfile() {
 
     const handleDragEnd = (event) => {
         const { active, over } = event;
+        console.log({active, over, event})
         
         if (over && active.id !== over.id) {
             setItems((items) => {
                 const oldIndex = items.indexOf(active.id);
                 const newIndex = items.indexOf(over.id);
+                imagesArray = arrayMove(imagesArray, oldIndex, newIndex);
                 return arrayMove(items, oldIndex, newIndex);
             });
         }
@@ -146,8 +162,8 @@ export default function AdvancedProfile() {
             {/* rectSortingStrategy is required for multi-column grids */}
             <SortableContext items={items} strategy={rectSortingStrategy}>
                 <div className="grid grid-cols-3 gap-2 mx-auto">
-                    {items.map((id) => (
-                        <SortableBox key={id} id={id} />
+                    {items.map((id, index) => (
+                        <SortableBox key={id} id={id} index={index} />
                     ))}
 
                     
