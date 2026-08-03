@@ -8,38 +8,46 @@ import ConfirmPasswordReset from './routes/ConfirmPasswordReset';
 import SetNewPassword from './routes/SetNewPassword';
 import BasicProfile from './routes/BasicProfile';
 import AdvancedProfile from './routes/AdvancedProfile';
+import Encounters from './routes/Encounters';
+import Matcher from './routes/Matcher';
+import Likes from './routes/Likes';
+import Nearby from './routes/Nearby';
 import Others from "./routes/Others";
 
 import './App.css';
 
-function App() { 
+function App() {
 
-  return (
-    
-    <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="login" element={<Login />} />
-        <Route path="signup" element={<SignUp />} />
-        <Route path="verify-email" element={<Verify />} />
-        <Route path="reset-password" element={<ResetPassword />} />
-        <Route path="confirm-reset-password" element={<ConfirmPasswordReset />} />
-        <Route path="set-new-password" element={<SetNewPassword />} />
-        <Route path="basic-profile" element={<BasicProfile />} />
-        <Route path="advanced-profile" element={<AdvancedProfile />} />
-        <Route path="others" element={<Others />} />
-        
-        {/* <Route element={<AuthLayout />}>
+    return (
+
+        <Routes>
+            <Route path="/" element={<Home />} />
             <Route path="login" element={<Login />} />
-            <Route path="register" element={<Register />} />
-        </Route>
+            <Route path="signup" element={<SignUp />} />
+            <Route path="verify-email" element={<Verify />} />
+            <Route path="reset-password" element={<ResetPassword />} />
+            <Route path="confirm-reset-password" element={<ConfirmPasswordReset />} />
+            <Route path="set-new-password" element={<SetNewPassword />} />
+            <Route path="basic-profile" element={<BasicProfile />} />
+            <Route path="advanced-profile" element={<AdvancedProfile />} />
+            <Route path="encounters" element={<Encounters />} />
+            <Route path="likes" element={<Likes />} />
+            <Route path="nearby" element={<Nearby />} />
+            <Route path="matcher" element={<Matcher />} />
+            <Route path="others" element={<Others />} />
 
-        <Route path="concerts">
-            <Route index element={<ConcertsHome />} />
-            <Route path=":city" element={<City />} />
-            <Route path="trending" element={<Trending />} />
-        </Route> */}
-    </Routes>
-  )
+            {/* <Route element={<AuthLayout />}>
+                    <Route path="login" element={<Login />} />
+                    <Route path="register" element={<Register />} />
+                </Route>
+
+                <Route path="concerts">
+                    <Route index element={<ConcertsHome />} />
+                    <Route path=":city" element={<City />} />
+                    <Route path="trending" element={<Trending />} />
+                </Route> */}
+        </Routes>
+    )
 }
 
 export default App
