@@ -52,3 +52,16 @@ export const unsetAllErrors = (setError, setErrors) => {
 }
 
 export const makeLabelTextId = string => string.split(' ').join('_').toLowerCase();
+
+const inactiveColour = '#909397';
+const inactiveTextColour = 'text-[#909397]';
+
+const activeColour = '#000';
+const activeTextColour = 'text-[#000]';
+
+const isPathName = (pathName, currentPathName) => pathName.toString() === currentPathName.toString();
+
+export const chooseColour = (pathName, currentPathName) => isPathName(pathName, currentPathName) ? activeColour : inactiveColour;
+export const chooseTextColour = (pathName, currentPathName) => isPathName(pathName, currentPathName) ? activeTextColour : inactiveTextColour;
+
+export const pathMatched = isPathName;
