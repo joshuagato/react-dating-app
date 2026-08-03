@@ -3,7 +3,7 @@ import { CircleX, CircleCheck } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router';
 
-import Layout from '../components/Layout';
+import Layout from '../components/Layouts/SetupLayout';
 import Email from '../components/Email';
 import SubmitButton from '../components/SubmitButton';
 import SwitchContextButton from '../components/SwitchContextButton';
@@ -43,13 +43,13 @@ const ResetPassword = () => {
                 toast.success(message, { autoClose, theme });
                 unsetErrorSetMessage(setError, setMessage, message);
                 navigate('/confirm-reset-password');
-                
+
             } else {
                 toast.error(message, { autoClose, theme });
                 unsetMessageSetError(setMessage, setError, message);
                 disableSubmitButtonFor(setCounting, autoClose + 1000);
             }
-            
+
         } catch (error) {
             toast.error(error.message, { autoClose: 5000, theme: 'colored' });
         } finally {
@@ -57,38 +57,38 @@ const ResetPassword = () => {
         }
     }
 
-  return (
-    <Layout heading={RESET_PASSWORD_TEXT}>
+    return (
+        <Layout heading={RESET_PASSWORD_TEXT}>
 
-        <HelmetHeader pageTitle={'Reset Password'} />
+            <HelmetHeader pageTitle={'Reset Password'} />
 
-        <form className="w-full flex flex-col items-center space-y-6" onSubmit={handlePasswordReset}>
-            <Email email={email} setEmail={setEmail} errors={errors} />
+            <form className="w-full flex flex-col items-center space-y-6" onSubmit={handlePasswordReset}>
+                <Email email={email} setEmail={setEmail} errors={errors} />
 
-            {error && (
-                <div role="alert" className="alert alert-error fade-in">
-                    <CircleX />
-                    <span>{error}</span>
-                </div>
-            )}
-            {message && (
-                <div role="alert" className="alert alert-success fade-in">
-                    <CircleCheck />
-                    <span>{message}</span>
-                </div>
-            )}
+                {error && (
+                    <div role="alert" className="alert alert-error fade-in">
+                        <CircleX />
+                        <span>{error}</span>
+                    </div>
+                )}
+                {message && (
+                    <div role="alert" className="alert alert-success fade-in">
+                        <CircleCheck />
+                        <span>{message}</span>
+                    </div>
+                )}
 
-            <SubmitButton loading={loading} counting={counting}>
-                Submit Email
-            </SubmitButton>
-        </form>
+                <SubmitButton loading={loading} counting={counting}>
+                    Submit Email
+                </SubmitButton>
+            </form>
 
-        <SwitchContextButton textColor={'text-pink-600'} textHoverColor={'hover:text-green-600'} route={'/login'}>
-            {SWITCH_BACK_TO_LOGIN_TEXT}
-        </SwitchContextButton>
+            <SwitchContextButton textColor={'text-pink-600'} textHoverColor={'hover:text-green-600'} route={'/login'}>
+                {SWITCH_BACK_TO_LOGIN_TEXT}
+            </SwitchContextButton>
 
-    </Layout>
-  )
+        </Layout>
+    )
 }
 
 export default ResetPassword
