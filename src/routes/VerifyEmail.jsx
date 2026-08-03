@@ -5,11 +5,11 @@ import { toast } from 'react-toastify';
 
 import { verifyEmailHandler } from '../tanstack/auth';
 import { unsetMessageSetError, unsetErrorSetMessage } from '../functions/utils';
-import { VERIFY_EMAIL_TEXT } from '../functions/constants';
+import { VERIFY_EMAIL_TEXT, basicProfilePath } from '../functions/constants';
 
 import CountdownTimer from '../components/CountdownTimer';
 import SubmitButton from '../components/SubmitButton';
-import Layout from '../components/Layout';
+import Layout from '../components/Layouts/SetupLayout';
 import HelmetHeader from '../components/HelmetHeader';
 
 const Verify = () => {
@@ -21,7 +21,7 @@ const Verify = () => {
 
     const location = useLocation();
     const navigate = useNavigate();
-    
+
     const verification_channel = location.state?.verification_channel;
 
     async function handleVerification(event) {
@@ -37,8 +37,8 @@ const Verify = () => {
             if (success) {
                 toast.success(message, { autoClose: 10000, theme: 'colored' });
                 unsetErrorSetMessage(setError, setMessage, message);
-                navigate('/basic-profile');
-                
+                navigate(basicProfilePath);
+
             } else {
                 toast.error(message, { autoClose: 10000, theme: 'colored' });
                 unsetMessageSetError(setMessage, setError, message);
@@ -47,14 +47,14 @@ const Verify = () => {
 
                 setCounting(true);
             }
-            
+
         } catch (error) {
             toast.error(error.message, { autoClose: 5000, theme: 'colored' });
         } finally {
             setLoading(false);
         }
     }
-    
+
     return (
         <Layout heading={VERIFY_EMAIL_TEXT}>
 
@@ -67,7 +67,7 @@ const Verify = () => {
                     <span></span>
                     <span></span>
 
-                    <input type="text" autoComplete="one-time-code" inputMode="numeric" maxLength="4" pattern="[0-9]{4}" 
+                    <input type="text" autoComplete="one-time-code" inputMode="numeric" maxLength="4" pattern="[0-9]{4}"
                         value={verification_code} onChange={e => setCode(e.target.value)} required />
                 </label>
 

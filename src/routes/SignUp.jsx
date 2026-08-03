@@ -3,7 +3,7 @@ import { useNavigate } from "react-router";
 import { CircleCheck, CircleX } from "lucide-react";
 import { toast } from 'react-toastify';
 
-import Layout from "../components/Layout";
+import Layout from "../components/Layouts/SetupLayout";
 import Email from "../components/Email";
 import Password from "../components/Password";
 import ConfirmPassword from "../components/ConfirmPassword";
@@ -12,8 +12,10 @@ import SwitchContextButton from "../components/SwitchContextButton";
 import HelmetHeader from "../components/HelmetHeader";
 
 import { signUpHandler } from '../tanstack/auth';
-import { unsetErrorSetMessage, unsetMessageSetError, unsetEmailPasswordFields, 
-    unsetAllErrors } from "../functions/utils";
+import {
+    unsetErrorSetMessage, unsetMessageSetError, unsetEmailPasswordFields,
+    unsetAllErrors
+} from "../functions/utils";
 import { SIGNUP_TEXT, SWITCH_TO_LOGIN_TEXT, VERIFICATION_CHANNEL } from "../functions/constants";
 
 
@@ -27,7 +29,7 @@ const SignUp = () => {
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
     const [errors, setErrors] = useState({});
-    
+
     const { user, loading: authLoading } = { user: {}, loading: true };
     const navigate = useNavigate();
 
@@ -44,7 +46,7 @@ const SignUp = () => {
         unsetAllErrors(setError, setErrors);
 
         try {
-            const response = await signUpHandler({ email, password, passwordConfirmation });                
+            const response = await signUpHandler({ email, password, passwordConfirmation });
 
             if (response.errors) setErrors(response.errors);
 
@@ -64,49 +66,49 @@ const SignUp = () => {
         }
     }
 
-  return (
-    <>
-        <HelmetHeader pageTitle={'Sign Up'} />
-        <Layout heading={SIGNUP_TEXT}>
+    return (
+        <>
+            <HelmetHeader pageTitle={'Sign Up'} />
+            <Layout heading={SIGNUP_TEXT}>
 
-            <form className="w-full flex flex-col items-center space-y-6" onSubmit={handleAuth}>
-                <Email email={email} setEmail={setEmail} errors={errors} />
+                <form className="w-full flex flex-col items-center space-y-6" onSubmit={handleAuth}>
+                    <Email email={email} setEmail={setEmail} errors={errors} />
 
-                <Password password={password} setPassword={setPassword} isShowPassword={isShowPassword} 
-                    setIsShowPassword={setIsShowPassword} errors={errors}>
-                    Password
-                </Password>
+                    <Password password={password} setPassword={setPassword} isShowPassword={isShowPassword}
+                        setIsShowPassword={setIsShowPassword} errors={errors}>
+                        Password
+                    </Password>
 
-                <ConfirmPassword passwordConfirmation={passwordConfirmation} setPasswordConfirmation={setPasswordConfirmation} 
-                    isShowPassword={isShowPassword} errors={errors}>
-                    Confirm Password
-                </ConfirmPassword>
+                    <ConfirmPassword passwordConfirmation={passwordConfirmation} setPasswordConfirmation={setPasswordConfirmation}
+                        isShowPassword={isShowPassword} errors={errors}>
+                        Confirm Password
+                    </ConfirmPassword>
 
-                {error && (
-                    <div role="alert" className="alert alert-error fade-in">
-                        <CircleX />
-                        <span>{error}</span>
-                    </div>
-                )}
-                {message && (
-                    <div role="alert" className="alert alert-success fade-in">
-                        <CircleCheck />
-                        <span>{message}</span>
-                    </div>
-                )}
+                    {error && (
+                        <div role="alert" className="alert alert-error fade-in">
+                            <CircleX />
+                            <span>{error}</span>
+                        </div>
+                    )}
+                    {message && (
+                        <div role="alert" className="alert alert-success fade-in">
+                            <CircleCheck />
+                            <span>{message}</span>
+                        </div>
+                    )}
 
-                <SubmitButton loading={loading}>
-                    Sign Up
-                </SubmitButton>
-            </form>
+                    <SubmitButton loading={loading}>
+                        Sign Up
+                    </SubmitButton>
+                </form>
 
-            <SwitchContextButton textColor={'text-purple-600'} textHoverColor={'hover:text-emerald-600'} route={'/login'}>
-                {SWITCH_TO_LOGIN_TEXT}
-            </SwitchContextButton>
-            
-        </Layout>
-    </>
-  )
+                <SwitchContextButton textColor={'text-purple-600'} textHoverColor={'hover:text-emerald-600'} route={'/login'}>
+                    {SWITCH_TO_LOGIN_TEXT}
+                </SwitchContextButton>
+
+            </Layout>
+        </>
+    )
 }
 
 export default SignUp;

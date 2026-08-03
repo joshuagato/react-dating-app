@@ -3,7 +3,7 @@ import { useNavigate } from "react-router";
 import { CircleCheck, CircleX } from "lucide-react";
 import { toast } from 'react-toastify';
 
-import Layout from "../components/Layout";
+import Layout from "../components/Layouts/SetupLayout";
 import Password from "../components/Password";
 import ConfirmPassword from "../components/ConfirmPassword";
 import SubmitButton from "../components/SubmitButton";
@@ -12,8 +12,10 @@ import HelmetHeader from "../components/HelmetHeader";
 
 import { resetPasswordHandler } from '../tanstack/auth';
 // import { getProfileHandler } from '../tanstack/user';
-import { unsetErrorSetMessage, unsetMessageSetError, unsetPasswordFields, disableSubmitButtonFor,
-    unsetAllErrors } from "../functions/utils";
+import {
+    unsetErrorSetMessage, unsetMessageSetError, unsetPasswordFields, disableSubmitButtonFor,
+    unsetAllErrors
+} from "../functions/utils";
 import { SWITCH_TO_LOGIN_TEXT, SET_NEW_PASSWORD_TEXT } from "../functions/constants";
 
 
@@ -27,7 +29,7 @@ const SetNewPassword = () => {
     const [message, setMessage] = useState("");
     const [error, setError] = useState("");
     const [errors, setErrors] = useState({});
-    
+
     const { user, loading: authLoading } = { user: {}, loading: true };
     const navigate = useNavigate();
 
@@ -44,7 +46,7 @@ const SetNewPassword = () => {
         unsetAllErrors(setError, setErrors);
 
         try {
-            const response = await resetPasswordHandler({ password, passwordConfirmation });                
+            const response = await resetPasswordHandler({ password, passwordConfirmation });
 
             if (response.errors) setErrors(response.errors);
 
@@ -64,48 +66,48 @@ const SetNewPassword = () => {
         }
     }
 
-  return (
-    <>
-        <HelmetHeader pageTitle={'Set New Password'} />
-        <Layout heading={SET_NEW_PASSWORD_TEXT}>
+    return (
+        <>
+            <HelmetHeader pageTitle={'Set New Password'} />
+            <Layout heading={SET_NEW_PASSWORD_TEXT}>
 
-            <form className="w-full flex flex-col items-center space-y-6" onSubmit={handleAuth}>
+                <form className="w-full flex flex-col items-center space-y-6" onSubmit={handleAuth}>
 
-                <Password password={password} setPassword={setPassword} isShowPassword={isShowPassword} 
-                    setIsShowPassword={setIsShowPassword} errors={errors}>
-                    Password
-                </Password>
+                    <Password password={password} setPassword={setPassword} isShowPassword={isShowPassword}
+                        setIsShowPassword={setIsShowPassword} errors={errors}>
+                        Password
+                    </Password>
 
-                <ConfirmPassword passwordConfirmation={passwordConfirmation} setPasswordConfirmation={setPasswordConfirmation} 
-                    isShowPassword={isShowPassword} errors={errors}>
-                    Confirm Password
-                </ConfirmPassword>
+                    <ConfirmPassword passwordConfirmation={passwordConfirmation} setPasswordConfirmation={setPasswordConfirmation}
+                        isShowPassword={isShowPassword} errors={errors}>
+                        Confirm Password
+                    </ConfirmPassword>
 
-                {error && (
-                    <div role="alert" className="alert alert-error fade-in">
-                        <CircleX />
-                        <span>{error}</span>
-                    </div>
-                )}
-                {message && (
-                    <div role="alert" className="alert alert-success fade-in">
-                        <CircleCheck />
-                        <span>{message}</span>
-                    </div>
-                )}
+                    {error && (
+                        <div role="alert" className="alert alert-error fade-in">
+                            <CircleX />
+                            <span>{error}</span>
+                        </div>
+                    )}
+                    {message && (
+                        <div role="alert" className="alert alert-success fade-in">
+                            <CircleCheck />
+                            <span>{message}</span>
+                        </div>
+                    )}
 
-                <SubmitButton loading={loading} counting={counting}>
-                    Set New Password
-                </SubmitButton>
-            </form>
+                    <SubmitButton loading={loading} counting={counting}>
+                        Set New Password
+                    </SubmitButton>
+                </form>
 
-            <SwitchContextButton textColor={'text-purple-600'} textHoverColor={'hover:text-emerald-600'} route={'/login'}>
-                {SWITCH_TO_LOGIN_TEXT}
-            </SwitchContextButton>
+                <SwitchContextButton textColor={'text-purple-600'} textHoverColor={'hover:text-emerald-600'} route={'/login'}>
+                    {SWITCH_TO_LOGIN_TEXT}
+                </SwitchContextButton>
 
-        </Layout>
-    </>
-  )
+            </Layout>
+        </>
+    )
 }
 
 export default SetNewPassword;

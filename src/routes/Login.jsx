@@ -3,7 +3,7 @@ import { useNavigate } from "react-router";
 import { CircleCheck, CircleX } from "lucide-react";
 import { toast } from 'react-toastify';
 
-import Layout from "../components/Layout";
+import Layout from "../components/Layouts/SetupLayout";
 import Email from "../components/Email";
 import Password from "../components/Password";
 import SwitchContextButton from "../components/SwitchContextButton";
@@ -12,10 +12,15 @@ import HelmetHeader from "../components/HelmetHeader";
 
 import { loginHandler } from '../tanstack/auth';
 import { getProfileHandler } from '../tanstack/user';
-import { unsetErrorSetMessage, unsetMessageSetError, unsetEmailPasswordField, 
-    unsetAllErrors } from "../functions/utils";
-import { LOGIN_TEXT, SWITCH_TO_SIGNUP_TEXT, VERIFICATION_CHANNEL, 
-    SWITCH_TO_PASSWORD_RESET_TEXT } from "../functions/constants";
+import {
+    unsetErrorSetMessage, unsetMessageSetError, unsetEmailPasswordField,
+    unsetAllErrors
+} from "../functions/utils";
+import {
+    LOGIN_TEXT, SWITCH_TO_SIGNUP_TEXT, VERIFICATION_CHANNEL,
+    SWITCH_TO_PASSWORD_RESET_TEXT, encountersPath, verifyEmailPath,
+    basicProfilePath, advancedProfilePath,
+} from "../functions/constants";
 
 
 const Auth = () => {
@@ -27,7 +32,7 @@ const Auth = () => {
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
     const [errors, setErrors] = useState({});
-    
+
     const { user, loading: authLoading } = { user: {}, loading: true };
     const navigate = useNavigate();
 
@@ -50,8 +55,8 @@ const Auth = () => {
 
             if (response.success) {
                 const profile = await getProfileHandler();
-                console.log({profile});
-                
+                console.log({ profile });
+
                 unsetErrorSetMessage(setError, setMessage, response.message);
                 unsetEmailPasswordField(setEmail, setPassword);
                 toast.success(response.message, { autoClose: 7000, theme: 'colored' });
@@ -60,21 +65,21 @@ const Auth = () => {
 
                 if (email_verified && basic_profile_setup && advanced_profile_setup) {
                     // navigate to swipes page
-                    navigate('/matches', { replace: true });
+                    navigate(encountersPath, { replace: true });
                 } else {
                     if (!email_verified)
-                        return navigate('/verify-email', { replace: true, state: { verification_channel: VERIFICATION_CHANNEL.LOGIN } });
-                    
-                    if (!basic_profile_setup) return navigate('/basic-profile', { replace: true });
+                        return navigate(verifyEmailPath, { replace: true, state: { verification_channel: VERIFICATION_CHANNEL.LOGIN } });
 
-                    if (!advanced_profile_setup) return navigate('/advanced-profile', { replace: true });
+                    if (!basic_profile_setup) return navigate(basicProfilePath, { replace: true });
+
+                    if (!advanced_profile_setup) return navigate(advancedProfilePath, { replace: true });
 
                 }
             } else {
                 unsetMessageSetError(setMessage, setError, response.message);
                 toast.error(response.message, { autoClose: 7000, theme: 'colored' });
             }
-            
+
         } catch (error) {
             toast.error(error.message, { autoClose: 5000, theme: 'colored' });
         } finally {
@@ -82,49 +87,49 @@ const Auth = () => {
         }
     }
 
-  return (
-    <>
-        <HelmetHeader pageTitle={'Login'} />
+    return (
+        <>
+            <HelmetHeader pageTitle={'Login'} />
 
-        <Layout heading={LOGIN_TEXT}>
+            <Layout heading={LOGIN_TEXT}>
 
-            <form className="w-full flex flex-col items-center space-y-6" onSubmit={handleAuth}>
-                <Email email={email} setEmail={setEmail} errors={errors} />
+                <form className="w-full flex flex-col items-center space-y-6" onSubmit={handleAuth}>
+                    <Email email={email} setEmail={setEmail} errors={errors} />
 
-                <Password password={password} setPassword={setPassword} isShowPassword={isShowPassword} 
-                    setIsShowPassword={setIsShowPassword} errors={errors}>
-                    Password
-                </Password>
+                    <Password password={password} setPassword={setPassword} isShowPassword={isShowPassword}
+                        setIsShowPassword={setIsShowPassword} errors={errors}>
+                        Password
+                    </Password>
 
-                {error && (
-                    <div role="alert" className="alert alert-error fade-in">
-                        <CircleX />
-                        <span>{error}</span>
-                    </div>
-                )}
-                {message && (
-                    <div role="alert" className="alert alert-success fade-in">
-                        <CircleCheck />
-                        <span>{message}</span>
-                    </div>
-                )}
+                    {error && (
+                        <div role="alert" className="alert alert-error fade-in">
+                            <CircleX />
+                            <span>{error}</span>
+                        </div>
+                    )}
+                    {message && (
+                        <div role="alert" className="alert alert-success fade-in">
+                            <CircleCheck />
+                            <span>{message}</span>
+                        </div>
+                    )}
 
-                <SubmitButton loading={loading}>
-                    Sign In
-                </SubmitButton>
-            </form>
+                    <SubmitButton loading={loading}>
+                        Sign In
+                    </SubmitButton>
+                </form>
 
-            <SwitchContextButton textColor={'text-pink-600'} textHoverColor={'hover:text-green-600'} route={'/reset-password'}>
-                {SWITCH_TO_PASSWORD_RESET_TEXT}
-            </SwitchContextButton>
+                <SwitchContextButton textColor={'text-pink-600'} textHoverColor={'hover:text-green-600'} route={'/reset-password'}>
+                    {SWITCH_TO_PASSWORD_RESET_TEXT}
+                </SwitchContextButton>
 
-            <SwitchContextButton textColor={'text-purple-600'} textHoverColor={'hover:text-emerald-600'} route={'/signup'}>
-                {SWITCH_TO_SIGNUP_TEXT}
-            </SwitchContextButton>
+                <SwitchContextButton textColor={'text-purple-600'} textHoverColor={'hover:text-emerald-600'} route={'/signup'}>
+                    {SWITCH_TO_SIGNUP_TEXT}
+                </SwitchContextButton>
 
-        </Layout>
-    </>
-  )
+            </Layout>
+        </>
+    )
 }
 
 export default Auth
