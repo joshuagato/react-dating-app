@@ -1,58 +1,43 @@
-import { useState, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { DndContext, closestCenter, MouseSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, rectSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useDropzone } from 'react-dropzone';
+import { toast } from 'react-toastify';
+import { useNavigate } from 'react-router';
+import { CircleX, CircleCheck } from 'lucide-react';
 
-import Layout from '../components/Layout';
+import Layout from '../components/Layouts/SetupLayout';
+import { setupAdvancedProfileHandler } from '../tanstack/user';
 import { UPLOAD_PICTURE_TEXT } from '../functions/constants';
 import HelmetHeader from '../components/HelmetHeader';
-import { useEffect } from 'react';
+import SubmitButton from '../components/SubmitButton';
+import { unsetErrorSetMessage, unsetMessageSetError } from '../functions/utils';
 
-let imagesArray = new Array(6);
-const imagesObject = {};
-function ImageUploadBox({ id, index }) {
-    const [imagePreview, setImagePreview] = useState(null);
+// 🟢 REMOVED GLOBAL ARRAYS/OBJECTS ENTIRELY
 
+function ImageUploadBox({ id, position, imagePreview, onImageUpdate }) {
     const onDrop = useCallback(acceptedFiles => {
         const file = acceptedFiles[0];
-        
         if (file) {
-            // Create a local URL for the preview image
-            setImagePreview(URL.createObjectURL(file));
-
-            // Here you would typically append the file to FormData
-            // and upload it to your server using fetch or axios.
-            console.log('File ready for upload:', file);
-            imagesArray[index] = file;
-            imagesObject[index] = file;
+            const previewUrl = URL.createObjectURL(file);
+            // 🟢 Send the file and preview back up to parent state immediately
+            onImageUpdate(id, previewUrl, file);
         }
-    }, [index]);
-
-    console.log({imagesArray, imagesObject})
-
-    useEffect(() => {
-       
-    }, []);
+    }, [id, onImageUpdate]);
 
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         onDrop,
-        accept: { 'image/*': [] }, // Restrict to image files only
-        multiple: false, // Allow only one image at a time
+        accept: { 'image/*': [] },
+        multiple: false,
     });
 
     const removeImageHander = event => {
         event.stopPropagation();
-        setImagePreview(null);
-    }
+        onImageUpdate(id, null, null);
+    };
 
-    // Inline styling for the "Box" container
     const boxStyle = {
-        // width: '110px',
-        // height: '144px',
-        // padding: '2px',
-        // position: 'relative',
-        // overflow: 'hidden',
         width: '100%',
         height: '100%',
         border: isDragActive ? '2px dashed #0070f3' : '2px dashed #cccccc',
@@ -77,17 +62,15 @@ function ImageUploadBox({ id, index }) {
                             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                         />
                         <div className='flex justify-center items-center text-gray-100 font-extrabold absolute bg-gray-600 w-6 h-6 
-                            rounded-[100%] -bottom-1 -right-1' onClick={removeImageHander}>x</div>
+                            rounded-[100%] -bottom-1 -right-1 z-20' onClick={removeImageHander}>x</div>
                     </>
-                ) : isDragActive ? (
-                    <div>
-                        <p className='text-[#0070f3] text-base'># {id}</p>
-                        <p className='text-[#0070f3] text-[12px]'>Drop the image here...</p>
-                    </div>
                 ) : (
-                    <div>
-                        <p className='text-base'># {id}</p>
-                        <p className='text-[12px]'>Drag & drop an image here, or click to select...index: {index}</p>
+                    <div className='w-full h-full flex flex-col items-center justify-center'>
+                        {/* 🟢 position parameter always counts 1 to 6 reliably now */}
+                        <p className={`flex justify-center items-center w-6 h-6 p-2 rounded-full font-bold bg-black text-white text-base ${isDragActive ? 'text-[#0070f3]' : ''}`}>{position}</p>
+                        <p className={`text-[12px] ${isDragActive ? 'text-[#0070f3]' : ''}`}>
+                            {isDragActive ? 'Drop the image here...' : (<span className='text-[32px] font-extrabold'>+</span>)}
+                        </p>
                     </div>
                 )}
             </article>
@@ -95,8 +78,7 @@ function ImageUploadBox({ id, index }) {
     );
 }
 
-// Individual Grid Item Component
-function SortableBox({ id, index }) {
+function SortableBox({ id, position, imagePreview, onImageUpdate }) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
 
     const style = {
@@ -106,70 +88,146 @@ function SortableBox({ id, index }) {
         opacity: isDragging ? 0.6 : 1,
     };
 
-  return (
-    <div
-        ref={setNodeRef}
-        style={style}
-        {...attributes}
-        {...listeners}
-        // className="flex items-center justify-center bg-violet-400 text-white font-bold h-36 w-full 
-        //     rounded-lg shadow-md cursor-grab active:cursor-grabbing select-none"
-    >
-        {/* Box {id} */}
-        <ImageUploadBox id={id} index={index} />
-    </div>
-  );
+    return (
+        <div ref={setNodeRef} style={style} {...attributes} {...listeners} title='Click to Upload or Drag and Drop'>
+            <ImageUploadBox
+                id={id}
+                position={position}
+                imagePreview={imagePreview}
+                onImageUpdate={onImageUpdate}
+            />
+        </div>
+    );
 }
 
-// Main Grid Container Component
 export default function AdvancedProfile() {
-    const [items, setItems] = useState([1, 2, 3, 4, 5, 6]);
+    // 🟢 Keep the files, previews, and IDs bound together in one reactive array
+    const [loading, setLoading] = useState(false);
+    const [message, setMessage] = useState('');
+    const [error, setError] = useState('');
 
-    // 2. Configure sensors for both Desktop (Mouse) and Mobile (Touch)
+    const [items, setItems] = useState([
+        { id: '1', imagePreview: null, file: null },
+        { id: '2', imagePreview: null, file: null },
+        { id: '3', imagePreview: null, file: null },
+        { id: '4', imagePreview: null, file: null },
+        { id: '5', imagePreview: null, file: null },
+        { id: '6', imagePreview: null, file: null },
+    ]);
+
+    useEffect(() => {
+        // console.log({ items });
+    }, [items])
+
     const sensors = useSensors(
-        useSensor(MouseSensor, {
-            // Requiring a 5px movement before triggering prevents accidental clicks from turning into drags
-            activationConstraint: { distance: 5 },
-        }),
-        useSensor(TouchSensor, {
-            // CRUCIAL: Delay drag by 250ms with a 5px tolerance window 
-            // This ensures normal page scrolling still works unless the user intentionally long-presses to sort
-            // activationConstraint: { delay: 250, tolerance: 5 },
-            activationConstraint: { distance: 5 },
-        })
+        useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
+        useSensor(TouchSensor, { activationConstraint: { distance: 5 } })
     );
+
+    // 🟢 Handler to assign a file to a unique container slot ID
+    const handleImageUpdate = (id, previewUrl, file) => {
+        setItems(prevItems =>
+            prevItems.map(item =>
+                item.id === id ? { ...item, imagePreview: previewUrl, file } : item
+            )
+        );
+    };
 
     const handleDragEnd = (event) => {
         const { active, over } = event;
-        console.log({active, over, event})
-        
+
         if (over && active.id !== over.id) {
-            setItems((items) => {
-                const oldIndex = items.indexOf(active.id);
-                const newIndex = items.indexOf(over.id);
-                imagesArray = arrayMove(imagesArray, oldIndex, newIndex);
-                return arrayMove(items, oldIndex, newIndex);
+            setItems(prevItems => {
+                const oldIndex = prevItems.findIndex(item => item.id === active.id);
+                const newIndex = prevItems.findIndex(item => item.id === over.id);
+                // 🟢 arrayMove now automatically moves the ID, preview, AND raw file together perfectly
+                return arrayMove(prevItems, oldIndex, newIndex);
             });
         }
-  };
+    };
 
-  return (
-    <Layout heading={UPLOAD_PICTURE_TEXT}>
+    // 💡 Pro tip: When you're ready to submit to your backend api:
+    // const filesOnlyArray = items.map(item => item.file); // Holds files in the current visual order!
 
-        <HelmetHeader pageTitle={'Pictures'} />
+    async function handleUpload(event) {
+        event.preventDefault();
+        setLoading(true);
 
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            {/* rectSortingStrategy is required for multi-column grids */}
-            <SortableContext items={items} strategy={rectSortingStrategy}>
-                <div className="grid grid-cols-3 gap-2 mx-auto">
-                    {items.map((id, index) => (
-                        <SortableBox key={id} id={id} index={index} />
-                    ))}
+        try {
+            let position = 1;
+            const newItemsData = [];
 
-                    
-                </div>
-            </SortableContext>
-        </DndContext>
-    </Layout>
-  );
+            for (const value of items) {
+                const file = value.file;
+                if (file) {
+                    newItemsData.push({ position, file });
+                    position++;
+                }
+            }
+
+            const formData = new FormData();
+
+            Array.from(newItemsData).forEach(file => {
+                formData.append('images', file.file);
+                formData.append('imagesBody', JSON.stringify(file));
+            });
+
+            const response = await setupAdvancedProfileHandler(formData);
+            const { success, message } = response;
+
+            if (success) {
+                unsetErrorSetMessage(setError, setMessage, message);
+                toast.success(message, { autoClose: 5000, theme: 'colored' });
+                // navigate(advancedProfilePath);
+            } else {
+                unsetMessageSetError(setMessage, setError, message);
+                toast.error(message, { autoClose: 5000, theme: 'colored' });
+            }
+        } catch (error) {
+            toast.error(error.message, { autoClose: 5000, theme: 'colored' });
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    return (
+        <Layout heading={UPLOAD_PICTURE_TEXT}>
+            <HelmetHeader pageTitle={'Pictures'} />
+
+            <form className="w-full flex flex-col items-center space-y-6" onSubmit={handleUpload}>
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                    <SortableContext items={items.map(item => item.id)} strategy={rectSortingStrategy}>
+                        <div className="grid grid-cols-3 gap-2 mx-auto">
+                            {items.map((item, index) => (
+                                <SortableBox
+                                    key={item.id}
+                                    id={item.id}
+                                    position={index + 1} // Index calculates sequentially on every render
+                                    imagePreview={item.imagePreview}
+                                    onImageUpdate={handleImageUpdate}
+                                />
+                            ))}
+                        </div>
+                    </SortableContext>
+                </DndContext>
+
+                {error && (
+                    <div role="alert" className="alert alert-error fade-in">
+                        <CircleX />
+                        <span>{error}</span>
+                    </div>
+                )}
+                {message && (
+                    <div role="alert" className="alert alert-success fade-in">
+                        <CircleCheck />
+                        <span>{message}</span>
+                    </div>
+                )}
+
+                <SubmitButton loading={loading}>
+                    Save
+                </SubmitButton>
+            </form>
+        </Layout>
+    );
 }
