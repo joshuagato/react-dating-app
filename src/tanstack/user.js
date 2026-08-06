@@ -15,6 +15,11 @@ const setupAdvancedProfile = async data => {
     return response.data;
 }
 
+const setupFinalProfile = async data => {
+    const response = await protectedApi.put('/user/final-profile', data);
+    return response.data;
+}
+
 const getPotentialMatchProfiles = async () => {
     const response = await protectedApi.get('/user/get-potential-match-profiles');
     return response.data;
@@ -25,5 +30,7 @@ export const getProfileHandler = async () => await getProfile();
 export const setupBasicProfileHandler = async data => await setupBasicProfile(data);
 
 export const setupAdvancedProfileHandler = async data => await setupAdvancedProfile(data);
+
+export const setupFinalProfileHandler = async data => await setupFinalProfile(data);
 
 export const getPotentialMatchProfilesHandler = async () => await getPotentialMatchProfiles();
