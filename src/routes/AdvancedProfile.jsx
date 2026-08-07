@@ -9,7 +9,7 @@ import { CircleX, CircleCheck } from 'lucide-react';
 
 import Layout from '../components/Layouts/SetupLayout';
 import { setupAdvancedProfileHandler } from '../tanstack/user';
-import { UPLOAD_PICTURE_TEXT } from '../functions/constants';
+import { finalProfilePath, UPLOAD_PICTURE_TEXT } from '../functions/constants';
 import HelmetHeader from '../components/HelmetHeader';
 import SubmitButton from '../components/SubmitButton';
 import { unsetErrorSetMessage, unsetMessageSetError } from '../functions/utils';
@@ -105,6 +105,7 @@ export default function AdvancedProfile() {
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
+    const navigate = useNavigate();
 
     const [items, setItems] = useState([
         { id: '1', imagePreview: null, file: null },
@@ -178,7 +179,7 @@ export default function AdvancedProfile() {
             if (success) {
                 unsetErrorSetMessage(setError, setMessage, message);
                 toast.success(message, { autoClose: 5000, theme: 'colored' });
-                // navigate(advancedProfilePath);
+                navigate(finalProfilePath, { replace: true });
             } else {
                 unsetMessageSetError(setMessage, setError, message);
                 toast.error(message, { autoClose: 5000, theme: 'colored' });
