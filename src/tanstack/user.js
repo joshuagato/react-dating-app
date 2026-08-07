@@ -20,6 +20,11 @@ const setupFinalProfile = async data => {
     return response.data;
 }
 
+const getEncountersProfiles = async (query) => {
+    const response = await protectedApi.get(`/user/get-encounters-profiles?${query}`);
+    return response.data;
+}
+
 const getPotentialMatchProfiles = async () => {
     const response = await protectedApi.get('/user/get-potential-match-profiles');
     return response.data;
@@ -32,5 +37,7 @@ export const setupBasicProfileHandler = async data => await setupBasicProfile(da
 export const setupAdvancedProfileHandler = async data => await setupAdvancedProfile(data);
 
 export const setupFinalProfileHandler = async data => await setupFinalProfile(data);
+
+export const getEncountersProfilesHandler = async (query) => await getEncountersProfiles(query);
 
 export const getPotentialMatchProfilesHandler = async () => await getPotentialMatchProfiles();
