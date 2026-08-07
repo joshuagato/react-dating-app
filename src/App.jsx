@@ -8,6 +8,7 @@ import ConfirmPasswordReset from './routes/ConfirmPasswordReset';
 import SetNewPassword from './routes/SetNewPassword';
 import BasicProfile from './routes/BasicProfile';
 import AdvancedProfile from './routes/AdvancedProfile';
+import FinalProfile from './routes/FinalProfile';
 import Encounters from './routes/Encounters';
 import Matcher from './routes/Matcher';
 import Likes from './routes/Likes';
@@ -30,6 +31,7 @@ function App() {
             <Route path="set-new-password" element={<SetNewPassword />} />
             <Route path="basic-profile" element={<BasicProfile />} />
             <Route path="advanced-profile" element={<AdvancedProfile />} />
+            <Route path="final-profile" element={<FinalProfile />} />
             <Route path="encounters" element={<Encounters />} />
             <Route path="likes" element={<Likes />} />
             <Route path="nearby" element={<Nearby />} />
