@@ -9,7 +9,7 @@ import { RESET_PASSWORD_CONFIRMATION_TEXT } from '../functions/constants';
 
 import CountdownTimer from '../components/CountdownTimer';
 import SubmitButton from '../components/SubmitButton';
-import Layout from '../components/Layout';
+import Layout from '../components/Layouts/SetupLayout';
 import HelmetHeader from '../components/HelmetHeader';
 
 const ConfirmPasswordReset = () => {
@@ -18,7 +18,7 @@ const ConfirmPasswordReset = () => {
     const [error, setError] = useState('');
     const [message, setMessage] = useState('');
     const [counting, setCounting] = useState(false);
-    
+
     const navigate = useNavigate();
 
     async function handleVerification(event) {
@@ -44,14 +44,14 @@ const ConfirmPasswordReset = () => {
                 navigate('/set-new-password');
                 setCounting(true);
             }
-            
+
         } catch (error) {
             toast.error(error.message, { autoClose: 5000, theme: 'colored' });
         } finally {
             setLoading(false);
         }
     }
-    
+
     return (
         <Layout heading={RESET_PASSWORD_CONFIRMATION_TEXT}>
 
@@ -66,7 +66,7 @@ const ConfirmPasswordReset = () => {
                     <span></span>
                     <span></span>
 
-                    <input type="text" autoComplete="one-time-code" inputMode="numeric" maxLength="6" pattern="[0-9]{6}" 
+                    <input type="text" autoComplete="one-time-code" inputMode="numeric" maxLength="6" pattern="[0-9]{6}"
                         value={verification_code} onChange={e => setCode(e.target.value)} required />
                 </label>
 
