@@ -33,6 +33,7 @@ export const NEARBY_TEXT = 'People close to me';
 export const verifyEmailPath = '/verify-email';
 export const basicProfilePath = '/basic-profile';
 export const advancedProfilePath = '/advanced-profile';
+export const finalProfilePath = '/final-profile';
 
 export const encountersPath = '/encounters';
 export const likesPath = '/likes';
