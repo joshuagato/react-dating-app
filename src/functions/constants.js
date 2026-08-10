@@ -1,5 +1,7 @@
 export const APP_NAME = 'StreamMatch';
 
+export const baseURL = import.meta.env.VITE_REACT_APP_API_BASE_URL;
+
 export const LOGIN_TEXT = 'Sign in to Your Account';
 export const SIGNUP_TEXT = 'Create Your Account';
 
@@ -47,4 +49,13 @@ const LOGIN = 'login';
 export const VERIFICATION_CHANNEL = {
     SIGNUP,
     LOGIN
+}
+
+const LIKE = 'like';
+const DISLIKE = 'dislike';
+const SUPER_LIKE = 'super-like';
+const PASS = 'pass';
+
+export const ENCOUNTER_ACTION = {
+    LIKE, DISLIKE, SUPER_LIKE, PASS
 }
