@@ -32,6 +32,9 @@ export const LIKES_TEXT = 'Who liked me?';
 export const NEARBY_TITLE = 'Nearby';
 export const NEARBY_TEXT = 'People close to me';
 
+export const CHATS_TITLE = 'Chats';
+export const CHATS_TEXT = 'My conversations with others';
+
 export const verifyEmailPath = '/verify-email';
 export const basicProfilePath = '/basic-profile';
 export const advancedProfilePath = '/advanced-profile';
