@@ -13,6 +13,7 @@ import Encounters from './routes/Encounters';
 import Matcher from './routes/Matcher';
 import Likes from './routes/Likes';
 import Nearby from './routes/Nearby';
+import Chats from './routes/Chats';
 import Others from "./routes/Others";
 
 import './App.css';
@@ -35,6 +36,7 @@ function App() {
             <Route path="encounters" element={<Encounters />} />
             <Route path="likes" element={<Likes />} />
             <Route path="nearby" element={<Nearby />} />
+            <Route path="chats" element={<Chats />} />
             <Route path="matcher" element={<Matcher />} />
             <Route path="others" element={<Others />} />
 
