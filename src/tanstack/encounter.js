@@ -20,6 +20,11 @@ const usersWhoDisLikeMe = async () => {
     return response.data;
 }
 
+const usersDisLikedByMe = async () => {
+    const response = await protectedApi.get('/encounter/users-disliked-by-me');
+    return response.data;
+}
+
 
 export const likeUserHandler = async data => await likeUser(data);
 
@@ -28,4 +33,6 @@ export const dislikeUserHandler = async data => await dislikeUser(data);
 export const usersWhoLikeMeHandler = async () => await usersWhoLikeMe();
 
 export const usersWhoDisLikeMeHandler = async () => await usersWhoDisLikeMe();
+
+export const usersDisLikedByMeHandler = async () => await usersDisLikedByMe();
 
