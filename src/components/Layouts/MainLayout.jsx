@@ -37,7 +37,7 @@ const MainLayout = ({ children, pageTitle, pageDetails }) => {
                                         </form>
                                         <h3 className="font-bold text-lg">Hello!</h3>
                                         <p className="py-4">Press ESC key or click on ✕ button to close</p>
-                                        <input type="range" min={0} max="100" value="30" className="range range-xs" />
+                                        <input type="range" min={0} max="100" defaultValue="30" className="range range-xs" />
                                     </div>
                                 </dialog>
                             </article>
@@ -78,7 +78,7 @@ const MainLayout = ({ children, pageTitle, pageDetails }) => {
                     }
                 </section>
 
-                <section className="absolute w-full lg:max-w-xl h-[76vh] top-[7vh] bottom-[17vh] px-4 sm:px-8 py-2 bg-[#f8fafc] border border-[#e2e8f0]">
+                <section className="absolute w-full lg:max-w-xl h-[76vh] top-[7vh] bottom-[17vh] bg-[#f8fafc] border border-[#e2e8f0]">
                     {children}
                 </section>
 
