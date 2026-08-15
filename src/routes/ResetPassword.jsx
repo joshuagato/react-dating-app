@@ -10,8 +10,8 @@ import SwitchContextButton from '../components/SwitchContextButton';
 import HelmetHeader from '../components/HelmetHeader';
 
 import { requestPasswordResetHandler } from '../tanstack/auth';
-import { SWITCH_BACK_TO_LOGIN_TEXT, RESET_PASSWORD_TEXT } from '../functions/constants';
-import { unsetErrorSetMessage, unsetMessageSetError, unsetAllErrors, disableSubmitButtonFor } from '../functions/utils';
+import { SWITCH_BACK_TO_LOGIN_TEXT, RESET_PASSWORD_TEXT } from '../utils/constants';
+import { unsetErrorSetMessage, unsetMessageSetError, unsetAllErrors, disableSubmitButtonFor } from '../utils/functions';
 
 const ResetPassword = () => {
     const [email, setEmail] = useState("");

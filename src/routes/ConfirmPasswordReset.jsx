@@ -4,8 +4,8 @@ import { useNavigate } from "react-router";
 import { toast } from 'react-toastify';
 
 import { confirmPasswordResetHandler } from '../tanstack/auth';
-import { unsetMessageSetError, unsetErrorSetMessage, unsetAllErrors } from '../functions/utils';
-import { RESET_PASSWORD_CONFIRMATION_TEXT } from '../functions/constants';
+import { unsetMessageSetError, unsetErrorSetMessage, unsetAllErrors } from '../utils/functions';
+import { RESET_PASSWORD_CONFIRMATION_TEXT } from '../utils/constants';
 
 import CountdownTimer from '../components/CountdownTimer';
 import SubmitButton from '../components/SubmitButton';
