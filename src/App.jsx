@@ -14,11 +14,15 @@ import Matcher from './routes/Matcher';
 import Likes from './routes/Likes';
 import Nearby from './routes/Nearby';
 import Chats from './routes/Chats';
+import Chat from './routes/Chat';
 import Others from "./routes/Others";
+import { baseURL, userId } from './utils/constants'
+import { connectSocket } from './utils/functions'
 
 import './App.css';
 
 function App() {
+    connectSocket(baseURL, userId);
 
     return (
 
@@ -37,6 +41,7 @@ function App() {
             <Route path="likes" element={<Likes />} />
             <Route path="nearby" element={<Nearby />} />
             <Route path="chats" element={<Chats />} />
+            <Route path="chat" element={<Chat />} />
             <Route path="matcher" element={<Matcher />} />
             <Route path="others" element={<Others />} />
 
