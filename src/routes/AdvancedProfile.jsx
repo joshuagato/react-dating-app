@@ -9,10 +9,10 @@ import { CircleX, CircleCheck } from 'lucide-react';
 
 import Layout from '../components/Layouts/SetupLayout';
 import { setupAdvancedProfileHandler } from '../tanstack/user';
-import { finalProfilePath, UPLOAD_PICTURE_TEXT } from '../functions/constants';
+import { finalProfilePath, UPLOAD_PICTURE_TEXT } from '../utils/constants';
 import HelmetHeader from '../components/HelmetHeader';
 import SubmitButton from '../components/SubmitButton';
-import { unsetErrorSetMessage, unsetMessageSetError } from '../functions/utils';
+import { unsetErrorSetMessage, unsetMessageSetError } from '../utils/functions';
 
 // 🟢 REMOVED GLOBAL ARRAYS/OBJECTS ENTIRELY
 

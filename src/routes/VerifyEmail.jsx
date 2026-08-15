@@ -4,8 +4,8 @@ import { useLocation, useNavigate } from "react-router";
 import { toast } from 'react-toastify';
 
 import { verifyEmailHandler } from '../tanstack/auth';
-import { unsetMessageSetError, unsetErrorSetMessage } from '../functions/utils';
-import { VERIFY_EMAIL_TEXT, basicProfilePath } from '../functions/constants';
+import { unsetMessageSetError, unsetErrorSetMessage } from '../utils/functions';
+import { VERIFY_EMAIL_TEXT, basicProfilePath } from '../utils/constants';
 
 import CountdownTimer from '../components/CountdownTimer';
 import SubmitButton from '../components/SubmitButton';

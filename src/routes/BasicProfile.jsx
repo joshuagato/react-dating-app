@@ -3,8 +3,8 @@ import { User, User2, UserCircle, CircleX, CircleCheck } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router';
 
-import { SET_UP_BASIC_DETAILS, advancedProfilePath } from '../functions/constants';
-import { unsetAllErrors, unsetErrorSetMessage, unsetMessageSetError } from '../functions/utils';
+import { SET_UP_BASIC_DETAILS, advancedProfilePath } from '../utils/constants';
+import { unsetAllErrors, unsetErrorSetMessage, unsetMessageSetError } from '../utils/functions';
 import { setupBasicProfileHandler } from '../tanstack/user';
 
 import Layout from '../components/Layouts/SetupLayout';

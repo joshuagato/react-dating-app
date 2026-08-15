@@ -15,8 +15,8 @@ import { resetPasswordHandler } from '../tanstack/auth';
 import {
     unsetErrorSetMessage, unsetMessageSetError, unsetPasswordFields, disableSubmitButtonFor,
     unsetAllErrors
-} from "../functions/utils";
-import { SWITCH_TO_LOGIN_TEXT, SET_NEW_PASSWORD_TEXT } from "../functions/constants";
+} from "../utils/functions";
+import { SWITCH_TO_LOGIN_TEXT, SET_NEW_PASSWORD_TEXT } from "../utils/constants";
 
 
 const SetNewPassword = () => {
