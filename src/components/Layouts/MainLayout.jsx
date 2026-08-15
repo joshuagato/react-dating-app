@@ -4,8 +4,8 @@ import {
     SlidersHorizontal, BluetoothConnected, LocateFixed, Copy, Heart, MessageCircleCode, User,
     MoreHorizontal, Menu
 } from 'lucide-react';
-import { chatsPath, encountersPath, likesPath, nearbyPath, profilePath } from '../../functions/constants';
-import { chooseColour, chooseTextColour, pathMatched } from '../../functions/utils';
+import { chatsPath, encountersPath, likesPath, nearbyPath, profilePath } from '../../utils/constants';
+import { chooseColour, chooseTextColour, pathMatched } from '../../utils/functions';
 
 
 const MainLayout = ({ children, pageTitle, pageDetails }) => {

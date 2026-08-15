@@ -1,6 +1,6 @@
 // import PropTypes from 'prop-types';
 
-import { APP_NAME } from '../../functions/constants';
+import { APP_NAME } from '../../utils/constants';
 
 const SetupLayout = ({ children, heading }) => {
     return (
