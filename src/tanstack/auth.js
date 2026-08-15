@@ -19,7 +19,7 @@ const verifyEmail = async verificationData => {
 }
 
 const requestPasswordReset = async requestData => {
-    const response = await protectedApi.patch('/auth/request-password-reset', requestData);
+    const response = await unProtectedApi.patch('/auth/request-password-reset', requestData);
     return response.data;
 }
 
