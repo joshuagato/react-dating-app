@@ -9,8 +9,9 @@ import 'swiper/css/navigation';
 
 import './Encounters.css';
 
-import { POTENTIAL_MATCH_PROFILE, ENCOUNTERS_TITLE, ENCOUNTERS_TEXT } from '../functions/constants';
-import { getPotentialMatchProfilesHandler } from '../tanstack/user';
+import { POTENTIAL_MATCH_PROFILE, ENCOUNTERS_TITLE, ENCOUNTERS_TEXT, baseURL, ENCOUNTER_ACTION } from '../utils/constants';
+import { getPotentialMatchProfilesHandler, getEncountersProfilesHandler } from '../tanstack/user';
+import { likeUserHandler, dislikeUserHandler } from '../tanstack/encounter';
 
 import MainLayout from '../components/Layouts/MainLayout';
 import HelmetHeader from '../components/HelmetHeader';
@@ -32,10 +33,11 @@ export default function Encounters() {
 
         return {
             id,
-            profileId: profile._id || profile.id,
+            profileId: profile.id,
             name: profile.name,
             age: profile.age,
-            distanceFrom: profile.distanceFrom,
+            city: profile.city,
+            distanceFrom: profile.distance_from,
             pictures,
             isDismissing: false,
             transform: '',
@@ -62,11 +64,15 @@ export default function Encounters() {
     useEffect(() => {
         (async () => {
             try {
-                const response = await getPotentialMatchProfilesHandler();
-                const fetchedProfiles = response?.userProfiles || [];
+                const query = `max_distance=211`;
+                // const response = await getPotentialMatchProfilesHandler();
+                // const fetchedProfiles = response?.userProfiles || [];
+                const response = await getEncountersProfilesHandler(query);
+                const fetchedProfiles = response?.users || [];
 
                 if (fetchedProfiles.length > 0) {
                     setProfiles(fetchedProfiles);
+                    // console.log(fetchedProfiles[0])
 
                     const initialCount = Math.min(12, fetchedProfiles.length);
                     const initialCards = [];
@@ -93,12 +99,14 @@ export default function Encounters() {
     };
 
     const handleSwipeDecision = (direction, card) => {
-        console.log(`Action: ${direction.toUpperCase()} | User: ${card.name}`);
+        const data = { recipient_id: card.profileId };
 
         if (direction === 'like') {
-            // TODO: POST /api/like -> { profileId: card.profileId }
+            data.action = ENCOUNTER_ACTION.LIKE;
+            likeUserHandler(data);
         } else if (direction === 'dislike') {
-            // TODO: POST /api/dislike -> { profileId: card.profileId }
+            data.action = ENCOUNTER_ACTION.DISLIKE;
+            dislikeUserHandler(data);
         }
     };
 
@@ -223,6 +231,15 @@ export default function Encounters() {
 
     const renderBullet = (index, className) => '<span class="' + className + '">' + (index + 1) + '</span>';
 
+    const buildPictureUrl = (baseUrl, pictureUrl) => `${baseUrl}/${pictureUrl}`;
+
+    useEffect(() => {
+        (async () => {
+            // const query = `max_distance=211`;
+            // console.log(await getEncountersProfilesHandler(query));
+        })()
+    }, []);
+
     return (
         <MainLayout pageTitle={ENCOUNTERS_TITLE} pageDetails={ENCOUNTERS_TEXT}>
             <HelmetHeader pageTitle={ENCOUNTERS_TITLE} />
@@ -287,7 +304,8 @@ export default function Encounters() {
                                     {card.pictures.map((picture, idx) => (
                                         <SwiperSlide key={idx}>
                                             <img
-                                                src={picture}
+                                                src={buildPictureUrl(baseURL, picture.path)}
+                                                // src={picture}
                                                 alt={`${card.name || 'Profile'} picture ${idx + 1}`}
                                                 className="w-full h-full object-cover pointer-events-none"
                                             />
@@ -302,7 +320,7 @@ export default function Encounters() {
                                     </h3>
                                     {card.distanceFrom !== undefined && (
                                         <p className="text-xs text-gray-200 mt-1">
-                                            📍 {card.distanceFrom} miles away
+                                            📍 <span className='font-bold'>{card.distanceFrom}</span> KM Away, (<span className='font-bold'>{card.city}</span>)
                                         </p>
                                     )}
                                 </div>
@@ -310,7 +328,7 @@ export default function Encounters() {
                         );
                     })}
                 </div>
-                <article className='z-30 w-full h-[12vh] flex justify-center items-center gap-3 bottom-buttons'>
+                <article className='w-full h-[12vh] flex justify-center items-center gap-3 bottom-buttons'>
                     <div
                         id="star"
                         onClick={() => handleButtonClick('dislike')}

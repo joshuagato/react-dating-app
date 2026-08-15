@@ -1,7 +1,8 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 
-import { LIKES_TITLE, LIKES_TEXT } from '../functions/constants';
+import { LIKES_TITLE, LIKES_TEXT } from '../utils/constants';
 import { getPotentialMatchProfilesHandler } from '../tanstack/user';
+import { usersWhoLikeMeHandler, usersWhoDisLikeMeHandler, usersDisLikedByMeHandler } from '../tanstack/encounter';
 
 import MainLayout from '../components/Layouts/MainLayout';
 import HelmetHeader from '../components/HelmetHeader';
@@ -19,6 +20,10 @@ export default function Likes() {
                 if (fetchedProfiles.length > 0) {
                     setProfiles(fetchedProfiles);
                 }
+
+                // console.log(await usersWhoLikeMeHandler())
+                // console.log(await usersWhoDisLikeMeHandler())
+                // console.log(await usersDisLikedByMeHandler())
             } catch (error) {
                 console.error("Failed to fetch match profiles:", error);
             }
@@ -33,7 +38,7 @@ export default function Likes() {
         <MainLayout pageTitle={LIKES_TITLE} pageDetails={LIKES_TEXT}>
             <HelmetHeader pageTitle={LIKES_TITLE} />
 
-            <div className="relative w-full h-full flex flex-col overflow-hidden select-none fade-in overflow-y-scroll">
+            <div className="relative w-full h-full flex flex-col overflow-hidden select-none fade-in px-4 sm:px-8 py-2 overflow-y-scroll">
                 <div className='w-full h-full grid max-sm:grid-cols-2  max-lg:grid-cols-3 gap-3 lg:grid-cols-2'>
                     {profiles.length > 0 && profiles.map((profile, index) => {
                         return (
