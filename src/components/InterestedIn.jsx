@@ -1,4 +1,4 @@
-import { makeLabelTextId } from '../functions/utils';
+import { makeLabelTextId } from '../utils/functions';
 
 const InterestedIn = ({ label, setInterestedIn }) => {
     const fieldId = makeLabelTextId(label);
@@ -10,14 +10,14 @@ const InterestedIn = ({ label, setInterestedIn }) => {
                     htmlFor={fieldId}
                     className="block self-start text-sm font-medium text-purple-900"
                 >
-                    { label } {<span className='text-red-600'>*</span>}
+                    {label} {<span className='text-red-600'>*</span>}
                 </label>
                 <div id={fieldId} className="interested-in">
-                    <input className="interested-in-item btn w-24" type="radio" name={fieldId} aria-label="Men" 
+                    <input className="interested-in-item btn w-24" type="radio" name={fieldId} aria-label="Men"
                         value={'men'} onChange={e => setInterestedIn(e.target.value)} required />
-                    <input className="interested-in-item btn w-24" type="radio" name={fieldId} aria-label="Women" 
+                    <input className="interested-in-item btn w-24" type="radio" name={fieldId} aria-label="Women"
                         value={'women'} onChange={e => setInterestedIn(e.target.value)} required />
-                    <input className="interested-in-item btn w-24" type="radio" name={fieldId} aria-label="Everyone" 
+                    <input className="interested-in-item btn w-24" type="radio" name={fieldId} aria-label="Everyone"
                         value={'everyone'} onChange={e => setInterestedIn(e.target.value)} required />
                 </div>
             </div>
