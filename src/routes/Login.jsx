@@ -15,12 +15,12 @@ import { getProfileHandler } from '../tanstack/user';
 import {
     unsetErrorSetMessage, unsetMessageSetError, unsetEmailPasswordField,
     unsetAllErrors
-} from "../functions/utils";
+} from "../utils/functions";
 import {
     LOGIN_TEXT, SWITCH_TO_SIGNUP_TEXT, VERIFICATION_CHANNEL,
     SWITCH_TO_PASSWORD_RESET_TEXT, encountersPath, verifyEmailPath,
     basicProfilePath, advancedProfilePath,
-} from "../functions/constants";
+} from "../utils/constants";
 
 
 const Auth = () => {

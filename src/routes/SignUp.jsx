@@ -15,8 +15,8 @@ import { signUpHandler } from '../tanstack/auth';
 import {
     unsetErrorSetMessage, unsetMessageSetError, unsetEmailPasswordFields,
     unsetAllErrors
-} from "../functions/utils";
-import { SIGNUP_TEXT, SWITCH_TO_LOGIN_TEXT, VERIFICATION_CHANNEL } from "../functions/constants";
+} from "../utils/functions";
+import { SIGNUP_TEXT, SWITCH_TO_LOGIN_TEXT, VERIFICATION_CHANNEL } from "../utils/constants";
 
 
 const SignUp = () => {
