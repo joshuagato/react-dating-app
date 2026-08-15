@@ -1,7 +1,8 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Heart, Asterisk, Radar, Star } from 'lucide-react';
+import { Link } from 'react-router';
 
-import { CHATS_TITLE, CHATS_TEXT } from '../functions/constants';
+import { CHATS_TITLE, CHATS_TEXT } from '../utils/constants';
 import { getPotentialMatchProfilesHandler } from '../tanstack/user';
 
 import MainLayout from '../components/Layouts/MainLayout';
@@ -38,7 +39,7 @@ export default function Chats() {
                 <div className='w-full h-full grid grid-cols-1 gap-5'>
                     {profiles.length > 0 && profiles.map((profile, index) => {
                         return (
-                            <article key={index} className='w-full h-15 flex justify-between items-center gap-3'>
+                            <Link to={'/chat'} key={index} className='w-full h-15 flex justify-between items-center gap-3 cursor-pointer active:bg-neutral-100'>
                                 <section className='flex gap-3'>
                                     <div className='w-15 h-15'>
                                         <img className='w-full h-full object-cover rounded-full' src={profile.pictures[0]} alt="User Profile Picture" />
@@ -46,7 +47,7 @@ export default function Chats() {
                                     <div className='w-fit h-15'>
                                         <div className='w-full h-full flex flex-col justify-center items-start bg-clip-text text-transparent bg-gradient-to-r from-violet-600 to-pink-600'>
                                             <h1 className='text-[14px] sm:text-[18px] flex items-center gap-2'>{profile.name}
-                                                <spam className='block w-2 h-2 bg-green-700 rounded-full'></spam>
+                                                <span className='block w-2 h-2 bg-green-700 rounded-full'></span>
                                             </h1>
                                             <p className='text-[12px] sm:text-[13px]'>{profile.distanceFrom} KM Away</p>
                                         </div>
@@ -61,7 +62,7 @@ export default function Chats() {
                                         <span className='text-[10px]'>{'Yesterday'}</span>
                                     </div>
                                 </section>
-                            </article>
+                            </Link>
                         );
                     })}
                 </div>

@@ -7,10 +7,10 @@ import { Geolocation } from '@capacitor/geolocation';
 
 import Layout from '../components/Layouts/SetupLayout';
 import { setupFinalProfileHandler, getEncountersProfilesHandler } from '../tanstack/user';
-import { UPLOAD_PICTURE_TEXT } from '../functions/constants';
+import { UPLOAD_PICTURE_TEXT } from '../utils/constants';
 import HelmetHeader from '../components/HelmetHeader';
 import SubmitButton from '../components/SubmitButton';
-import { unsetErrorSetMessage, unsetMessageSetError } from '../functions/utils';
+import { unsetErrorSetMessage, unsetMessageSetError } from '../utils/functions';
 
 export default function FinalProfile() {
     const [loading, setLoading] = useState(false);
