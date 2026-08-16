@@ -1,4 +1,5 @@
 import { io } from 'socket.io-client';
+import { format, isToday, isYesterday, differenceInDays } from 'date-fns';
 
 export const organizeErrors = errorsArray => {
     const errorsData = {};
@@ -102,4 +103,36 @@ export const writeName = (user1, user2, user0) => {
 
     // Last Message => When CurrentMessageSender != NextMessageSender >> and PrevMessageSender == CurrentMessageSender
     if (user1.toString() !== user2.toString() && user2.toString() === '' && user0.toString() === user1.toString()) return false;
+}
+
+export const isSameDate = (message0, message1) => {
+    return message0?.sentAt?.split('T')[0].toString() === message1.sentAt.split('T')[0].toString();
+}
+
+export function formatMessageDate(dateInput) {
+    if (!dateInput) return '';
+
+    const date = new Date(dateInput);
+    const now = new Date();
+
+    // 1. Today
+    if (isToday(date)) {
+        return 'Today';
+    }
+
+    // 2. Yesterday
+    if (isYesterday(date)) {
+        return 'Yesterday';
+    }
+
+    // Difference in calendar days between now and the date
+    const daysAgo = differenceInDays(now, date);
+
+    // 3. Within the last 7 days (e.g., 2 to 7 days ago)
+    if (daysAgo > 1 && daysAgo <= 7) {
+        return format(date, 'eeee'); // Returns 'Friday', 'Thursday', etc.
+    }
+
+    // 4. Older than 7 days
+    return format(date, 'dd/MM/yyyy'); // e.g., '14/08/2026' (adjust pattern as needed)
 }
