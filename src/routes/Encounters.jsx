@@ -25,6 +25,7 @@ export default function Encounters() {
 
     const nextCardId = useRef(0);
     const dragInfo = useRef({ startX: 0, startY: 0, isDragging: false });
+    const isProcessingDismiss = useRef(false);
 
     // Helper to construct card data
     const createCardData = useCallback((profile, id) => {
@@ -65,20 +66,19 @@ export default function Encounters() {
         (async () => {
             try {
                 const query = `max_distance=211`;
-                // const response = await getPotentialMatchProfilesHandler();
-                // const fetchedProfiles = response?.userProfiles || [];
                 const response = await getEncountersProfilesHandler(query);
                 const fetchedProfiles = response?.users || [];
 
                 if (fetchedProfiles.length > 0) {
-                    setProfiles(fetchedProfiles);
-                    // console.log(fetchedProfiles[0])
+                    // Reverse list so Backend Index 0 renders on top of the LIFO stack
+                    const orderedProfiles = [...fetchedProfiles].reverse();
+                    setProfiles(orderedProfiles);
 
-                    const initialCount = Math.min(12, fetchedProfiles.length);
+                    const initialCount = Math.min(12, orderedProfiles.length);
                     const initialCards = [];
 
                     for (let i = 0; i < initialCount; i++) {
-                        initialCards.push(createCardData(fetchedProfiles[i], i));
+                        initialCards.push(createCardData(orderedProfiles[i], i));
                     }
 
                     nextCardId.current = initialCount;
@@ -111,13 +111,22 @@ export default function Encounters() {
     };
 
     const handleButtonClick = (direction) => {
+        if (isProcessingDismiss.current) return;
+        isProcessingDismiss.current = true;
+
         setCards(prev => {
-            if (prev.length === 0) return prev;
+            if (prev.length === 0) {
+                isProcessingDismiss.current = false;
+                return prev;
+            }
             const updated = [...prev];
             const activeIdx = updated.length - 1;
             const activeCard = updated[activeIdx];
 
-            if (activeCard.isDismissing) return prev;
+            if (activeCard.isDismissing) {
+                isProcessingDismiss.current = false;
+                return prev;
+            }
 
             const multiplier = direction === 'like' ? 1 : -1;
 
@@ -130,6 +139,7 @@ export default function Encounters() {
 
             setTimeout(() => {
                 setCards(p => p.filter(c => c.id !== activeCard.id));
+                isProcessingDismiss.current = false;
             }, 800);
 
             appendNewCard();
@@ -142,7 +152,6 @@ export default function Encounters() {
     };
 
     const handleDragStart = (e) => {
-        // Ignore drags originating directly on Swiper pagination or navigation buttons
         if (
             e.target.closest('.swiper-button-next') ||
             e.target.closest('.swiper-button-prev') ||
@@ -185,6 +194,10 @@ export default function Encounters() {
 
             const limit = window.innerWidth * 0.15;
             if (Math.abs(offsetX) > limit) {
+                // Prevent duplicate trigger on consecutive movement frames
+                if (isProcessingDismiss.current) return prev;
+                isProcessingDismiss.current = true;
+
                 dragInfo.current.isDragging = false;
 
                 const direction = offsetX > 0 ? 'like' : 'dislike';
@@ -199,6 +212,7 @@ export default function Encounters() {
 
                 setTimeout(() => {
                     setCards(p => p.filter(c => c.id !== activeCard.id));
+                    isProcessingDismiss.current = false;
                 }, 1000);
 
                 appendNewCard();
@@ -233,18 +247,10 @@ export default function Encounters() {
 
     const buildPictureUrl = (baseUrl, pictureUrl) => `${baseUrl}/${pictureUrl}`;
 
-    useEffect(() => {
-        (async () => {
-            // const query = `max_distance=211`;
-            // console.log(await getEncountersProfilesHandler(query));
-        })()
-    }, []);
-
     return (
         <MainLayout pageTitle={ENCOUNTERS_TITLE} pageDetails={ENCOUNTERS_TEXT}>
             <HelmetHeader pageTitle={ENCOUNTERS_TITLE} />
 
-            {/* <div className="relative w-full h-full mx-auto overflow-hidden bg-gradient-to-b from-[#ff6036] to-[#fd267a] select-none my-4 rounded-xl"> */}
             <div className="relative w-full h-full flex flex-col overflow-hidden select-none rounded-xl fade-in">
                 <div id="swiper" className="relative pt-[5vh] w-full h-[64vh] flex justify-center items-center perspective">
                     {cards.map((card) => {
@@ -276,7 +282,6 @@ export default function Encounters() {
                         return (
                             <div
                                 key={card.id}
-                                // className={`absolute w-70 sm:80 h-95 sm:h-120 rounded-[20px] overflow-hidden cursor-grab 
                                 className={`absolute rounded-[20px] overflow-hidden cursor-grab 
                                     active:cursor-grabbing shadow-[2px_2px_20px_rgba(0,0,0,0.5)] card-token
                                     transition-all ${card.isDismissing ? 'pointer-events-none' : ''}`}
@@ -289,10 +294,6 @@ export default function Encounters() {
                                 {...interactiveProps}
                                 onDragStart={(e) => e.preventDefault()}
                             >
-                                {/* 
-                                  Keying Swiper by `swiper-top-${isTopCard}` forces React to initialize Swiper 
-                                  with full navigation controls as soon as this card moves to the top of the stack.
-                                */}
                                 <ReactSwiper
                                     key={`swiper-${card.id}-${isTopCard ? 'top' : 'stacked'}`}
                                     pagination={{ clickable: true, renderBullet }}
@@ -305,7 +306,6 @@ export default function Encounters() {
                                         <SwiperSlide key={idx}>
                                             <img
                                                 src={buildPictureUrl(baseURL, picture.path)}
-                                                // src={picture}
                                                 alt={`${card.name || 'Profile'} picture ${idx + 1}`}
                                                 className="w-full h-full object-cover pointer-events-none"
                                             />
@@ -313,7 +313,6 @@ export default function Encounters() {
                                     ))}
                                 </ReactSwiper>
 
-                                {/* Profile Info Overlay */}
                                 <div className="absolute bottom-0 left-0 right-0 z-20 p-4 bg-gradient-to-t from-black/80 via-black/70 to-transparent text-white pointer-events-none">
                                     <h3 className="text-lg font-bold leading-tight">
                                         {card.name}{card.age ? `, ${card.age}` : ''}
