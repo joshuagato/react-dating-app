@@ -48,7 +48,7 @@ export default function Chats() {
                 <div className='w-full h-full grid grid-cols-1 gap-5'>
                     {chats.length > 0 && chats.map((chat, index) => {
 
-                        const { myself, partner, unread_message_count,
+                        const { id: chat_id, myself, partner, unread_message_count,
                             last_message: { content, sender_id, sent_at, delivered_at, read_at } } = chat;
 
                         const { name, picture } = partner;
@@ -57,7 +57,7 @@ export default function Chats() {
                         const pictureUrl = buildPictureUrl(baseURL, picture);
 
                         return (
-                            <Link to={'/chat'} state={{ myself, partner }} key={index} className='w-full h-15 flex justify-between items-center gap-3 cursor-pointer active:bg-neutral-100'>
+                            <Link to={'/chat'} state={{ chat_id, myself, partner }} key={index} className='w-full h-15 flex justify-between items-center gap-3 cursor-pointer active:bg-neutral-100'>
                                 <section className='flex gap-3'>
                                     <div className='w-15 h-15'>
                                         <img className='w-full h-full object-cover rounded-full'
