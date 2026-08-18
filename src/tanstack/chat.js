@@ -15,6 +15,11 @@ const getChatMessages = async chat_id => {
     return response.data;
 }
 
+const markMessageAsRead = async message_id => {
+    const response = await protectedApi.patch(`/chat/mark-message-as-read/${message_id}`);
+    return response.data;
+}
+
 
 
 export const sendMessageHandler = async data => await sendMessage(data);
@@ -22,3 +27,5 @@ export const sendMessageHandler = async data => await sendMessage(data);
 export const getChatsHandler = async () => await getChats();
 
 export const getChatMessagesHandler = async data => await getChatMessages(data);
+
+export const markMessageAsReadHandler = async data => await markMessageAsRead(data);
