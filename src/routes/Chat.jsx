@@ -241,7 +241,7 @@ export default function Chat() {
         }, 10);
     }
 
-    async function handleLoad(event, message) {
+    async function handleLoadMessages(event, message) {
         event.preventDefault();
 
         const isOwn = isCurrentUser(userId, message.sender_id);
@@ -307,7 +307,7 @@ export default function Chat() {
                     <div
                         className={`chat ${isOwn ? 'chat-end' : 'chat-start'} 
                         ${showName && isSameDay ? 'mt-3' : ''} active:bg-neutral-100`}
-                        onLoad={(event) => { handleLoad(event, message) }}
+                        onLoad={(event) => { handleLoadMessages(event, message) }}
                     >
                         {isDetails && !isSameSenderAsNext && profile?.pictures?.[0] && (
                             <div className="chat-image avatar">
