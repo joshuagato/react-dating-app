@@ -110,15 +110,19 @@ export const isSameDate = (message0, message1) => {
     return message0?.sent_at?.split('T')[0].toString() === message1.sent_at.split('T')[0].toString();
 }
 
-export function formatMessageDate(dateInput) {
+export function formatMessageDate(dateInput, isLastMessage = false) {
     if (!dateInput) return '';
 
     const date = new Date(dateInput);
     const now = new Date();
 
     // 1. Today
-    if (isToday(date)) {
+    if (!isLastMessage && isToday(date)) {
         return 'Today';
+    }
+
+    if (isLastMessage && isToday(date)) {
+        return timeTo12Hour(dateInput);
     }
 
     // 2. Yesterday
