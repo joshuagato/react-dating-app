@@ -149,3 +149,8 @@ export const timeTo12Hour = time => {
 }
 
 export const buildPictureUrl = (baseUrl, pictureUrl) => `${baseUrl}/${pictureUrl}`;
+
+export const isCurrentUser = (currentUserId, otherUserId) => {
+    if (!currentUserId || !otherUserId) return false;
+    return currentUserId.toString() === otherUserId.toString();
+};
