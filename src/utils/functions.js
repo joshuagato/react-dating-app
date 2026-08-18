@@ -79,7 +79,6 @@ export const connectSocket = (baseURL, userId) => {
 }
 
 export const writeName = (user1, user2, user0) => {
-    console.log({ user0, user1, user2 })
     // First Message => When CurrentMessageSender != NextMessageSender 
     if (user1.toString() !== user2.toString() && user0.toString() === '') return true;
 
@@ -157,4 +156,14 @@ export const buildPictureUrl = (baseUrl, pictureUrl) => `${baseUrl}/${pictureUrl
 export const isCurrentUser = (currentUserId, otherUserId) => {
     if (!currentUserId || !otherUserId) return false;
     return currentUserId.toString() === otherUserId.toString();
+};
+
+export const getUserProfile = (userId, profiles) => {
+    if (!userId || !profiles || profiles.length === 0) return null;
+    return profiles.find(profile => profile?.id?.toString() === userId.toString());
+};
+
+export const isSame = (user1, user2) => {
+    if (!user1 || !user2) return false;
+    return user1.toString() === user2?.toString();
 };
