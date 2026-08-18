@@ -79,6 +79,7 @@ export const connectSocket = (baseURL, userId) => {
 }
 
 export const writeName = (user1, user2, user0) => {
+    console.log({ user0, user1, user2 })
     // First Message => When CurrentMessageSender != NextMessageSender 
     if (user1.toString() !== user2.toString() && user0.toString() === '') return true;
 
@@ -106,7 +107,7 @@ export const writeName = (user1, user2, user0) => {
 }
 
 export const isSameDate = (message0, message1) => {
-    return message0?.sentAt?.split('T')[0].toString() === message1.sentAt.split('T')[0].toString();
+    return message0?.sent_at?.split('T')[0].toString() === message1.sent_at.split('T')[0].toString();
 }
 
 export function formatMessageDate(dateInput) {
@@ -134,5 +135,17 @@ export function formatMessageDate(dateInput) {
     }
 
     // 4. Older than 7 days
-    return format(date, 'dd/MM/yyyy'); // e.g., '14/08/2026' (adjust pattern as needed)
+    return format(date, 'MMMM d, y');
 }
+
+export const timeTo12Hour = time => {
+    const timeString = new Date(time).toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+    });
+
+    return timeString
+}
+
+export const buildPictureUrl = (baseUrl, pictureUrl) => `${baseUrl}/${pictureUrl}`;
