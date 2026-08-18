@@ -106,7 +106,7 @@ export const writeName = (user1, user2, user0) => {
 }
 
 export const isSameDate = (message0, message1) => {
-    return message0?.sent_at?.split('T')[0].toString() === message1.sent_at.split('T')[0].toString();
+    return message0?.sent_at?.split('T')[0].toString() === message1.sent_at?.split('T')[0].toString();
 }
 
 export function formatMessageDate(dateInput, isLastMessage = false) {
