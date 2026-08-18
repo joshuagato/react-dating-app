@@ -5,5 +5,13 @@ const sendMessage = async data => {
     return response.data;
 }
 
+const getChats = async () => {
+    const response = await protectedApi.get('/chat/get-chats');
+    return response.data;
+}
+
+
 
 export const sendMessageHandler = async data => await sendMessage(data);
+
+export const getChatsHandler = async () => await getChats();
