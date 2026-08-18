@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Heart, Asterisk, Radar, Star } from 'lucide-react';
-import { Link, NavLink } from 'react-router';
+import { Star } from 'lucide-react';
+import { Link } from 'react-router';
 
 import { CHATS_TITLE, CHATS_TEXT, baseURL, userId } from '../utils/constants';
 import { buildPictureUrl, formatMessageDate, isCurrentUser } from '../utils/functions';
@@ -50,16 +50,18 @@ export default function Chats() {
 
                         const { myself, partner, unread_message_count,
                             last_message: { content, sender_id, sent_at, delivered_at, read_at } } = chat;
+
                         const { name, picture } = partner;
                         const isOwn = isCurrentUser(userId, sender_id);
                         const formatted = formatMessageDate(sent_at, true);
+                        const pictureUrl = buildPictureUrl(baseURL, picture);
 
                         return (
-                            <NavLink to={'/chat'} state={{ myself }} key={index} className='w-full h-15 flex justify-between items-center gap-3 cursor-pointer active:bg-neutral-100'>
-                                <section className='w-[calc(100% - 60px)] flex gap-3'>
+                            <Link to={'/chat'} state={{ myself, partner }} key={index} className='w-full h-15 flex justify-between items-center gap-3 cursor-pointer active:bg-neutral-100'>
+                                <section className='flex gap-3'>
                                     <div className='w-15 h-15'>
                                         <img className='w-full h-full object-cover rounded-full'
-                                            src={buildPictureUrl(baseURL, picture)}
+                                            src={pictureUrl}
                                             alt="User Profile Picture"
                                         />
                                     </div>
@@ -95,7 +97,7 @@ export default function Chats() {
                                         <span className='text-[10px]'>{formatted}</span>
                                     </div>
                                 </section>
-                            </NavLink>
+                            </Link>
                         );
                     })}
                 </div>
