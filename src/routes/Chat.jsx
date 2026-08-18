@@ -8,7 +8,7 @@ import {
     getUserProfile, isSame
 } from '../utils/functions';
 import { getPotentialMatchProfilesHandler } from '../tanstack/user';
-import { getChatMessagesHandler, sendMessageHandler } from '../tanstack/chat';
+import { getChatMessagesHandler, markMessageAsReadHandler, sendMessageHandler } from '../tanstack/chat';
 
 import MainLayout from '../components/Layouts/MainLayout';
 import HelmetHeader from '../components/HelmetHeader';
@@ -91,8 +91,17 @@ export default function Chat() {
             }
         }
 
-        const handleMessageRead = ({ sender_id, new_array }) => {
-            if (sender_id && isSame(sender_id, userId)) setMessages(new_array);
+        const handleMessageRead = ({ message }) => {
+            const { sender_id } = message;
+
+            if (message && isSame(sender_id, userId)) {
+                setMessages(prevMessages => {
+                    const updatedMessages = [...prevMessages];
+                    const targetIndex = prevMessages.findIndex(msg => msg.id === message.id);
+                    updatedMessages[targetIndex] = message;
+                    return updatedMessages;
+                });
+            }
         }
 
         socket.on('partner_typing', handlePartnerTyping);
@@ -262,22 +271,7 @@ export default function Chat() {
 
         const isOwn = isCurrentUser(userId, message.sender_id);
 
-        if (!isOwn) {
-            setTimeout(() => {
-                setMessages(prevMessages => {
-                    const new_array = prevMessages.map(msg => {
-                        if (!msg.delivered_at)
-                            msg.delivered_at = new Date();
-                        msg.read_at = new Date();
-                        return msg;
-                    });
-
-                    const sender_id = message.sender_id;
-                    socket.emit('show_sender_message_read', { sender_id, new_array });
-                    return new_array;
-                });
-            }, 3000);
-        }
+        if (!isOwn) await markMessageAsReadHandler(message.id);
     }
 
     // Memoize the message rendering to prevent unnecessary re-renders
