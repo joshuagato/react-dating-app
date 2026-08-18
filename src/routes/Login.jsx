@@ -14,12 +14,11 @@ import { loginHandler } from '../tanstack/auth';
 import { getProfileHandler } from '../tanstack/user';
 import {
     unsetErrorSetMessage, unsetMessageSetError, unsetEmailPasswordField,
-    unsetAllErrors
+    unsetAllErrors, connectSocket
 } from "../utils/functions";
 import {
-    LOGIN_TEXT, SWITCH_TO_SIGNUP_TEXT, VERIFICATION_CHANNEL,
-    SWITCH_TO_PASSWORD_RESET_TEXT, encountersPath, verifyEmailPath,
-    basicProfilePath, advancedProfilePath,
+    LOGIN_TEXT, SWITCH_TO_SIGNUP_TEXT, VERIFICATION_CHANNEL, SWITCH_TO_PASSWORD_RESET_TEXT,
+    encountersPath, verifyEmailPath, basicProfilePath, advancedProfilePath, baseURL
 } from "../utils/constants";
 
 
@@ -61,7 +60,8 @@ const Auth = () => {
                 unsetEmailPasswordField(setEmail, setPassword);
                 toast.success(response.message, { autoClose: 7000, theme: 'colored' });
 
-                const { email_verified, basic_profile_setup, advanced_profile_setup } = response;
+                const { user_id, email_verified, basic_profile_setup, advanced_profile_setup } = response;
+                connectSocket(baseURL, user_id);
 
                 if (email_verified && basic_profile_setup && advanced_profile_setup) {
                     // navigate to swipes page
