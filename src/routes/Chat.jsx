@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect, Fragment } from 'react';
 import { useLocation } from 'react-router';
 import EmojiPicker from 'emoji-picker-react';
 
-import { CHATS_TITLE, CHATS_TEXT, baseURL, userId, socket } from '../utils/constants';
+import { CHATS_TITLE, CHATS_TEXT, userId, socket } from '../utils/constants';
 import {
     writeName, isSameDate, formatMessageDate, timeTo12Hour, isCurrentUser,
     getUserProfile, isSame
@@ -31,13 +31,14 @@ export default function Chat() {
 
     const [profiles, setProfiles] = useState([]);
     const [message, setMessage] = useState('');
-    const [messages, setMessages] = useState(initialMessages.sort((a, b) => Number(a.id) - Number(b.id)));
+    // const [messages, setMessages] = useState(initialMessages.sort((a, b) => Number(a.id) - Number(b.id)));
+    const [messages, setMessages] = useState([]);
     const [isTyping, setIsTyping] = useState(false);
     const [showPicker, setShowPicker] = useState(false);
     const location = useLocation();
 
     const { chat_id, myself, partner } = location.state;
-    console.log({ chat_id, myself, partner });
+    // console.log({ chat_id, myself, partner });
 
     const messagesEndRef = useRef(null);
     const chatContainerRef = useRef(null);
@@ -67,7 +68,7 @@ export default function Chat() {
                 setMessages(prevMessages => {
                     const exists = prevMessages.some(m => m.id === message.id);
                     if (exists) return prevMessages;
-                    return [...prevMessages, message].sort((a, b) => Number(a.id) - Number(b.id));
+                    return [...prevMessages, message];
                 });
             }
         };
@@ -78,16 +79,14 @@ export default function Chat() {
         };
 
         const handleMessageDelivered = ({ message }) => {
-            alert('hey')
-            const { sender_id, delivered_at } = message;
+            const { sender_id } = message;
+
             if (message && isSame(sender_id, userId)) {
-                setMessage(prevMessages => {
-                    return prevMessages.find(msg => {
-                        if (msg.id === message.id) {
-                            msg.delivered_at = delivered_at;
-                            return msg;
-                        }
-                    })
+                setMessages(prevMessages => {
+                    const updatedMessages = [...prevMessages];
+                    const targetIndex = prevMessages.findIndex(msg => msg.id === message.id);
+                    updatedMessages[targetIndex] = message;
+                    return updatedMessages;
                 });
             }
         }
