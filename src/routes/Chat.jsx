@@ -77,17 +77,34 @@ export default function Chat() {
                 setIsTyping(isTyping);
         };
 
+        const handleMessageDelivered = ({ message }) => {
+            alert('hey')
+            const { sender_id, delivered_at } = message;
+            if (message && isSame(sender_id, userId)) {
+                setMessage(prevMessages => {
+                    return prevMessages.find(msg => {
+                        if (msg.id === message.id) {
+                            msg.delivered_at = delivered_at;
+                            return msg;
+                        }
+                    })
+                });
+            }
+        }
+
         const handleMessageRead = ({ sender_id, new_array }) => {
             if (sender_id && isSame(sender_id, userId)) setMessages(new_array);
         }
 
         socket.on('partner_typing', handlePartnerTyping);
         socket.on('new_message', handleNewMessage);
+        socket.on('message_delivered', handleMessageDelivered);
         socket.on('message_read', handleMessageRead);
 
         return () => {
-            socket.off('new_message', handleNewMessage);
             socket.off('partner_typing', handlePartnerTyping);
+            socket.off('new_message', handleNewMessage);
+            socket.off('message_delivered', handleMessageDelivered);
             socket.off('message_read', handleMessageRead);
         };
     }, []);
@@ -307,7 +324,7 @@ export default function Chat() {
                     <div
                         className={`chat ${isOwn ? 'chat-end' : 'chat-start'} 
                         ${showName && isSameDay ? 'mt-3' : ''} active:bg-neutral-100`}
-                        onLoad={(event) => { handleLoadMessages(event, message) }}
+                        onLoad={event => { handleLoadMessages(event, message) }}
                     >
                         {isDetails && !isSameSenderAsNext && profile?.pictures?.[0] && (
                             <div className="chat-image avatar">
