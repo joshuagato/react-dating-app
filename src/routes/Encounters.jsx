@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Swiper as ReactSwiper, SwiperSlide } from 'swiper/react';
 import { Pagination, Navigation } from 'swiper/modules';
-import { Heart, Asterisk, Radar, Star } from 'lucide-react';
+import { Heart, Asterisk, Radar, Star, Megaphone, CheckCircle } from 'lucide-react';
 
 import 'swiper/css';
 import 'swiper/css/pagination';
@@ -10,13 +10,14 @@ import 'swiper/css/navigation';
 import './Encounters.css';
 
 import { POTENTIAL_MATCH_PROFILE, ENCOUNTERS_TITLE, ENCOUNTERS_TEXT, baseURL, ENCOUNTER_ACTION } from '../utils/constants';
+import { buildPictureUrl } from '../utils/functions';
 import { getPotentialMatchProfilesHandler, getEncountersProfilesHandler } from '../tanstack/user';
 import { likeUserHandler, dislikeUserHandler } from '../tanstack/encounter';
 
 import MainLayout from '../components/Layouts/MainLayout';
 import HelmetHeader from '../components/HelmetHeader';
 
-export default function Encounters() {
+export default function Encounters({ isFreeUser = true }) { // Added isFreeUser prop (defaults to true)
     const [profiles, setProfiles] = useState([]);
     const [cards, setCards] = useState([]);
 
@@ -27,18 +28,44 @@ export default function Encounters() {
     const dragInfo = useRef({ startX: 0, startY: 0, isDragging: false });
     const isProcessingDismiss = useRef(false);
 
-    // Helper to construct card data
-    const createCardData = useCallback((profile, id) => {
+    // Helper to construct card data (Handles Profiles, Ads, and End Cards)
+    const createCardData = useCallback((item, id) => {
+        if (item.type === 'ad') {
+            return {
+                id,
+                type: 'ad',
+                title: item.title || 'Sponsored Advertisement',
+                description: item.description || 'Upgrade to Premium for an ad-free experience and unlimited likes!',
+                image: item.image || 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=400&q=80',
+                isDismissing: false,
+                transform: '',
+                transition: ''
+            };
+        }
+
+        if (item.type === 'end') {
+            return {
+                id,
+                type: 'end',
+                title: "You're All Caught Up!",
+                description: "You have seen all potential matches for today. Check back tomorrow for more matches!",
+                isDismissing: false,
+                transform: '',
+                transition: ''
+            };
+        }
+
         const fallbackImg = 'https://via.placeholder.com/400x600?text=No+Image';
-        const pictures = profile?.pictures?.length > 0 ? profile.pictures : [fallbackImg];
+        const pictures = item?.pictures?.length > 0 ? item.pictures : [fallbackImg];
 
         return {
             id,
-            profileId: profile.id,
-            name: profile.name,
-            age: profile.age,
-            city: profile.city,
-            distanceFrom: profile.distance_from,
+            type: 'profile',
+            profileId: item.id,
+            name: item.name,
+            age: item.age,
+            city: item.city,
+            distanceFrom: item.distance_from,
             pictures,
             isDismissing: false,
             transform: '',
@@ -46,7 +73,31 @@ export default function Encounters() {
         };
     }, []);
 
-    // Append the next profile in the queue
+    // Helper function to interleave Ads and attach End Card
+    const buildCardSequence = useCallback((userProfiles, freeTier) => {
+        const sequence = [];
+
+        userProfiles.forEach((profile, index) => {
+            sequence.push({ ...profile, type: 'profile' });
+
+            // Insert Ad after every 4th profile (only for free users)
+            if (freeTier && (index + 1) % 4 === 0) {
+                sequence.push({
+                    type: 'ad',
+                    id: `ad-${index}`,
+                    title: 'Special Promotion',
+                    description: 'Get 50% off Premium Membership today!'
+                });
+            }
+        });
+
+        // Add the end-of-cards item at the very bottom of the sequence
+        sequence.push({ type: 'end' });
+
+        return sequence;
+    }, []);
+
+    // Append the next item in the queue
     const appendNewCard = useCallback((currentProfilesList) => {
         const activeProfiles = currentProfilesList || profiles;
         if (activeProfiles.length === 0) return;
@@ -70,8 +121,11 @@ export default function Encounters() {
                 const fetchedProfiles = response?.users || [];
 
                 if (fetchedProfiles.length > 0) {
-                    // Reverse list so Backend Index 0 renders on top of the LIFO stack
-                    const orderedProfiles = [...fetchedProfiles].reverse();
+                    // 1. Interleave Ads & Append End Card
+                    const sequencedItems = buildCardSequence(fetchedProfiles, isFreeUser);
+
+                    // 2. Reverse list so Index 0 renders on top of LIFO stack
+                    const orderedProfiles = [...sequencedItems].reverse();
                     setProfiles(orderedProfiles);
 
                     const initialCount = Math.min(12, orderedProfiles.length);
@@ -88,7 +142,7 @@ export default function Encounters() {
                 console.error("Failed to fetch match profiles:", error);
             }
         })();
-    }, [createCardData]);
+    }, [createCardData, buildCardSequence, isFreeUser]);
 
     const triggerButtonFeedback = (direction) => {
         if (direction === 'like') {
@@ -99,14 +153,17 @@ export default function Encounters() {
     };
 
     const handleSwipeDecision = (direction, card) => {
-        const data = { recipient_id: card.profileId };
+        // Only trigger backend like/dislike API for real profile cards
+        if (card.type === 'profile') {
+            const data = { recipient_id: card.profileId };
 
-        if (direction === 'like') {
-            data.action = ENCOUNTER_ACTION.LIKE;
-            likeUserHandler(data);
-        } else if (direction === 'dislike') {
-            data.action = ENCOUNTER_ACTION.DISLIKE;
-            dislikeUserHandler(data);
+            if (direction === 'like') {
+                data.action = ENCOUNTER_ACTION.LIKE;
+                likeUserHandler(data);
+            } else if (direction === 'dislike') {
+                data.action = ENCOUNTER_ACTION.DISLIKE;
+                dislikeUserHandler(data);
+            }
         }
     };
 
@@ -123,7 +180,8 @@ export default function Encounters() {
             const activeIdx = updated.length - 1;
             const activeCard = updated[activeIdx];
 
-            if (activeCard.isDismissing) {
+            // Prevent dismissing the End Card
+            if (activeCard.isDismissing || activeCard.type === 'end') {
                 isProcessingDismiss.current = false;
                 return prev;
             }
@@ -152,6 +210,10 @@ export default function Encounters() {
     };
 
     const handleDragStart = (e) => {
+        const activeCard = cards[cards.length - 1];
+        // Prevent dragging/swiping the End Card
+        if (activeCard?.type === 'end') return;
+
         if (
             e.target.closest('.swiper-button-next') ||
             e.target.closest('.swiper-button-prev') ||
@@ -194,7 +256,6 @@ export default function Encounters() {
 
             const limit = window.innerWidth * 0.15;
             if (Math.abs(offsetX) > limit) {
-                // Prevent duplicate trigger on consecutive movement frames
                 if (isProcessingDismiss.current) return prev;
                 isProcessingDismiss.current = true;
 
@@ -242,10 +303,9 @@ export default function Encounters() {
     }, []);
 
     const activeCards = cards.filter(c => !c.isDismissing);
+    const topCard = activeCards[activeCards.length - 1];
 
     const renderBullet = (index, className) => '<span class="' + className + '">' + (index + 1) + '</span>';
-
-    const buildPictureUrl = (baseUrl, pictureUrl) => `${baseUrl}/${pictureUrl}`;
 
     return (
         <MainLayout pageTitle={ENCOUNTERS_TITLE} pageDetails={ENCOUNTERS_TEXT}>
@@ -264,7 +324,7 @@ export default function Encounters() {
                             : {};
 
                         const isTopCard = stackIndex === activeCards.length - 1;
-                        const interactiveProps = isTopCard
+                        const interactiveProps = isTopCard && card.type !== 'end'
                             ? isTouchDevice()
                                 ? {
                                     onTouchStart: handleDragStart,
@@ -282,9 +342,8 @@ export default function Encounters() {
                         return (
                             <div
                                 key={card.id}
-                                className={`absolute rounded-[20px] overflow-hidden cursor-grab 
-                                    active:cursor-grabbing shadow-[2px_2px_20px_rgba(0,0,0,0.5)] card-token
-                                    transition-all ${card.isDismissing ? 'pointer-events-none' : ''}`}
+                                className={`absolute rounded-[20px] overflow-hidden shadow-[2px_2px_20px_rgba(0,0,0,0.5)] card-token
+                                    transition-all ${card.isDismissing ? 'pointer-events-none' : ''} ${card.type === 'end' ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'}`}
                                 style={{
                                     ...stackStyle,
                                     transform: card.transform || stackStyle.transform,
@@ -294,69 +353,114 @@ export default function Encounters() {
                                 {...interactiveProps}
                                 onDragStart={(e) => e.preventDefault()}
                             >
-                                <ReactSwiper
-                                    key={`swiper-${card.id}-${isTopCard ? 'top' : 'stacked'}`}
-                                    pagination={{ clickable: true, renderBullet }}
-                                    navigation={isTopCard}
-                                    modules={[Pagination, Navigation]}
-                                    allowTouchMove={false}
-                                    className="w-full h-full"
-                                >
-                                    {card.pictures.map((picture, idx) => (
-                                        <SwiperSlide key={idx}>
+                                {/* 1. ADVERTISEMENT CARD */}
+                                {card.type === 'ad' && (
+                                    <div className="w-full h-full bg-slate-900 text-white flex flex-col justify-between p-6 relative">
+                                        <div className="absolute top-3 right-3 bg-yellow-500 text-black text-xs px-2 py-1 rounded-full font-bold flex items-center gap-1">
+                                            <Megaphone size={12} /> Sponsored
+                                        </div>
+                                        <div className="mt-8 flex-1 flex flex-col justify-center items-center text-center">
                                             <img
-                                                src={buildPictureUrl(baseURL, picture.path)}
-                                                alt={`${card.name || 'Profile'} picture ${idx + 1}`}
-                                                className="w-full h-full object-cover pointer-events-none"
+                                                src={card.image}
+                                                alt="Ad"
+                                                className="w-full h-48 object-cover rounded-xl mb-4 shadow-md"
                                             />
-                                        </SwiperSlide>
-                                    ))}
-                                </ReactSwiper>
+                                            <h3 className="text-xl font-bold text-yellow-400">{card.title}</h3>
+                                            <p className="text-sm text-gray-300 mt-2 px-2">{card.description}</p>
+                                        </div>
+                                        <button className="w-full py-3 bg-gradient-to-r from-yellow-500 to-amber-600 text-black font-bold rounded-xl shadow-lg hover:brightness-110">
+                                            Learn More
+                                        </button>
+                                    </div>
+                                )}
 
-                                <div className="absolute bottom-0 left-0 right-0 z-20 p-4 bg-gradient-to-t from-black/80 via-black/70 to-transparent text-white pointer-events-none">
-                                    <h3 className="text-lg font-bold leading-tight">
-                                        {card.name}{card.age ? `, ${card.age}` : ''}
-                                    </h3>
-                                    {card.distanceFrom !== undefined && (
-                                        <p className="text-xs text-gray-200 mt-1">
-                                            📍 <span className='font-bold'>{card.distanceFrom}</span> KM Away, (<span className='font-bold'>{card.city}</span>)
-                                        </p>
-                                    )}
-                                </div>
+                                {/* 2. END OF CARDS CARD */}
+                                {card.type === 'end' && (
+                                    <div className="w-full h-full bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 text-white flex flex-col justify-center items-center p-6 text-center">
+                                        <CheckCircle size={64} className="text-emerald-400 mb-4 animate-bounce" />
+                                        <h3 className="text-2xl font-bold mb-2">{card.title}</h3>
+                                        <p className="text-sm text-gray-300 max-w-xs mb-6">{card.description}</p>
+                                        <button
+                                            onClick={() => window.location.reload()}
+                                            className="px-6 py-2.5 bg-white/10 border border-white/20 rounded-full text-sm font-semibold hover:bg-white/20 transition-all"
+                                        >
+                                            Refresh List
+                                        </button>
+                                    </div>
+                                )}
+
+                                {/* 3. STANDARD USER PROFILE CARD */}
+                                {card.type === 'profile' && (
+                                    <>
+                                        <ReactSwiper
+                                            key={`swiper-${card.id}-${isTopCard ? 'top' : 'stacked'}`}
+                                            pagination={{ clickable: true, renderBullet }}
+                                            navigation={isTopCard}
+                                            modules={[Pagination, Navigation]}
+                                            allowTouchMove={false}
+                                            className="w-full h-full"
+                                        >
+                                            {card.pictures.map((picture, idx) => (
+                                                <SwiperSlide key={idx}>
+                                                    <img
+                                                        src={buildPictureUrl(baseURL, picture.path)}
+                                                        alt={`${card.name || 'Profile'} picture ${idx + 1}`}
+                                                        className="w-full h-full object-cover pointer-events-none"
+                                                    />
+                                                </SwiperSlide>
+                                            ))}
+                                        </ReactSwiper>
+
+                                        <div className="absolute bottom-0 left-0 right-0 z-20 p-4 bg-gradient-to-t from-black/80 via-black/70 to-transparent text-white pointer-events-none">
+                                            <h3 className="text-lg font-bold leading-tight">
+                                                {card.name}{card.age ? `, ${card.age}` : ''}
+                                            </h3>
+                                            {card.distanceFrom !== undefined && (
+                                                <p className="text-xs text-gray-200 mt-1">
+                                                    📍 <span className='font-bold'>{card.distanceFrom}</span> KM Away, (<span className='font-bold'>{card.city}</span>)
+                                                </p>
+                                            )}
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         );
                     })}
                 </div>
-                <article className='w-full h-[12vh] flex justify-center items-center gap-3 bottom-buttons'>
-                    <div
-                        id="star"
-                        onClick={() => handleButtonClick('dislike')}
-                        className={`icon-button star-color cursor-pointer ${likeTrigger ? 'trigger-alt' : 'trigger'}`}
-                    >
-                        <Star size={17} />
-                    </div>
-                    <div
-                        id="dislike"
-                        onClick={() => handleButtonClick('dislike')}
-                        className={`icon-button dislike-color cursor-pointer ${dislikeTrigger ? 'trigger-alt' : 'trigger'}`}
-                    >
-                        <Asterisk size={30} />
-                    </div>
-                    <div
-                        id="like"
-                        onClick={() => handleButtonClick('like')}
-                        className={`icon-button like-color cursor-pointer ${likeTrigger ? 'trigger-alt' : 'trigger'}`}
-                    >
-                        <Heart size={30} />
-                    </div>
-                    <div
-                        id="message"
-                        onClick={() => handleButtonClick('like')}
-                        className={`icon-button message-color cursor-pointer ${likeTrigger ? 'trigger-alt' : 'trigger'}`}
-                    >
-                        <Radar size={17} />
-                    </div>
-                </article>
+
+                {/* Hide control buttons when the top card is the End Card */}
+                {topCard?.type !== 'end' && (
+                    <article className='w-full h-[12vh] flex justify-center items-center gap-3 bottom-buttons'>
+                        <div
+                            id="star"
+                            onClick={() => handleButtonClick('dislike')}
+                            className={`icon-button star-color cursor-pointer ${likeTrigger ? 'trigger-alt' : 'trigger'}`}
+                        >
+                            <Star size={17} />
+                        </div>
+                        <div
+                            id="dislike"
+                            onClick={() => handleButtonClick('dislike')}
+                            className={`icon-button dislike-color cursor-pointer ${dislikeTrigger ? 'trigger-alt' : 'trigger'}`}
+                        >
+                            <Asterisk size={30} />
+                        </div>
+                        <div
+                            id="like"
+                            onClick={() => handleButtonClick('like')}
+                            className={`icon-button like-color cursor-pointer ${likeTrigger ? 'trigger-alt' : 'trigger'}`}
+                        >
+                            <Heart size={30} />
+                        </div>
+                        <div
+                            id="message"
+                            onClick={() => handleButtonClick('like')}
+                            className={`icon-button message-color cursor-pointer ${likeTrigger ? 'trigger-alt' : 'trigger'}`}
+                        >
+                            <Radar size={17} />
+                        </div>
+                    </article>
+                )}
             </div>
         </MainLayout>
     );
