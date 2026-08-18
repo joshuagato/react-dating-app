@@ -160,10 +160,10 @@ export const isCurrentUser = (currentUserId, otherUserId) => {
 
 export const getUserProfile = (userId, profiles) => {
     if (!userId || !profiles || profiles.length === 0) return null;
-    return profiles.find(profile => profile?.id?.toString() === userId.toString());
+    return profiles.find(profile => profile.id.toString() === userId.toString());
 };
 
 export const isSame = (user1, user2) => {
     if (!user1 || !user2) return false;
-    return user1.toString() === user2?.toString();
+    return user1.toString() === user2.toString();
 };
