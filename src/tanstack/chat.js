@@ -10,8 +10,15 @@ const getChats = async () => {
     return response.data;
 }
 
+const getChatMessages = async chat_id => {
+    const response = await protectedApi.get(`/chat/get-chat-messages/${chat_id}`);
+    return response.data;
+}
+
 
 
 export const sendMessageHandler = async data => await sendMessage(data);
 
 export const getChatsHandler = async () => await getChats();
+
+export const getChatMessagesHandler = async data => await getChatMessages(data);
