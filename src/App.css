@@ -184,7 +184,7 @@
 } */
 
 .fade-in {
-    animation: fadeIn 0.7s ease;
+    animation: fadeIn 0.3s ease;
 }
 
 @keyframes fadeIn {
@@ -200,6 +200,8 @@
         opacity: 0.5;
     }
 }
+
+
 
 /* Typing dots animation */
 .typing-dots {
@@ -237,4 +239,27 @@
         transform: translateY(-6px);
         opacity: 1;
     }
+}
+
+
+
+/* Scroll bar */
+.scroll-bar {
+    overflow-y: scroll;
+}
+
+.scroll-bar::-webkit-scrollbar {
+    width: 5px;
+}
+
+
+.scroll-bar::-webkit-scrollbar-track {
+    box-shadow: inset 0 0 5px grey;
+    border-radius: 3px;
+}
+
+
+.scroll-bar::-webkit-scrollbar-thumb {
+    background: #606770;
+    border-radius: 3px;
 }
