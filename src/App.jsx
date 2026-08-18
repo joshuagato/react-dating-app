@@ -16,8 +16,8 @@ import Nearby from './routes/Nearby';
 import Chats from './routes/Chats';
 import Chat from './routes/Chat';
 import Others from "./routes/Others";
-import { baseURL, userId } from './utils/constants'
-import { connectSocket } from './utils/functions'
+import { baseURL, userId } from './utils/constants';
+import { connectSocket } from './utils/functions';
 
 import './App.css';
 
