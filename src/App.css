@@ -245,21 +245,57 @@
 
 /* Scroll bar */
 .scroll-bar {
-    overflow-y: scroll;
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    /* Firefox */
+    scrollbar-width: thin;
+    scrollbar-color: #606770 #f1f1f1;
 }
 
+/* WebKit Browsers */
 .scroll-bar::-webkit-scrollbar {
     width: 5px;
+    height: 5px;
 }
-
 
 .scroll-bar::-webkit-scrollbar-track {
-    box-shadow: inset 0 0 5px grey;
-    border-radius: 3px;
+    background: #f1f1f1;
+    border-radius: 10px;
 }
-
 
 .scroll-bar::-webkit-scrollbar-thumb {
     background: #606770;
-    border-radius: 3px;
+    border-radius: 10px;
+    transition: background 0.2s ease;
+}
+
+.scroll-bar::-webkit-scrollbar-thumb:hover {
+    background: #404550;
+}
+
+/* For smooth scrolling */
+.scroll-bar {
+    scroll-behavior: smooth;
+}
+
+/* Hide scrollbar when not needed (optional) */
+.scroll-bar {
+    scrollbar-gutter: stable;
+}
+
+/* For mobile devices - make scrollbar thinner */
+@media (max-width: 768px) {
+    .scroll-bar::-webkit-scrollbar {
+        width: 3px;
+    }
+
+    .scroll-bar {
+        scrollbar-width: thin;
+    }
 }
