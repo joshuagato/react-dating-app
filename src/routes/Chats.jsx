@@ -74,7 +74,7 @@ export default function Chats() {
                                             <p className='w-full text-[12px] sm:text-[13px]'
                                                 style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                                             >
-                                                <div className='flex items-center'>
+                                                <span className='flex items-center'>
                                                     {isOwn && (
                                                         <span className="text-xs text-gray-500 mr-2 opacity-70 inline-block">
                                                             {sent_at && !delivered_at && !read_at && <LiaCheckSolid color='gray' size={15} />}
@@ -83,7 +83,7 @@ export default function Chats() {
                                                         </span>
                                                     )}
                                                     <span>{content}</span>
-                                                </div>
+                                                </span>
                                             </p>
                                         </div>
                                     </div>
