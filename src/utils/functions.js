@@ -142,11 +142,14 @@ export function formatMessageDate(dateInput, isLastMessage = false) {
 }
 
 export const timeTo12Hour = time => {
-    const timeString = new Date(time).toLocaleTimeString('en-US', {
+    const date = new Date(time);
+    // const timeString = new Date(time).toLocaleTimeString('en-US', {
+    const timeString = new Intl.DateTimeFormat(navigator.language || 'en-US', {
         hour: 'numeric',
         minute: '2-digit',
         hour12: true
-    });
+        // });
+    }).format(date);
 
     return timeString
 }
