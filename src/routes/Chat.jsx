@@ -234,13 +234,14 @@ export default function Chat() {
         autoGrow(e.target);
 
         const recipient_id = partner?.id;
+        const sender_id = userId;
         if (!recipient_id) return;
 
         lastKeystrokeTimeRef.current = Date.now();
 
         if (!isTypingRef.current && value.trim().length > 0) {
             isTypingRef.current = true;
-            socket.emit('sender_typing_start', { recipient_id });
+            socket.emit('sender_typing_start', { recipient_id, sender_id });
         }
 
         if (typingTimeoutRef.current) {
@@ -251,7 +252,7 @@ export default function Chat() {
             const timeSinceLastKeystroke = Date.now() - lastKeystrokeTimeRef.current;
             if (timeSinceLastKeystroke >= 1500) {
                 isTypingRef.current = false;
-                socket.emit('sender_typing_stop', { recipient_id });
+                socket.emit('sender_typing_stop', { recipient_id, sender_id });
             }
         }, 1500);
     }, [partner?.id, autoGrow]);
@@ -289,7 +290,7 @@ export default function Chat() {
                 inputRef.current.focus();
             }
 
-            socket.emit('sender_typing_stop', { recipient_id });
+            socket.emit('sender_typing_stop', { recipient_id, sender_id });
 
             setTimeout(scrollToBottom, 100);
         } catch (error) {
