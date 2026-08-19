@@ -14,6 +14,7 @@ export default function Chats() {
     const [chats, setChats] = useState([]);
     const [isTyping, setIsTyping] = useState(false);
     const [typingUsers, setTypingUsers] = useState([]);
+    const [onlineUsers, setOnlineUsers] = useState([]);
 
     // Fetch potential matches on mount
     useEffect(() => {
@@ -74,16 +75,24 @@ export default function Chats() {
             }
         };
 
+        const handleUserStatusChange = async ({ userId, isOnline }) => {
+            if (isOnline) return setOnlineUsers(prevState => [...prevState, userId]);
+
+            setOnlineUsers(prevState => prevState.filter(id => id !== userId));
+        }
+
         socket.on('partner_typing', handlePartnerTyping);
         socket.on('new_message', handleNewMessage);
         socket.on('message_delivered', handleMessageDelivered);
         socket.on('message_read', handleMessageRead);
+        socket.on('user_status_change', handleUserStatusChange);
 
         return () => {
             socket.off('partner_typing', handlePartnerTyping);
             socket.off('new_message', handleNewMessage);
             socket.off('message_delivered', handleMessageDelivered);
             socket.off('message_read', handleMessageRead);
+            socket.off('user_status_change', handleUserStatusChange);
         };
     }, []);
 
@@ -115,7 +124,8 @@ export default function Chats() {
                                     <div className='w-50 sm:w-80 h-15'>
                                         <div className='w-full h-full flex flex-col justify-center items-start bg-clip-text text-transparent bg-gradient-to-r from-violet-600 to-pink-600'>
                                             <h1 className='text-[14px] sm:text-[18px] flex items-center gap-2'>{name}
-                                                <span className='block w-2 h-2 bg-green-700 rounded-full'></span>
+                                                {onlineUsers.includes(partner_id) &&
+                                                    <span className='block w-2 h-2 bg-green-700 rounded-full'></span>}
                                             </h1>
                                             <p className='w-full text-[12px] sm:text-[13px]'
                                                 style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
