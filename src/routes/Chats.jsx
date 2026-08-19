@@ -3,17 +3,17 @@ import { Star } from 'lucide-react';
 import { Link } from 'react-router';
 import { LiaCheckDoubleSolid, LiaCheckSolid } from 'react-icons/lia';
 
-import { CHATS_TITLE, CHATS_TEXT, baseURL, userId } from '../utils/constants';
-import { buildPictureUrl, formatMessageDate, isCurrentUser } from '../utils/functions';
-import { getPotentialMatchProfilesHandler } from '../tanstack/user';
+import { CHATS_TITLE, CHATS_TEXT, baseURL, userId, socket } from '../utils/constants';
+import { buildPictureUrl, formatMessageDate, isCurrentUser, isSame } from '../utils/functions';
 import { getChatsHandler } from '../tanstack/chat';
 
 import MainLayout from '../components/Layouts/MainLayout';
 import HelmetHeader from '../components/HelmetHeader';
 
 export default function Chats() {
-    const [profiles, setProfiles] = useState([]);
     const [chats, setChats] = useState([]);
+    const [isTyping, setIsTyping] = useState(false);
+    const [typingUsers, setTypingUsers] = useState([]);
 
     // Fetch potential matches on mount
     useEffect(() => {
@@ -25,12 +25,6 @@ export default function Chats() {
                 if (chats.length > 0)
                     setChats(chats);
 
-                const response = await getPotentialMatchProfilesHandler();
-                const fetchedProfiles = response.userProfiles;
-
-                if (fetchedProfiles.length > 0) {
-                    setProfiles(fetchedProfiles);
-                }
             } catch (error) {
                 console.error("Failed to fetch match profiles:", error);
             }
@@ -38,8 +32,60 @@ export default function Chats() {
     }, []);
 
     useEffect(() => {
-        // console.log({ profiles });
-    }, [profiles]);
+        // console.log({ isTyping });
+    }, [isTyping]);
+
+    // ========== SOCKET EVENT LISTENERS ==========
+    useEffect(() => {
+        const handleNewMessage = async ({ message }) => {
+            if (message && isSame(message.recipient_id, userId)) {
+                const chatsResponse = await getChatsHandler();
+                const chats = chatsResponse.chats;
+
+                if (chats.length > 0)
+                    setChats(chats);
+            }
+        };
+
+        const handlePartnerTyping = ({ recipient_id, sender_id, isTyping }) => {
+            if (recipient_id && isSame(recipient_id, userId)) {
+                setIsTyping(isTyping);
+                setTypingUsers(prevState => [...prevState, sender_id]);
+            }
+        };
+
+        const handleMessageDelivered = async ({ message }) => {
+            if (message && isSame(message.sender_id, userId)) {
+                const chatsResponse = await getChatsHandler();
+                const chats = chatsResponse.chats;
+
+                if (chats.length > 0)
+                    setChats(chats);
+            }
+        };
+
+        const handleMessageRead = async ({ message }) => {
+            if (message && isSame(message.sender_id, userId)) {
+                const chatsResponse = await getChatsHandler();
+                const chats = chatsResponse.chats;
+
+                if (chats.length > 0)
+                    setChats(chats);
+            }
+        };
+
+        socket.on('partner_typing', handlePartnerTyping);
+        socket.on('new_message', handleNewMessage);
+        socket.on('message_delivered', handleMessageDelivered);
+        socket.on('message_read', handleMessageRead);
+
+        return () => {
+            socket.off('partner_typing', handlePartnerTyping);
+            socket.off('new_message', handleNewMessage);
+            socket.off('message_delivered', handleMessageDelivered);
+            socket.off('message_read', handleMessageRead);
+        };
+    }, []);
 
     return (
         <MainLayout pageTitle={CHATS_TITLE} pageDetails={CHATS_TEXT}>
@@ -52,7 +98,7 @@ export default function Chats() {
                         const { id: chat_id, myself, partner, unread_message_count,
                             last_message: { content, sender_id, sent_at, delivered_at, read_at } } = chat;
 
-                        const { name, picture } = partner;
+                        const { id: partner_id, name, picture } = partner;
                         const isOwn = isCurrentUser(userId, sender_id);
                         const formatted = formatMessageDate(sent_at, true);
                         const pictureUrl = buildPictureUrl(baseURL, picture);
@@ -74,16 +120,25 @@ export default function Chats() {
                                             <p className='w-full text-[12px] sm:text-[13px]'
                                                 style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                                             >
-                                                <span className='flex items-center'>
-                                                    {isOwn && (
-                                                        <span className="text-xs text-gray-500 mr-2 opacity-70 inline-block">
-                                                            {sent_at && !delivered_at && !read_at && <LiaCheckSolid color='gray' size={15} />}
-                                                            {sent_at && delivered_at && !read_at && <LiaCheckDoubleSolid color='gray' size={15} />}
-                                                            {sent_at && delivered_at && read_at && <LiaCheckDoubleSolid color='blue' size={15} />}
+                                                {!isTyping && !typingUsers.includes(partner_id) || !isTyping ?
+                                                    <span className='flex items-center'>
+                                                        {isOwn && (
+                                                            <span className="text-xs text-gray-500 mr-2 opacity-70 inline-block">
+                                                                {sent_at && !delivered_at && !read_at && <LiaCheckSolid color='gray' size={15} />}
+                                                                {sent_at && delivered_at && !read_at && <LiaCheckDoubleSolid color='gray' size={15} />}
+                                                                {sent_at && delivered_at && read_at && <LiaCheckDoubleSolid color='blue' size={15} />}
+                                                            </span>
+                                                        )}
+                                                        <span>{content}</span>
+                                                    </span> :
+                                                    <span className="flex items-center gap-2">
+                                                        <span className="text-sm">typing</span>
+                                                        <span className="typing-dots">
+                                                            <span className="dot"></span>
+                                                            <span className="dot"></span>
+                                                            <span className="dot"></span>
                                                         </span>
-                                                    )}
-                                                    <span>{content}</span>
-                                                </span>
+                                                    </span>}
                                             </p>
                                         </div>
                                     </div>
