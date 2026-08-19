@@ -12,7 +12,6 @@ import HelmetHeader from '../components/HelmetHeader';
 
 export default function Chats() {
     const [chats, setChats] = useState([]);
-    const [isTyping, setIsTyping] = useState(false);
     const [typingUsers, setTypingUsers] = useState([]);
     const [onlineUsers, setOnlineUsers] = useState([]);
 
@@ -34,7 +33,7 @@ export default function Chats() {
 
     useEffect(() => {
         // console.log({ isTyping });
-    }, [isTyping]);
+    }, []);
 
     // ========== SOCKET EVENT LISTENERS ==========
     useEffect(() => {
@@ -50,8 +49,9 @@ export default function Chats() {
 
         const handlePartnerTyping = ({ recipient_id, sender_id, isTyping }) => {
             if (recipient_id && isSame(recipient_id, userId)) {
-                setIsTyping(isTyping);
-                setTypingUsers(prevState => [...prevState, sender_id]);
+                if (isTyping) return setTypingUsers(prevState => [...prevState, sender_id]);
+
+                setTypingUsers(prevState => prevState.filter(id => id !== sender_id));
             }
         };
 
@@ -130,7 +130,7 @@ export default function Chats() {
                                             <p className='w-full text-[12px] sm:text-[13px]'
                                                 style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                                             >
-                                                {!isTyping && !typingUsers.includes(partner_id) || !isTyping ?
+                                                {!typingUsers.includes(partner_id) ?
                                                     <span className='flex items-center'>
                                                         {isOwn && (
                                                             <span className="text-xs text-gray-500 mr-2 opacity-70 inline-block">
