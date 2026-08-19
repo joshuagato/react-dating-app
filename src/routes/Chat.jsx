@@ -1,5 +1,6 @@
-import { useState, useRef, useCallback, useEffect, Fragment } from 'react';
-import { useLocation } from 'react-router';
+import { useState, useRef, useCallback, useEffect, Fragment, useMemo } from 'react';
+import { useLocation, useNavigate } from 'react-router';
+import { LiaCheckSolid, LiaCheckDoubleSolid } from "react-icons/lia";
 import EmojiPicker from 'emoji-picker-react';
 
 import { CHATS_TITLE, CHATS_TEXT, userId, socket } from '../utils/constants';
@@ -15,53 +16,150 @@ import HelmetHeader from '../components/HelmetHeader';
 import './chat.css';
 
 export default function Chat() {
-    const initialMessages = [
-        { id: 1, sender_id: '0a31f97a-99ce-457e-9ac4-c9a01955bcbd', recipient_id: '39239e36-4b8f-45ad-8dc9-2cad0fcd9a31', sent_at: '2026-08-08', delivered_at: '2026-08-13', read_at: '2026-08-13', content: 'Hello Joshua' },
-        { id: 2, sender_id: '39239e36-4b8f-45ad-8dc9-2cad0fcd9a31', recipient_id: '0a31f97a-99ce-457e-9ac4-c9a01955bcbd', sent_at: '2026-08-13', delivered_at: '2026-08-13', read_at: '2026-08-13', content: 'Hello Emmanuel' },
-        { id: 3, sender_id: '39239e36-4b8f-45ad-8dc9-2cad0fcd9a31', recipient_id: '0a31f97a-99ce-457e-9ac4-c9a01955bcbd', sent_at: '2026-08-13', delivered_at: '2026-08-13', read_at: '2026-08-13', content: "It's been a long time" },
-        { id: 4, sender_id: '39239e36-4b8f-45ad-8dc9-2cad0fcd9a31', recipient_id: '0a31f97a-99ce-457e-9ac4-c9a01955bcbd', sent_at: '2026-08-14', delivered_at: '2026-08-14', read_at: '2026-08-13', content: 'How are you doing.' },
-        { id: 5, sender_id: '0a31f97a-99ce-457e-9ac4-c9a01955bcbd', recipient_id: '39239e36-4b8f-45ad-8dc9-2cad0fcd9a31', sent_at: '2026-08-14', delivered_at: '2026-08-14', read_at: null, content: "I'm fine. What about you" },
-        { id: 6, sender_id: '0a31f97a-99ce-457e-9ac4-c9a01955bcbd', recipient_id: '39239e36-4b8f-45ad-8dc9-2cad0fcd9a31', sent_at: '2026-08-14', delivered_at: '2026-08-14', read_at: null, content: "I'm fine. What about you" },
-        { id: 7, sender_id: '39239e36-4b8f-45ad-8dc9-2cad0fcd9a31', recipient_id: '0a31f97a-99ce-457e-9ac4-c9a01955bcbd', sent_at: '2026-08-14', delivered_at: '2026-08-14', read_at: '2026-08-13', content: "I'm also fine. Thanks for asking." },
-        { id: 8, sender_id: '39239e36-4b8f-45ad-8dc9-2cad0fcd9a31', recipient_id: '0a31f97a-99ce-457e-9ac4-c9a01955bcbd', sent_at: '2026-08-15', delivered_at: '2026-08-15', read_at: '2026-08-13', content: "I'm also fine. Thanks for asking." },
-        { id: 9, sender_id: '39239e36-4b8f-45ad-8dc9-2cad0fcd9a31', recipient_id: '0a31f97a-99ce-457e-9ac4-c9a01955bcbd', sent_at: '2026-08-15', delivered_at: '2026-08-15', read_at: '2026-08-13', content: "I'm also fine. Thanks for asking." },
-        { id: 10, sender_id: '0a31f97a-99ce-457e-9ac4-c9a01955bcbd', recipient_id: '39239e36-4b8f-45ad-8dc9-2cad0fcd9a31', sent_at: '2026-08-15', delivered_at: null, read_at: null, content: 'What are you doing at the moment?' },
-        { id: 11, sender_id: '0a31f97a-99ce-457e-9ac4-c9a01955bcbd', recipient_id: '39239e36-4b8f-45ad-8dc9-2cad0fcd9a31', sent_at: '2026-08-15', delivered_at: null, read_at: null, content: 'What are you doing at the moment?' },
-    ];
-
+    const navigate = useNavigate();
     const [profiles, setProfiles] = useState([]);
     const [message, setMessage] = useState('');
-    // const [messages, setMessages] = useState(initialMessages.sort((a, b) => Number(a.id) - Number(b.id)));
     const [messages, setMessages] = useState([]);
     const [isTyping, setIsTyping] = useState(false);
     const [showPicker, setShowPicker] = useState(false);
     const location = useLocation();
 
-    const { chat_id, myself, partner } = location.state;
-    // console.log({ chat_id, myself, partner });
+    const { chat_id, myself, partner } = location.state || {};
 
+    // Redirect if no chat_id
+    useEffect(() => {
+        if (!chat_id) {
+            navigate('/chats');
+        }
+    }, [chat_id, navigate]);
+
+    // Refs
     const messagesEndRef = useRef(null);
     const chatContainerRef = useRef(null);
     const inputRef = useRef(null);
-
-    const isDetails = true;
-
-    const handleEmojiClick = emojiObject => {
-        setMessage((prevText) => prevText + emojiObject.emoji);
-        setShowPicker(false);
-        // Focus input after emoji selection
-        setTimeout(() => {
-            if (inputRef.current) {
-                inputRef.current.focus();
-            }
-        }, 100);
-    };
-
     const typingTimeoutRef = useRef(null);
     const lastKeystrokeTimeRef = useRef(0);
     const isTypingRef = useRef(false);
+    const processedMessageIdsRef = useRef(new Set()); // Track processed messages
+    const observerRef = useRef(null);
 
-    // Socket event listeners
+    const isDetails = true;
+
+    // ========== SCROLL FUNCTIONS ==========
+    const scrollToBottom = useCallback((behavior = 'smooth') => {
+        if (messagesEndRef.current) {
+            messagesEndRef.current.scrollIntoView({
+                behavior,
+                block: 'end'
+            });
+        }
+    }, []);
+
+    // ========== MESSAGE READ HANDLER ==========
+    const markMessageAsRead = useCallback(async (message) => {
+        // Skip if already processed, or it's the user's own message, or already read
+        if (processedMessageIdsRef.current.has(message.id)) return;
+        if (isCurrentUser(userId, message.sender_id)) return;
+        if (message.read_at) return;
+
+        try {
+            // Mark as processed immediately to prevent duplicate calls
+            processedMessageIdsRef.current.add(message.id);
+
+            await markMessageAsReadHandler(message.id);
+
+            // Update local state to reflect read status
+            setMessages(prevMessages =>
+                prevMessages.map(msg =>
+                    msg.id === message.id
+                        ? { ...msg, read_at: new Date().toISOString() }
+                        : msg
+                )
+            );
+        } catch (error) {
+            // If failed, remove from processed set so it can be retried
+            processedMessageIdsRef.current.delete(message.id);
+            console.error("Failed to mark message as read:", error);
+        }
+    }, []);
+
+    // ========== INTERSECTION OBSERVER SETUP ==========
+    useEffect(() => {
+        // Clean up previous observer
+        if (observerRef.current) {
+            observerRef.current.disconnect();
+            observerRef.current = null;
+        }
+
+        // Create new observer
+        observerRef.current = new IntersectionObserver(
+            (entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const messageId = entry.target.dataset.messageId;
+                        if (messageId) {
+                            // Find the message in state
+                            const message = messages.find(m => m.id === messageId);
+                            if (message) {
+                                markMessageAsRead(message);
+                            }
+                        }
+                    }
+                });
+            },
+            {
+                root: chatContainerRef.current,
+                rootMargin: '0px',
+                threshold: 0.3 // 30% visibility threshold
+            }
+        );
+
+        // Observe all message elements
+        const messageElements = chatContainerRef.current?.querySelectorAll('[data-message-id]');
+        if (messageElements) {
+            messageElements.forEach(el => {
+                observerRef.current.observe(el);
+            });
+        }
+
+        return () => {
+            if (observerRef.current) {
+                observerRef.current.disconnect();
+                observerRef.current = null;
+            }
+        };
+    }, [messages, markMessageAsRead]);
+
+    // ========== FETCH INITIAL DATA ==========
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const [messagesResponse, profilesResponse] = await Promise.all([
+                    getChatMessagesHandler(chat_id),
+                    getPotentialMatchProfilesHandler()
+                ]);
+
+                if (messagesResponse?.messages) {
+                    setMessages(messagesResponse.messages);
+                }
+
+                if (profilesResponse?.userProfiles) {
+                    setProfiles(profilesResponse.userProfiles);
+                }
+
+                // Scroll to bottom after messages load
+                setTimeout(() => scrollToBottom('auto'), 100);
+            } catch (error) {
+                console.error("Failed to fetch data:", error);
+            }
+        };
+
+        if (chat_id) {
+            fetchData();
+        }
+    }, [chat_id, scrollToBottom]);
+
+    // ========== SOCKET EVENT LISTENERS ==========
     useEffect(() => {
         const handleNewMessage = ({ message }) => {
             if (message && isSame(message.recipient_id, userId)) {
@@ -70,39 +168,36 @@ export default function Chat() {
                     if (exists) return prevMessages;
                     return [...prevMessages, message];
                 });
+                // Scroll to bottom for new messages
+                setTimeout(scrollToBottom, 100);
             }
         };
 
         const handlePartnerTyping = ({ recipient_id, isTyping }) => {
-            if (recipient_id && isSame(recipient_id, userId))
+            if (recipient_id && isSame(recipient_id, userId)) {
                 setIsTyping(isTyping);
+            }
         };
 
         const handleMessageDelivered = ({ message }) => {
-            const { sender_id } = message;
-
-            if (message && isSame(sender_id, userId)) {
-                setMessages(prevMessages => {
-                    const updatedMessages = [...prevMessages];
-                    const targetIndex = prevMessages.findIndex(msg => msg.id === message.id);
-                    updatedMessages[targetIndex] = message;
-                    return updatedMessages;
-                });
+            if (message && isSame(message.sender_id, userId)) {
+                setMessages(prevMessages =>
+                    prevMessages.map(msg =>
+                        msg.id === message.id ? message : msg
+                    )
+                );
             }
-        }
+        };
 
         const handleMessageRead = ({ message }) => {
-            const { sender_id } = message;
-
-            if (message && isSame(sender_id, userId)) {
-                setMessages(prevMessages => {
-                    const updatedMessages = [...prevMessages];
-                    const targetIndex = prevMessages.findIndex(msg => msg.id === message.id);
-                    updatedMessages[targetIndex] = message;
-                    return updatedMessages;
-                });
+            if (message && isSame(message.sender_id, userId)) {
+                setMessages(prevMessages =>
+                    prevMessages.map(msg =>
+                        msg.id === message.id ? message : msg
+                    )
+                );
             }
-        }
+        };
 
         socket.on('partner_typing', handlePartnerTyping);
         socket.on('new_message', handleNewMessage);
@@ -115,46 +210,9 @@ export default function Chat() {
             socket.off('message_delivered', handleMessageDelivered);
             socket.off('message_read', handleMessageRead);
         };
-    }, []);
+    }, [scrollToBottom]);
 
-    // Fetch potential matches on mount
-    useEffect(() => {
-        (async () => {
-            try {
-                const messagesResponse = await getChatMessagesHandler(chat_id);
-                const messages = messagesResponse.messages;
-                if (messages.length > 0) setMessages(prevMessages => [...prevMessages, ...messages])
-
-                const response = await getPotentialMatchProfilesHandler();
-                const fetchedProfiles = response?.userProfiles || [];
-                if (fetchedProfiles.length > 0) setProfiles(fetchedProfiles);
-
-            } catch (error) {
-                console.error("Failed to fetch match profiles:", error);
-            }
-        })();
-    }, [chat_id]);
-
-    // Auto-scroll to bottom function
-    const scrollToBottom = useCallback(() => {
-        if (messagesEndRef.current) {
-            messagesEndRef.current.scrollIntoView({
-                behavior: 'smooth',
-                block: 'end'
-            });
-        }
-    }, []);
-
-    // Scroll when messages change
-    useEffect(() => {
-        scrollToBottom();
-    }, [messages, scrollToBottom]);
-
-    useEffect(() => {
-        scrollToBottom();
-    });
-
-    // Cleanup typing timer on component unmount
+    // ========== CLEANUP TYPING TIMER ==========
     useEffect(() => {
         return () => {
             if (typingTimeoutRef.current) {
@@ -163,58 +221,91 @@ export default function Chat() {
         };
     }, []);
 
-    const autoGrow = element => {
+    // ========== AUTO-GROW TEXTAREA ==========
+    const autoGrow = useCallback((element) => {
         element.style.height = 'auto';
         element.style.height = Math.min(element.scrollHeight, 200) + 'px';
-    };
+    }, []);
 
-    // Debounced Typing Handler
-    const handleInputChange = e => {
+    // ========== TYPING HANDLER ==========
+    const handleInputChange = useCallback((e) => {
         const value = e.target.value;
         setMessage(value);
         autoGrow(e.target);
 
-        const recipient_id = partner.id;
+        const recipient_id = partner?.id;
         if (!recipient_id) return;
 
         lastKeystrokeTimeRef.current = Date.now();
 
-        // Emit 'sender_typing_start' on first keystroke
         if (!isTypingRef.current && value.trim().length > 0) {
             isTypingRef.current = true;
             socket.emit('sender_typing_start', { recipient_id });
         }
 
-        // Clear existing scheduled timeout
         if (typingTimeoutRef.current) {
             clearTimeout(typingTimeoutRef.current);
         }
 
-        // Schedule check 1.5 seconds after this keystroke
         typingTimeoutRef.current = setTimeout(() => {
             const timeSinceLastKeystroke = Date.now() - lastKeystrokeTimeRef.current;
-
-            // Only trigger stop if no keystroke occurred within the last 3000ms
             if (timeSinceLastKeystroke >= 1500) {
                 isTypingRef.current = false;
                 socket.emit('sender_typing_stop', { recipient_id });
             }
         }, 1500);
+    }, [partner?.id, autoGrow]);
+
+    // ========== SEND MESSAGE ==========
+    const handleMessageSending = async (event) => {
+        if (event?.preventDefault) {
+            event.preventDefault();
+        }
+
+        if (!message.trim() || !partner?.id) return;
+
+        const sender_id = userId;
+        const recipient_id = partner.id;
+
+        try {
+            const response = await sendMessageHandler({
+                message,
+                sender_id,
+                recipient_id
+            });
+
+            const newMessage = response.message;
+
+            setMessages(prevMessages => {
+                const exists = prevMessages.some(m => m.id === newMessage?.id);
+                if (exists) return prevMessages;
+                return [...prevMessages, newMessage];
+            });
+
+            setMessage('');
+
+            if (inputRef.current) {
+                inputRef.current.style.height = '44px';
+                inputRef.current.focus();
+            }
+
+            socket.emit('sender_typing_stop', { recipient_id });
+
+            setTimeout(scrollToBottom, 100);
+        } catch (error) {
+            console.error("Failed to send message:", error);
+        }
     };
 
-    // ========== HANDLE KEY DOWN (Enter / Shift+Enter) ==========
-    const handleKeyDown = e => {
-        // Shift + Enter: Add new line by inserting a line break character
+    // ========== KEY DOWN HANDLER ==========
+    const handleKeyDown = useCallback((e) => {
         if (e.key === 'Enter' && e.shiftKey) {
             e.preventDefault();
             const value = message;
             const cursorPosition = e.target.selectionStart;
-
-            // Insert newline at cursor position
             const newValue = value.slice(0, cursorPosition) + '\n' + value.slice(cursorPosition);
             setMessage(newValue);
 
-            // Set cursor position after the newline
             setTimeout(() => {
                 if (inputRef.current) {
                     inputRef.current.selectionStart = cursorPosition + 1;
@@ -224,57 +315,24 @@ export default function Chat() {
             return;
         }
 
-        // Enter without Shift: Send message
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             handleMessageSending(e);
         }
-    };
+    }, [message]);
 
-    async function handleMessageSending(event) {
-        // If it's a keyboard event, prevent default
-        if (event && event.preventDefault) {
-            event.preventDefault();
-        }
-
-        if (!message.trim()) return;
-
-        const sender_id = userId;
-        const recipient_id = partner.id;
-
-        const response = await sendMessageHandler({ message, sender_id, recipient_id });
-        const newMessage = response.message
-
-        setMessages(prevMessages => {
-            const exists = prevMessages.some(m => m.id === newMessage?.id);
-            if (exists) return prevMessages;
-            return [...prevMessages, newMessage].sort((a, b) => Number(a.id) - Number(b.id))
-        });
-        setMessage('');
-
-        // Reset the textarea height to initial state
-        if (inputRef.current) {
-            inputRef.current.style.height = '44px'; // Reset to minHeight
-        }
-
-        socket.emit('sender_typing_stop', { recipient_id });
-        // Focus input after sending
+    // ========== EMOJI HANDLER ==========
+    const handleEmojiClick = useCallback((emojiObject) => {
+        setMessage(prevText => prevText + emojiObject.emoji);
+        setShowPicker(false);
         setTimeout(() => {
             if (inputRef.current) {
                 inputRef.current.focus();
             }
-        }, 10);
-    }
+        }, 100);
+    }, []);
 
-    async function handleLoadMessages(event, message) {
-        event.preventDefault();
-
-        const isOwn = isCurrentUser(userId, message.sender_id);
-
-        if (!isOwn) await markMessageAsReadHandler(message.id);
-    }
-
-    // Memoize the message rendering to prevent unnecessary re-renders
+    // ========== RENDER MESSAGES ==========
     const renderMessages = useCallback(() => {
         if (!profiles?.length || !messages?.length) return null;
 
@@ -292,7 +350,6 @@ export default function Chat() {
             message0 = message1;
             message1 = message;
 
-            // Safe check for writeName - ensure all values are valid
             const showName = writeName(
                 user1 || '',
                 user2 || '',
@@ -304,10 +361,10 @@ export default function Chat() {
             const profile = getUserProfile(message.sender_id, profiles);
             const isSameDay = isSameDate(message0, message1);
 
-            const { content, sent_at, delivered_at, read_at } = message;
+            const { content, sent_at, delivered_at, read_at, id } = message;
 
             return (
-                <Fragment key={index || message.id}>
+                <Fragment key={id || index}>
                     {!isSameDay && (
                         <span className='w-fit self-center bg-slate-400 text-amber-50 px-3 my-5 rounded-md text-center'>
                             {formatMessageDate(sent_at)}
@@ -316,8 +373,8 @@ export default function Chat() {
 
                     <div
                         className={`chat ${isOwn ? 'chat-end' : 'chat-start'} 
-                        ${showName && isSameDay ? 'mt-3' : ''} active:bg-neutral-100`}
-                        onLoad={event => { handleLoadMessages(event, message) }}
+                            ${showName && isSameDay ? 'mt-3' : ''} active:bg-neutral-100`}
+                        data-message-id={id}
                     >
                         {isDetails && !isSameSenderAsNext && profile?.pictures?.[0] && (
                             <div className="chat-image avatar">
@@ -344,26 +401,30 @@ export default function Chat() {
                                 <time className="text-xs opacity-50">{timeTo12Hour(sent_at)}</time>
                                 {isOwn && (
                                     <span className="text-xs ml-2 opacity-70 inline-block">
-                                        {sent_at && !delivered_at && !read_at && <span>✓</span>}
-                                        {sent_at && delivered_at && !read_at && <span className=''>✓✓</span>}
-                                        {sent_at && delivered_at && read_at && (
-                                            <span className="text-sky-600 font-bold">✓✓</span>
-                                        )}
+                                        {sent_at && !delivered_at && !read_at && <LiaCheckSolid color='gray' size={15} />}
+                                        {sent_at && delivered_at && !read_at && <LiaCheckDoubleSolid color='gray' size={15} />}
+                                        {sent_at && delivered_at && read_at && <LiaCheckDoubleSolid color='blue' size={15} />}
                                     </span>
                                 )}
                             </div>
                         </div>
                         {isOwn && (
                             <>
-                                {sent_at && delivered_at && read_at && <div className="chat-footer opacity-50">
-                                    Read at {formatMessageDate(read_at, true)}
-                                </div>}
-                                {sent_at && delivered_at && !read_at && <div className="chat-footer opacity-50">
-                                    Delivered at {formatMessageDate(delivered_at, true)}
-                                </div>}
-                                {sent_at && !delivered_at && !read_at && <div className="chat-footer opacity-50">
-                                    Sent at {formatMessageDate(sent_at, true)}
-                                </div>}
+                                {sent_at && delivered_at && read_at && (
+                                    <div className="chat-footer opacity-50">
+                                        Read at {formatMessageDate(read_at, true)}
+                                    </div>
+                                )}
+                                {sent_at && delivered_at && !read_at && (
+                                    <div className="chat-footer opacity-50">
+                                        Delivered at {formatMessageDate(delivered_at, true)}
+                                    </div>
+                                )}
+                                {sent_at && !delivered_at && !read_at && (
+                                    <div className="chat-footer opacity-50">
+                                        Sent at {formatMessageDate(sent_at, true)}
+                                    </div>
+                                )}
                             </>
                         )}
                     </div>
@@ -372,13 +433,17 @@ export default function Chat() {
         });
     }, [isDetails, messages, profiles]);
 
+    // ========== RENDER ==========
     return (
         <MainLayout pageTitle={CHATS_TITLE} pageDetails={CHATS_TEXT}>
             <HelmetHeader pageTitle={CHATS_TITLE} />
 
             <div className='w-full h-full flex flex-col'>
-                <div ref={chatContainerRef} className="relative w-full h-full flex flex-col 
-                    select-none fade-in px-4 py-2 bg-base-100 scroll-bar">
+                <div
+                    ref={chatContainerRef}
+                    className="relative w-full h-full flex flex-col 
+                        select-none fade-in px-4 py-2 bg-base-100 scroll-bar"
+                >
                     {renderMessages()}
 
                     {isTyping && (
@@ -415,7 +480,7 @@ export default function Chat() {
                         <div className="flex items-end gap-2">
                             <button
                                 type="button"
-                                onClick={() => setShowPicker((val) => !val)}
+                                onClick={() => setShowPicker(val => !val)}
                                 className="p-2 rounded-full hover:bg-gray-100 transition-colors self-center"
                             >
                                 {showPicker ? '✕' : '😊'}
