@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Star } from 'lucide-react';
 import { Link } from 'react-router';
+import { LiaCheckDoubleSolid, LiaCheckSolid } from 'react-icons/lia';
 
 import { CHATS_TITLE, CHATS_TEXT, baseURL, userId } from '../utils/constants';
 import { buildPictureUrl, formatMessageDate, isCurrentUser } from '../utils/functions';
@@ -73,18 +74,16 @@ export default function Chats() {
                                             <p className='w-full text-[12px] sm:text-[13px]'
                                                 style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                                             >
-
-                                                {isOwn && (
-                                                    <span className="text-xs text-gray-500 mr-2 opacity-70 inline-block">
-                                                        {sent_at && !delivered_at && !read_at && <span>✓</span>}
-                                                        {sent_at && delivered_at && !read_at && <span className=''>✓✓</span>}
-                                                        {sent_at && delivered_at && read_at && (
-                                                            <span className="text-sky-600 font-bold">✓✓</span>
-                                                        )}
-                                                    </span>
-                                                )}
-
-                                                {content}
+                                                <div className='flex items-center'>
+                                                    {isOwn && (
+                                                        <span className="text-xs text-gray-500 mr-2 opacity-70 inline-block">
+                                                            {sent_at && !delivered_at && !read_at && <LiaCheckSolid color='gray' size={15} />}
+                                                            {sent_at && delivered_at && !read_at && <LiaCheckDoubleSolid color='gray' size={15} />}
+                                                            {sent_at && delivered_at && read_at && <LiaCheckDoubleSolid color='blue' size={15} />}
+                                                        </span>
+                                                    )}
+                                                    <span>{content}</span>
+                                                </div>
                                             </p>
                                         </div>
                                     </div>
