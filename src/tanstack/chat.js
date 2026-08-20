@@ -20,6 +20,11 @@ const markMessageAsRead = async message_id => {
     return response.data;
 }
 
+const getUnreadChatsCount = async () => {
+    const response = await protectedApi.get('/chat/get-new-chats-count');
+    return response.data;
+}
+
 
 
 export const sendMessageHandler = async data => await sendMessage(data);
@@ -29,3 +34,5 @@ export const getChatsHandler = async () => await getChats();
 export const getChatMessagesHandler = async data => await getChatMessages(data);
 
 export const markMessageAsReadHandler = async data => await markMessageAsRead(data);
+
+export const getUnreadChatsCountHandler = async () => await getUnreadChatsCount();
