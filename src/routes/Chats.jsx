@@ -75,10 +75,16 @@ export default function Chats() {
             }
         };
 
-        const handleUserStatusChange = async ({ userId, isOnline }) => {
-            if (isOnline) return setOnlineUsers(prevState => [...prevState, userId]);
+        const handleUserStatusChange = async ({ user_id, is_online }) => {
+            const chatsResponse = await getChatsHandler();
+            const chats = chatsResponse.chats;
 
-            setOnlineUsers(prevState => prevState.filter(id => id !== userId));
+            if (chats.length > 0)
+                setChats(chats);
+
+            if (is_online) return setOnlineUsers(prevState => [...prevState, user_id]);
+
+            setOnlineUsers(prevState => prevState.filter(id => id !== user_id));
         }
 
         socket.on('partner_typing', handlePartnerTyping);
@@ -107,7 +113,7 @@ export default function Chats() {
                         const { id: chat_id, myself, partner, unread_message_count,
                             last_message: { content, sender_id, sent_at, delivered_at, read_at } } = chat;
 
-                        const { id: partner_id, name, picture } = partner;
+                        const { id: partner_id, name, picture, is_online } = partner;
                         const isOwn = isCurrentUser(userId, sender_id);
                         const formatted = formatMessageDate(sent_at, true);
                         const pictureUrl = buildPictureUrl(baseURL, picture);
@@ -124,7 +130,7 @@ export default function Chats() {
                                     <div className='w-50 sm:w-80 h-15'>
                                         <div className='w-full h-full flex flex-col justify-center items-start bg-clip-text text-transparent bg-gradient-to-r from-violet-600 to-pink-600'>
                                             <h1 className='text-[14px] sm:text-[18px] flex items-center gap-2'>{name}
-                                                {onlineUsers.includes(partner_id) &&
+                                                {(is_online || onlineUsers.includes(partner_id)) &&
                                                     <span className='block w-2 h-2 bg-green-700 rounded-full'></span>}
                                             </h1>
                                             <p className='w-full text-[12px] sm:text-[13px]'
