@@ -3,26 +3,25 @@ import { useLocation, useNavigate } from 'react-router';
 import { LiaCheckSolid, LiaCheckDoubleSolid } from "react-icons/lia";
 import EmojiPicker from 'emoji-picker-react';
 
-import { CHATS_TITLE, CHATS_TEXT, userId, socket } from '../utils/constants';
+import { CHATS_TITLE, CHATS_TEXT, userId, socket, baseURL } from '../utils/constants';
 import {
     writeName, isSameDate, formatMessageDate, timeTo12Hour, isCurrentUser,
-    getUserProfile, isSame
+    getUserProfile, isSame, buildPictureUrl
 } from '../utils/functions';
-import { getPotentialMatchProfilesHandler } from '../tanstack/user';
 import { getChatMessagesHandler, markMessageAsReadHandler, sendMessageHandler } from '../tanstack/chat';
 
-import MainLayout from '../components/Layouts/MainLayout';
+import ChatLayout from '../components/Layouts/ChatLayout';
 import HelmetHeader from '../components/HelmetHeader';
 import './chat.css';
 
 export default function Chat() {
     const navigate = useNavigate();
-    const [profiles, setProfiles] = useState([]);
+    const location = useLocation();
+
     const [message, setMessage] = useState('');
     const [messages, setMessages] = useState([]);
     const [isTyping, setIsTyping] = useState(false);
     const [showPicker, setShowPicker] = useState(false);
-    const location = useLocation();
 
     const { chat_id, myself, partner } = location.state || {};
 
@@ -134,17 +133,15 @@ export default function Chat() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [messagesResponse, profilesResponse] = await Promise.all([
-                    getChatMessagesHandler(chat_id),
-                    getPotentialMatchProfilesHandler()
-                ]);
+                // const [messagesResponse, profilesResponse] = await Promise.all([
+                //     getChatMessagesHandler(chat_id),
+                //     getPotentialMatchProfilesHandler()
+                // ]);
+
+                const messagesResponse = await getChatMessagesHandler(chat_id);
 
                 if (messagesResponse?.messages) {
                     setMessages(messagesResponse.messages);
-                }
-
-                if (profilesResponse?.userProfiles) {
-                    setProfiles(profilesResponse.userProfiles);
                 }
 
                 // Scroll to bottom after messages load
@@ -228,7 +225,7 @@ export default function Chat() {
     }, []);
 
     // ========== TYPING HANDLER ==========
-    const handleInputChange = useCallback((e) => {
+    const handleInputChange = (e) => {
         const value = e.target.value;
         setMessage(value);
         autoGrow(e.target);
@@ -255,7 +252,7 @@ export default function Chat() {
                 socket.emit('sender_typing_stop', { recipient_id, sender_id });
             }
         }, 1500);
-    }, [partner?.id, autoGrow]);
+    };
 
     // ========== SEND MESSAGE ==========
     const handleMessageSending = async (event) => {
@@ -320,7 +317,7 @@ export default function Chat() {
             e.preventDefault();
             handleMessageSending(e);
         }
-    }, [message]);
+    });
 
     // ========== EMOJI HANDLER ==========
     const handleEmojiClick = useCallback((emojiObject) => {
@@ -335,7 +332,7 @@ export default function Chat() {
 
     // ========== RENDER MESSAGES ==========
     const renderMessages = useCallback(() => {
-        if (!profiles?.length || !messages?.length) return null;
+        if (!messages?.length) return null;
 
         let user0 = '';
         let user1 = '';
@@ -359,8 +356,10 @@ export default function Chat() {
 
             const isSameSenderAsNext = isSame(user1, user2);
             const isOwn = isCurrentUser(userId, message.sender_id);
-            const profile = getUserProfile(message.sender_id, profiles);
             const isSameDay = isSameDate(message0, message1);
+            const profile = getUserProfile(message.sender_id, [myself, partner]);
+            const { name, picture } = profile;
+            const pictureUrl = buildPictureUrl(baseURL, picture);
 
             const { content, sent_at, delivered_at, read_at, id } = message;
 
@@ -377,12 +376,12 @@ export default function Chat() {
                             ${showName && isSameDay ? 'mt-3' : ''} active:bg-neutral-100`}
                         data-message-id={id}
                     >
-                        {isDetails && !isSameSenderAsNext && profile?.pictures?.[0] && (
+                        {isDetails && !isSameSenderAsNext && pictureUrl && (
                             <div className="chat-image avatar">
                                 <div className="w-10 rounded-full">
                                     <img
                                         alt='Profile Picture'
-                                        src={profile.pictures[0]}
+                                        src={pictureUrl}
                                     />
                                 </div>
                             </div>
@@ -392,8 +391,8 @@ export default function Chat() {
                         )}
 
                         <div className="chat-header">
-                            {isDetails && showName && profile?.name && (
-                                <span>{profile.name}</span>
+                            {isDetails && showName && name && (
+                                <span>{name}</span>
                             )}
                         </div>
                         <div className={`flex flex-col chat-bubble ${isOwn ? '' : 'chat-bubble-error'}`}>
@@ -432,39 +431,38 @@ export default function Chat() {
                 </Fragment>
             );
         });
-    }, [isDetails, messages, profiles]);
+    }, [isDetails, messages, myself, partner]);
 
     // ========== RENDER ==========
     return (
-        <MainLayout pageTitle={CHATS_TITLE} pageDetails={CHATS_TEXT}>
+        <ChatLayout partnerName={partner.name} partnerAge={partner.age} chat_id={chat_id}
+            lastSeen={partner.last_seen} onlineStatus={partner.is_online}>
             <HelmetHeader pageTitle={CHATS_TITLE} />
 
             <div className='w-full h-full flex flex-col'>
                 <div
                     ref={chatContainerRef}
-                    className="relative w-full h-full flex flex-col 
+                    className="w-full h-full flex flex-col 
                         select-none fade-in px-4 py-2 bg-base-100 scroll-bar"
                 >
                     {renderMessages()}
 
-                    {isTyping && (
-                        <div className="chat chat-start">
-                            <div className="chat-bubble chat-bubble-accent">
-                                <div className="flex items-center gap-2">
-                                    <span className="text-sm">typing</span>
-                                    <span className="typing-dots">
-                                        <span className="dot"></span>
-                                        <span className="dot"></span>
-                                        <span className="dot"></span>
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
                     <div ref={messagesEndRef} />
                 </div>
-
+                {isTyping && (
+                    <div className="chat chat-start">
+                        <div className="chat-bubble chat-bubble-accent">
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm">typing</span>
+                                <span className="typing-dots">
+                                    <span className="dot"></span>
+                                    <span className="dot"></span>
+                                    <span className="dot"></span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                )}
                 <section className="p-4 border-t border-gray-200 bg-white">
                     <form onSubmit={handleMessageSending} className="flex flex-col gap-2">
                         {showPicker && (
@@ -515,6 +513,6 @@ export default function Chat() {
                     </form>
                 </section>
             </div>
-        </MainLayout>
+        </ChatLayout>
     );
 }
