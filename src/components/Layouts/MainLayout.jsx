@@ -1,19 +1,51 @@
 // import PropTypes from 'prop-types';
+import { useEffect, useState } from 'react';
 import { NavLink, useLocation } from 'react-router';
 import {
     SlidersHorizontal, LocateFixed, Copy, Heart, MessageCircleCode, User,
     MoreHorizontal, Menu
 } from 'lucide-react';
-import { chatsPath, encountersPath, likesPath, nearbyPath, profilePath } from '../../utils/constants';
-import { chooseColour, chooseTextColour, pathMatched } from '../../utils/functions';
+import {
+    chatsPath, encountersPath, likesPath, nearbyPath, profilePath, socket, userId
+} from '../../utils/constants';
+import { chooseColour, chooseTextColour, isSame, pathMatched } from '../../utils/functions';
+import { getUnreadChatsCountHandler } from '../../tanstack/chat';
+import { getNewLikesCountHandler } from '../../tanstack/encounter';
 
 import AdSense from '../AdSense';
 
 const MainLayout = ({ children, pageTitle, pageDetails }) => {
     const currentPathName = useLocation().pathname;
+    const [unreadChatsCount, setUnreadChatsCount] = useState(0);
+    const [newLikesCount, setNewLikesCount] = useState(0);
+
+    useEffect(() => {
+        (async () => {
+            const chatsResponse = await getUnreadChatsCountHandler();
+            setUnreadChatsCount(chatsResponse.count);
+
+            const newLikesResposne = await getNewLikesCountHandler();
+            setNewLikesCount(newLikesResposne.count);
+        })();
+    }, []);
+
+    useEffect(() => {
+        const handleNewMessage = async ({ message }) => {
+            if (message && isSame(message.recipient_id, userId)) {
+                const chatsResponse = await getUnreadChatsCountHandler();
+                setUnreadChatsCount(chatsResponse.count);
+            }
+        };
+
+        socket.on('new_message', handleNewMessage);
+
+        return () => {
+            socket.off('new_message', handleNewMessage);
+        };
+    }, []);
 
     return (
-        <div className="h-screen w-full flex flex-col items-center justify-center bg-gradient-to-br from-emerald-200 to-cyan-800 select-none fade-in">
+        <div className="h-screen w-full flex flex-col items-center justify-center bg-gradient-to-br from-emerald-200 to-cyan-800 select-none">
             <div className='relative h-full w-full lg:max-w-xl flex flex-col'>
 
                 {/* Header Section: 7vh */}
@@ -95,12 +127,18 @@ const MainLayout = ({ children, pageTitle, pageDetails }) => {
                             <p className={`text-[10px] ${chooseTextColour(encountersPath, currentPathName)}`}>Encounters</p>
                         </NavLink>
                         <NavLink to={likesPath} className='indicator flex flex-col items-center cursor-pointer'>
-                            <span className="indicator-item badge badge-primary rounded-full w-6 h-6 text-[10px] font-bold">3</span>
+                            {newLikesCount > 0 &&
+                                <span className="indicator-item badge badge-accent rounded-full w-6 h-6 text-[10px] font-bold">
+                                    {newLikesCount}
+                                </span>}
                             <Heart color={chooseColour(likesPath, currentPathName)} />
                             <p className={`text-[10px] ${chooseTextColour(likesPath, currentPathName)}`}>Likes</p>
                         </NavLink>
                         <NavLink to={chatsPath} className='indicator flex flex-col items-center cursor-pointer'>
-                            <span className="indicator-item badge badge-accent rounded-full w-6 h-6 text-[10px] font-bold">7</span>
+                            {unreadChatsCount > 0 &&
+                                <span className="indicator-item badge badge-primary rounded-full w-6 h-6 text-[10px] font-bold">
+                                    {unreadChatsCount}
+                                </span>}
                             <MessageCircleCode color={chooseColour(chatsPath, currentPathName)} />
                             <p className={`text-[10px] ${chooseTextColour(chatsPath, currentPathName)}`}>Chats</p>
                         </NavLink>
