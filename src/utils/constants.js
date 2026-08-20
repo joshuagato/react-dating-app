@@ -39,6 +39,9 @@ export const NEARBY_TEXT = 'People close to me';
 export const CHATS_TITLE = 'Chats';
 export const CHATS_TEXT = 'My conversations with others';
 
+export const PROFILE_TITLE = 'Profile';
+export const PROFILE_TEXT = 'My Profile Details';
+
 export const verifyEmailPath = '/verify-email';
 export const basicProfilePath = '/basic-profile';
 export const advancedProfilePath = '/advanced-profile';
@@ -57,6 +60,11 @@ export const VERIFICATION_CHANNEL = {
 export const ENCOUNTER_ACTION = {
     LIKE: 'like', DISLIKE: 'dislike', SUPER_LIKE: 'super-like', PASS: 'pass'
 }
+
+export const GENDER = {
+    MAN: 'man', MEN: 'men', WOMAN: 'woman', WOMEN: 'women', EVERONE: 'everyone'
+};
+
 
 export const socket = io(baseURL, {
     withCredentials: true,
