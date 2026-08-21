@@ -14,6 +14,9 @@ importers:
       '@capacitor/geolocation':
         specifier: ^8.2.0
         version: 8.2.0(@capacitor/core@8.5.0)
+      '@chatereum/react-e2ee':
+        specifier: ^3.0.1
+        version: 3.0.1
       '@dnd-kit/core':
         specifier: ^6.3.1
         version: 6.3.1(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -207,6 +210,9 @@ packages:
 
   '@capacitor/synapse@1.0.4':
     resolution: {integrity: sha512-/C1FUo8/OkKuAT4nCIu/34ny9siNHr9qtFezu4kxm6GY1wNFxrCFWjfYx5C1tUhVGz3fxBABegupkpjXvjCHrw==}
+
+  '@chatereum/react-e2ee@3.0.1':
+    resolution: {integrity: sha512-xP1sFuI6PGKoXXNAz/LmtX/XGrqNHloDc9ah11HlCgLmg0v6bK+sYAkXYCVp4pLnQu+ZgGK31K2F/3/Idrcv3Q==}
 
   '@dnd-kit/accessibility@3.1.1':
     resolution: {integrity: sha512-2P+YgaXF+gRsIihwwY1gCsQSYnu9Zyj2py8kY5fFvUM1qm2WA2u639R6YNVfU4GWr+ZM5mqEsfHZZLoRONbemw==}
@@ -1438,6 +1444,8 @@ snapshots:
       '@capacitor/synapse': 1.0.4
 
   '@capacitor/synapse@1.0.4': {}
+
+  '@chatereum/react-e2ee@3.0.1': {}
 
   '@dnd-kit/accessibility@3.1.1(react@19.2.7)':
     dependencies:
