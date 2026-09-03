@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { User, User2, UserCircle, CircleX, CircleCheck } from 'lucide-react';
 import { toast } from 'react-toastify';
-import { useNavigate } from 'react-router';
+import { useNavigate, useLocation } from 'react-router';
 
 import { SET_UP_BASIC_DETAILS, advancedProfilePath } from '../utils/constants';
 import { unsetAllErrors, unsetErrorSetMessage, unsetMessageSetError } from '../utils/functions';
@@ -38,6 +38,17 @@ const BasicProfile = () => {
     const [interested_in, setInterestedIn] = useState('');
 
     const navigate = useNavigate();
+    const location = useLocation();
+    const hasInitialized = useRef(false);
+
+    useEffect(() => {
+        if (!hasInitialized.current && location.state) {
+            const { first_name, last_name } = location.state || {};
+            setFirstName(first_name);
+            setLastName(last_name);
+            hasInitialized.current = true;
+        }
+    }, [location.state]);
 
     async function handleProfileSave(event) {
         event.preventDefault();
