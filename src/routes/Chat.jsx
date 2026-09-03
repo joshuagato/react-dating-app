@@ -2,8 +2,9 @@ import { useState, useRef, useCallback, useEffect, Fragment, useMemo } from 'rea
 import { useLocation, useNavigate } from 'react-router';
 import { LiaCheckSolid, LiaCheckDoubleSolid } from "react-icons/lia";
 import EmojiPicker from 'emoji-picker-react';
+import E2EE from '@chatereum/react-e2ee';
 
-import { CHATS_TITLE, CHATS_TEXT, userId, socket, baseURL } from '../utils/constants';
+import { CHAT_TITLE, userId, socket, baseURL } from '../utils/constants';
 import {
     writeName, isSameDate, formatMessageDate, timeTo12Hour, isCurrentUser,
     getUserProfile, isSame, buildPictureUrl
@@ -23,11 +24,42 @@ export default function Chat() {
     const [isTyping, setIsTyping] = useState(false);
     const [showPicker, setShowPicker] = useState(false);
 
-    const { chat_id, myself, partner } = location.state || {};
+    const { chat_id, myself, partner = {
+        id: '', name: '', picture: '',
+        is_online: null, last_seen: null
+    } } = location.state || {};
+
+    const encryptMessage = async (message, keys) => {
+        const encrypted = await E2EE.default.encryptPlaintext({
+            public_key: keys.public_key,
+            plain_text: message,
+        });
+        return encrypted;
+    }
+
+    const decryptMessage = async (encrypted, keys) => {
+        const message = await E2EE.default.decryptForPlaintext({
+            private_key: keys.private_key,
+            encrypted_text: encrypted,
+        });
+        return message;
+    }
+
+    const getKeys = async () => {
+        const keys = await E2EE.default.getKeys();
+        return keys;
+    }
+
+    useEffect(() => {
+        (async () => {
+            const keys = await getKeys();
+            const cipher = await encryptMessage('hello', keys);
+        })();
+    }, []);
 
     // Redirect if no chat_id
     useEffect(() => {
-        if (!chat_id) {
+        if (!chat_id && !partner.id && !partner.name) {
             navigate('/chats');
         }
     }, [chat_id, navigate]);
@@ -54,20 +86,34 @@ export default function Chat() {
         }
     }, []);
 
+    // Save scroll position on container scroll
+    const handleScroll = useCallback(() => {
+        if (chatContainerRef.current && chat_id) {
+            const scrollTop = chatContainerRef.current.scrollTop;
+            localStorage.setItem(`chat_scroll_${chat_id}`, scrollTop.toString());
+        }
+    }, [chat_id]);
+
+    // Save scroll position when component unmounts
+    useEffect(() => {
+        return () => {
+            if (chatContainerRef.current && chat_id) {
+                const scrollTop = chatContainerRef.current.scrollTop;
+                localStorage.setItem(`chat_scroll_${chat_id}`, scrollTop.toString());
+            }
+        };
+    }, [chat_id]);
+
     // ========== MESSAGE READ HANDLER ==========
     const markMessageAsRead = useCallback(async (message) => {
-        // Skip if already processed, or it's the user's own message, or already read
         if (processedMessageIdsRef.current.has(message.id)) return;
         if (isCurrentUser(userId, message.sender_id)) return;
         if (message.read_at) return;
 
         try {
-            // Mark as processed immediately to prevent duplicate calls
             processedMessageIdsRef.current.add(message.id);
-
             await markMessageAsReadHandler(message.id);
 
-            // Update local state to reflect read status
             setMessages(prevMessages =>
                 prevMessages.map(msg =>
                     msg.id === message.id
@@ -76,7 +122,6 @@ export default function Chat() {
                 )
             );
         } catch (error) {
-            // If failed, remove from processed set so it can be retried
             processedMessageIdsRef.current.delete(message.id);
             console.error("Failed to mark message as read:", error);
         }
@@ -84,20 +129,17 @@ export default function Chat() {
 
     // ========== INTERSECTION OBSERVER SETUP ==========
     useEffect(() => {
-        // Clean up previous observer
         if (observerRef.current) {
             observerRef.current.disconnect();
             observerRef.current = null;
         }
 
-        // Create new observer
         observerRef.current = new IntersectionObserver(
             (entries) => {
                 entries.forEach(entry => {
                     if (entry.isIntersecting) {
                         const messageId = entry.target.dataset.messageId;
                         if (messageId) {
-                            // Find the message in state
                             const message = messages.find(m => m.id === messageId);
                             if (message) {
                                 markMessageAsRead(message);
@@ -109,11 +151,10 @@ export default function Chat() {
             {
                 root: chatContainerRef.current,
                 rootMargin: '0px',
-                threshold: 0.3 // 30% visibility threshold
+                threshold: 0.3
             }
         );
 
-        // Observe all message elements
         const messageElements = chatContainerRef.current?.querySelectorAll('[data-message-id]');
         if (messageElements) {
             messageElements.forEach(el => {
@@ -133,19 +174,21 @@ export default function Chat() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                // const [messagesResponse, profilesResponse] = await Promise.all([
-                //     getChatMessagesHandler(chat_id),
-                //     getPotentialMatchProfilesHandler()
-                // ]);
-
                 const messagesResponse = await getChatMessagesHandler(chat_id);
 
                 if (messagesResponse?.messages) {
                     setMessages(messagesResponse.messages);
                 }
 
-                // Scroll to bottom after messages load
-                setTimeout(() => scrollToBottom('auto'), 100);
+                // Restore previous scroll position if it exists
+                setTimeout(() => {
+                    if (chatContainerRef.current && chat_id) {
+                        const savedPosition = localStorage.getItem(`chat_scroll_${chat_id}`);
+                        if (savedPosition !== null) {
+                            chatContainerRef.current.scrollTop = parseInt(savedPosition, 10);
+                        }
+                    }
+                }, 100);
             } catch (error) {
                 console.error("Failed to fetch data:", error);
             }
@@ -154,19 +197,18 @@ export default function Chat() {
         if (chat_id) {
             fetchData();
         }
-    }, [chat_id, scrollToBottom]);
+    }, [chat_id]);
 
     // ========== SOCKET EVENT LISTENERS ==========
     useEffect(() => {
         const handleNewMessage = ({ message }) => {
-            if (message && isSame(message.recipient_id, userId)) {
+            if (message && isSame(message.recipient_id, userId) && isSame(message.chat_id, chat_id)) {
                 setMessages(prevMessages => {
                     const exists = prevMessages.some(m => m.id === message.id);
                     if (exists) return prevMessages;
                     return [...prevMessages, message];
                 });
-                // Scroll to bottom for new messages
-                setTimeout(scrollToBottom, 100);
+                // Note: Do NOT scroll to bottom when partner sends a message on load/visit
             }
         };
 
@@ -207,7 +249,7 @@ export default function Chat() {
             socket.off('message_delivered', handleMessageDelivered);
             socket.off('message_read', handleMessageRead);
         };
-    }, [scrollToBottom]);
+    }, [chat_id]);
 
     // ========== CLEANUP TYPING TIMER ==========
     useEffect(() => {
@@ -289,7 +331,8 @@ export default function Chat() {
 
             socket.emit('sender_typing_stop', { recipient_id, sender_id });
 
-            setTimeout(scrollToBottom, 100);
+            // Force scroll to bottom ONLY when current user sends a message
+            setTimeout(() => scrollToBottom('smooth'), 100);
         } catch (error) {
             console.error("Failed to send message:", error);
         }
@@ -435,13 +478,14 @@ export default function Chat() {
 
     // ========== RENDER ==========
     return (
-        <ChatLayout partnerName={partner.name} partnerAge={partner.age} chat_id={chat_id}
-            lastSeen={partner.last_seen} onlineStatus={partner.is_online}>
-            <HelmetHeader pageTitle={CHATS_TITLE} />
+        <ChatLayout partnerName={partner.name} partnerAge={partner.age} partnerPicture={partner.picture}
+            chat_id={chat_id} lastSeen={partner.last_seen} onlineStatus={partner.is_online}>
+            <HelmetHeader pageTitle={CHAT_TITLE} />
 
             <div className='w-full h-full flex flex-col'>
                 <div
                     ref={chatContainerRef}
+                    onScroll={handleScroll}
                     className="w-full h-full flex flex-col 
                         select-none fade-in px-4 py-2 bg-base-100 scroll-bar"
                 >
@@ -490,7 +534,7 @@ export default function Chat() {
                                 value={message}
                                 onChange={handleInputChange}
                                 onKeyDown={handleKeyDown}
-                                placeholder="Type a message... (Shift+Enter for new line)"
+                                placeholder="(Shift+Enter for new line)"
                                 className="flex-1 border border-slate-200 rounded-lg px-4 py-2 focus:outline-none focus:border-blue-500 transition-all resize-none"
                                 style={{
                                     minHeight: '44px',
