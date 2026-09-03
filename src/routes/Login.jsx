@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { CircleCheck, CircleX } from "lucide-react";
 import { toast } from 'react-toastify';
+import { GoogleLogin } from '@react-oauth/google';
 
 import Layout from "../components/Layouts/SetupLayout";
 import Email from "../components/Email";
@@ -10,7 +11,7 @@ import SwitchContextButton from "../components/SwitchContextButton";
 import SubmitButton from "../components/SubmitButton";
 import HelmetHeader from "../components/HelmetHeader";
 
-import { loginHandler } from '../tanstack/auth';
+import { loginHandler, googleAuthHandler } from '../tanstack/auth';
 import { getProfileHandler } from '../tanstack/user';
 import {
     unsetErrorSetMessage, unsetMessageSetError, unsetEmailPasswordField,
@@ -18,7 +19,7 @@ import {
 } from "../utils/functions";
 import {
     LOGIN_TEXT, SWITCH_TO_SIGNUP_TEXT, VERIFICATION_CHANNEL, SWITCH_TO_PASSWORD_RESET_TEXT,
-    encountersPath, verifyEmailPath, basicProfilePath, advancedProfilePath, baseURL
+    encountersPath, verifyEmailPath, basicProfilePath, advancedProfilePath, finalProfilePath, baseURL
 } from "../utils/constants";
 
 
@@ -41,6 +42,33 @@ const Auth = () => {
         }
     }, [user, authLoading, navigate]);
 
+    // Reusable redirect & socket handler post-auth
+    const handleAuthSuccess = async (response) => {
+        const profile = await getProfileHandler();
+        console.log({ profile });
+
+        unsetErrorSetMessage(setError, setMessage, response.message);
+        unsetEmailPasswordField(setEmail, setPassword);
+        toast.success(response.message, { autoClose: 7000, theme: 'colored' });
+
+        const { user_id, email_verified, basic_profile_setup, advanced_profile_setup,
+            final_profile_setup, first_name, last_name } = response;
+        connectSocket(baseURL, user_id);
+
+        if (email_verified && basic_profile_setup && advanced_profile_setup && final_profile_setup) {
+            navigate(encountersPath, { replace: true });
+        } else {
+            if (!email_verified)
+                return navigate(verifyEmailPath, { replace: true, state: { verification_channel: VERIFICATION_CHANNEL.LOGIN } });
+
+            if (!basic_profile_setup) return navigate(basicProfilePath, { replace: true, state: { first_name, last_name } });
+
+            if (!advanced_profile_setup) return navigate(advancedProfilePath, { replace: true });
+
+            if (!final_profile_setup) return navigate(finalProfilePath, { replace: true });
+        }
+    };
+
     async function handleAuth(event) {
         event.preventDefault();
 
@@ -53,28 +81,7 @@ const Auth = () => {
             if (response.errors) setErrors(response.errors);
 
             if (response.success) {
-                const profile = await getProfileHandler();
-                console.log({ profile });
-
-                unsetErrorSetMessage(setError, setMessage, response.message);
-                unsetEmailPasswordField(setEmail, setPassword);
-                toast.success(response.message, { autoClose: 7000, theme: 'colored' });
-
-                const { user_id, email_verified, basic_profile_setup, advanced_profile_setup } = response;
-                connectSocket(baseURL, user_id);
-
-                if (email_verified && basic_profile_setup && advanced_profile_setup) {
-                    // navigate to swipes page
-                    navigate(encountersPath, { replace: true });
-                } else {
-                    if (!email_verified)
-                        return navigate(verifyEmailPath, { replace: true, state: { verification_channel: VERIFICATION_CHANNEL.LOGIN } });
-
-                    if (!basic_profile_setup) return navigate(basicProfilePath, { replace: true });
-
-                    if (!advanced_profile_setup) return navigate(advancedProfilePath, { replace: true });
-
-                }
+                await handleAuthSuccess(response);
             } else {
                 unsetMessageSetError(setMessage, setError, response.message);
                 toast.error(response.message, { autoClose: 7000, theme: 'colored' });
@@ -86,6 +93,28 @@ const Auth = () => {
             setLoading(false);
         }
     }
+
+    // Google Login Success Handler
+    const handleGoogleSuccess = async (credentialResponse) => {
+        setLoading(true);
+        unsetAllErrors(setError, setErrors);
+
+        try {
+            // Send JWT ID token from Google to Express backend
+            const response = await googleAuthHandler({ idToken: credentialResponse.credential });
+
+            if (response.success) {
+                await handleAuthSuccess(response);
+            } else {
+                unsetMessageSetError(setMessage, setError, response.message);
+                toast.error(response.message, { autoClose: 7000, theme: 'colored' });
+            }
+        } catch (error) {
+            toast.error(error.message || 'Google Auth Failed', { autoClose: 5000, theme: 'colored' });
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
         <>
@@ -119,6 +148,24 @@ const Auth = () => {
                     </SubmitButton>
                 </form>
 
+                {/* Divider */}
+                <div className="w-full flex items-center my-4">
+                    <div className="flex-grow border-t border-gray-300"></div>
+                    <span className="px-3 text-gray-500 text-xs font-semibold">OR</span>
+                    <div className="flex-grow border-t border-gray-300"></div>
+                </div>
+
+                {/* Google Sign-In Button */}
+                <div className="w-full flex justify-center">
+                    <GoogleLogin
+                        onSuccess={handleGoogleSuccess}
+                        onError={() => toast.error('Google Sign-In failed', { autoClose: 5000, theme: 'colored' })}
+                        useOneTap
+                        shape="pill"
+                        width="100%"
+                    />
+                </div>
+
                 <SwitchContextButton textColor={'text-pink-600'} textHoverColor={'hover:text-green-600'} route={'/reset-password'}>
                     {SWITCH_TO_PASSWORD_RESET_TEXT}
                 </SwitchContextButton>
@@ -129,7 +176,7 @@ const Auth = () => {
 
             </Layout>
         </>
-    )
-}
+    );
+};
 
-export default Auth
+export default Auth;
