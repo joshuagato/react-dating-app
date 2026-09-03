@@ -1,5 +1,10 @@
 import { unProtectedApi, protectedApi } from "../axios";
 
+const googleAuth = async data => {
+    const response = await unProtectedApi.post('/auth/google-auth', data);
+    return response.data;
+}
+
 const authentication = async (operation, authData) => {
     let route = '';
 
@@ -34,6 +39,8 @@ const resetPassword = async requestData => {
 }
 
 
+
+export const googleAuthHandler = async data => await googleAuth(data);
 
 export const loginHandler = async data => await authentication('login', data);
 
