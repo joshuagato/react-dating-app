@@ -39,6 +39,8 @@ export const NEARBY_TEXT = 'People close to me';
 export const CHATS_TITLE = 'Chats';
 export const CHATS_TEXT = 'My conversations with others';
 
+export const CHAT_TITLE = 'Chat';
+
 export const PROFILE_TITLE = 'Profile';
 export const PROFILE_TEXT = 'My Profile Details';
 
@@ -50,8 +52,10 @@ export const finalProfilePath = '/final-profile';
 export const encountersPath = '/encounters';
 export const likesPath = '/likes';
 export const chatsPath = '/chats';
+export const chatPath = '/chat';
 export const nearbyPath = '/nearby';
 export const profilePath = '/profile';
+export const premiumPath = '/premium';
 
 export const VERIFICATION_CHANNEL = {
     SIGNUP: 'signup', LOGIN: 'login'
