@@ -20,6 +20,11 @@ const setupFinalProfile = async data => {
     return response.data;
 }
 
+const getVerificationSelfie = async () => {
+    const response = await protectedApi.get('/user/verification-selfie');
+    return response.data;
+}
+
 const getEncountersProfiles = async (query) => {
     const response = await protectedApi.get(`/user/get-encounters-profiles?${query}`);
     return response.data;
@@ -37,6 +42,8 @@ export const setupBasicProfileHandler = async data => await setupBasicProfile(da
 export const setupAdvancedProfileHandler = async data => await setupAdvancedProfile(data);
 
 export const setupFinalProfileHandler = async data => await setupFinalProfile(data);
+
+export const getVerificationSelfieHandler = async () => await getVerificationSelfie();
 
 export const getEncountersProfilesHandler = async (query) => await getEncountersProfiles(query);
 
