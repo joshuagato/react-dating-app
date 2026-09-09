@@ -5,6 +5,11 @@ const sendMessage = async data => {
     return response.data;
 }
 
+const editMessage = async data => {
+    const response = await protectedApi.patch('/chat/edit-message', data);
+    return response.data;
+}
+
 const getChats = async () => {
     const response = await protectedApi.get('/chat/get-chats');
     return response.data;
@@ -28,6 +33,8 @@ const getUnreadChatsCount = async () => {
 
 
 export const sendMessageHandler = async data => await sendMessage(data);
+
+export const editMessageHandler = async data => await editMessage(data);
 
 export const getChatsHandler = async () => await getChats();
 
