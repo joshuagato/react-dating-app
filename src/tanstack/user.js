@@ -5,6 +5,11 @@ const getProfile = async () => {
     return response.data;
 }
 
+const updateProfile = async data => {
+    const response = await protectedApi.put('/user/update-profile', data);
+    return response.data;
+}
+
 const setupBasicProfile = async data => {
     const response = await protectedApi.put('/user/basic-profile', data);
     return response.data;
@@ -36,6 +41,8 @@ const getPotentialMatchProfiles = async () => {
 }
 
 export const getProfileHandler = async () => await getProfile();
+
+export const updateProfileHandler = async data => await updateProfile(data);
 
 export const setupBasicProfileHandler = async data => await setupBasicProfile(data);
 
