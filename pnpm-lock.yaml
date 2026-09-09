@@ -20,9 +20,6 @@ importers:
       '@capacitor/geolocation':
         specifier: ^8.2.0
         version: 8.2.0(@capacitor/core@8.5.0)
-      '@chatereum/react-e2ee':
-        specifier: ^3.0.1
-        version: 3.0.1
       '@dnd-kit/core':
         specifier: ^6.3.1
         version: 6.3.1(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -59,6 +56,9 @@ importers:
       browser-image-compression:
         specifier: ^2.0.2
         version: 2.0.2
+      crypto-js:
+        specifier: ^4.2.0
+        version: 4.2.0
       date-fns:
         specifier: ^4.4.0
         version: 4.4.0
@@ -252,9 +252,6 @@ packages:
 
   '@capacitor/synapse@1.0.4':
     resolution: {integrity: sha512-/C1FUo8/OkKuAT4nCIu/34ny9siNHr9qtFezu4kxm6GY1wNFxrCFWjfYx5C1tUhVGz3fxBABegupkpjXvjCHrw==}
-
-  '@chatereum/react-e2ee@3.0.1':
-    resolution: {integrity: sha512-xP1sFuI6PGKoXXNAz/LmtX/XGrqNHloDc9ah11HlCgLmg0v6bK+sYAkXYCVp4pLnQu+ZgGK31K2F/3/Idrcv3Q==}
 
   '@dnd-kit/accessibility@3.1.1':
     resolution: {integrity: sha512-2P+YgaXF+gRsIihwwY1gCsQSYnu9Zyj2py8kY5fFvUM1qm2WA2u639R6YNVfU4GWr+ZM5mqEsfHZZLoRONbemw==}
@@ -765,6 +762,10 @@ packages:
   cross-spawn@7.0.6:
     resolution: {integrity: sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA==}
     engines: {node: '>= 8'}
+
+  crypto-js@4.2.0:
+    resolution: {integrity: sha512-KALDyEYgpY+Rlob/iriUtjV6d5Eq+Y191A5g4UqLAi8CyGP9N1+FdVbkc1SxKc2r4YAYqG8JzO2KGL+AizD70Q==}
+    deprecated: Active development of CryptoJS has been discontinued. This library is no longer maintained.
 
   csstype@3.2.3:
     resolution: {integrity: sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ==}
@@ -1616,8 +1617,6 @@ snapshots:
 
   '@capacitor/synapse@1.0.4': {}
 
-  '@chatereum/react-e2ee@3.0.1': {}
-
   '@dnd-kit/accessibility@3.1.1(react@19.2.7)':
     dependencies:
       react: 19.2.7
@@ -2068,6 +2067,8 @@ snapshots:
       path-key: 3.1.1
       shebang-command: 2.0.0
       which: 2.0.2
+
+  crypto-js@4.2.0: {}
 
   csstype@3.2.3: {}
 
