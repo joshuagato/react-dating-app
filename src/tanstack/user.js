@@ -30,13 +30,13 @@ const getVerificationSelfie = async () => {
     return response.data;
 }
 
-const getEncountersProfiles = async (query) => {
-    const response = await protectedApi.get(`/user/get-encounters-profiles?${query}`);
+const getPotentialMatchProfiles = async () => {
+    const response = await protectedApi.get('/user/get-potential-match-profiles');
     return response.data;
 }
 
-const getPotentialMatchProfiles = async () => {
-    const response = await protectedApi.get('/user/get-potential-match-profiles');
+const getNearbyUsers = async () => {
+    const response = await protectedApi.get('/user/get-nearby-users');
     return response.data;
 }
 
@@ -52,6 +52,6 @@ export const setupFinalProfileHandler = async data => await setupFinalProfile(da
 
 export const getVerificationSelfieHandler = async () => await getVerificationSelfie();
 
-export const getEncountersProfilesHandler = async (query) => await getEncountersProfiles(query);
-
 export const getPotentialMatchProfilesHandler = async () => await getPotentialMatchProfiles();
+
+export const getNearbyUsersHandler = async () => await getNearbyUsers();
