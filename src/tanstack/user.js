@@ -40,6 +40,11 @@ const getNearbyUsers = async () => {
     return response.data;
 }
 
+const completeProfileSetup = async data => {
+    const response = await protectedApi.put('/user/complete-profile-setup', data);
+    return response.data;
+}
+
 export const getProfileHandler = async () => await getProfile();
 
 export const updateProfileHandler = async data => await updateProfile(data);
@@ -55,3 +60,5 @@ export const getVerificationSelfieHandler = async () => await getVerificationSel
 export const getPotentialMatchProfilesHandler = async () => await getPotentialMatchProfiles();
 
 export const getNearbyUsersHandler = async () => await getNearbyUsers();
+
+export const completeProfileSetupHandler = async data => await completeProfileSetup(data);
