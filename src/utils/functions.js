@@ -1,5 +1,6 @@
 import { io } from 'socket.io-client';
 import { format, isToday, isYesterday, differenceInDays } from 'date-fns';
+import CryptoJS from 'crypto-js';
 
 export const organizeErrors = errorsArray => {
     const errorsData = {};
@@ -133,12 +134,43 @@ export function formatMessageDate(dateInput, isLastMessage = false) {
     const daysAgo = differenceInDays(now, date);
 
     // 3. Within the last 7 days (e.g., 2 to 7 days ago)
-    if (daysAgo > 1 && daysAgo <= 7) {
+    if (daysAgo >= 1 && daysAgo <= 7) {
         return format(date, 'eeee'); // Returns 'Friday', 'Thursday', etc.
     }
 
+    if (isLastMessage) return format(date, 'MMM d, y');
+
     // 4. Older than 7 days
     return format(date, 'MMMM d, y');
+}
+
+export function formatLastSeenDate(dateInput) {
+    if (!dateInput) return '';
+
+    const date = new Date(dateInput);
+    const now = new Date();
+    const timeIn12Hours = timeTo12Hour(dateInput);
+
+    // 1. Today
+    if (isToday(date)) {
+        return `Today, ${timeIn12Hours}`;
+    }
+
+    // 2. Yesterday
+    if (isYesterday(date)) {
+        return `Yesterday, ${timeIn12Hours}`;
+    }
+
+    // Difference in calendar days between now and the date
+    const daysAgo = differenceInDays(now, date);
+
+    // 3. Within the last 7 days (e.g., 2 to 7 days ago)
+    if (daysAgo >= 1 && daysAgo <= 7) {
+        return `${format(date, 'eeee')}, ${timeIn12Hours}`; // Returns 'Friday', 'Thursday', etc.
+    }
+
+    // 4. Older than 7 days
+    return `${format(date, 'MMM d, y')}, ${timeIn12Hours}`;
 }
 
 export const timeTo12Hour = time => {
@@ -169,4 +201,30 @@ export const getUserProfile = (userId, profiles) => {
 export const isSame = (user1, user2) => {
     if (!user1 || !user2) return false;
     return user1.toString() === user2.toString();
+};
+
+
+const SECRET_KEY = import.meta.env.VITE_REACT_APP_CRYPTO_SECRET_KEY;
+
+// Encrypt plain text to cipher text
+export const encryptText = (plainText) => {
+    try {
+        const cipherText = CryptoJS.AES.encrypt(plainText, SECRET_KEY).toString();
+        return cipherText;
+    } catch (error) {
+        console.error("Encryption failed:", error);
+        return null;
+    }
+};
+
+// Decrypt cipher text back to plain text
+export const decryptText = (cipherText) => {
+    try {
+        const bytes = CryptoJS.AES.decrypt(cipherText, SECRET_KEY);
+        const originalText = bytes.toString(CryptoJS.enc.Utf8);
+        return originalText;
+    } catch (error) {
+        console.error("Decryption failed:", error);
+        return null;
+    }
 };
