@@ -48,6 +48,7 @@ export const verifyEmailPath = '/verify-email';
 export const basicProfilePath = '/basic-profile';
 export const advancedProfilePath = '/advanced-profile';
 export const finalProfilePath = '/final-profile';
+export const profilePagePath = '/profile-page';
 
 export const encountersPath = '/encounters';
 export const likesPath = '/likes';
@@ -56,6 +57,7 @@ export const chatPath = '/chat';
 export const nearbyPath = '/nearby';
 export const profilePath = '/profile';
 export const premiumPath = '/premium';
+export const homePath = '/';
 
 export const VERIFICATION_CHANNEL = {
     SIGNUP: 'signup', LOGIN: 'login'
@@ -75,4 +77,59 @@ export const socket = io(baseURL, {
     query: { userId }
 });
 
+export const AD_EVERY_N_CARDS = 2;
+
 console.log(userId)
+
+export const REASON_FOR_JOINING_OPTIONS = [
+    { value: 'friendship', label: 'Friendship' },
+    { value: 'dating', label: 'Dating' },
+    { value: 'marriage', label: 'Marriage' },
+    { value: 'networking', label: 'Networking' },
+    { value: 'activities', label: 'Activity partner' },
+    { value: 'just_browsing', label: 'Just browsing' },
+];
+
+export const EDUCATION_LEVEL_OPTIONS = [
+    { value: 'high_school', label: 'High school' },
+    { value: 'diploma', label: 'Diploma' },
+    { value: 'bachelors', label: "Bachelor's" },
+    { value: 'masters', label: "Master's" },
+    { value: 'doctorate', label: 'Doctorate' },
+    { value: 'other', label: 'Other' },
+];
+
+export const INTEREST_OPTIONS = [
+    { value: 'music', label: 'Music' },
+    { value: 'movies', label: 'Movies' },
+    { value: 'travel', label: 'Travel' },
+    { value: 'food', label: 'Food' },
+    { value: 'fitness', label: 'Fitness' },
+    { value: 'reading', label: 'Reading' },
+    { value: 'gaming', label: 'Gaming' },
+    { value: 'art', label: 'Art' },
+    { value: 'technology', label: 'Technology' },
+    { value: 'fashion', label: 'Fashion' },
+    { value: 'sports', label: 'Sports' },
+    { value: 'nature', label: 'Nature' },
+    { value: 'pets', label: 'Pets' },
+    { value: 'photography', label: 'Photography' },
+    { value: 'dancing', label: 'Dancing' },
+];
+
+export const LOOKING_FOR_OPTIONS = [
+    { value: 'chat', label: 'Chat' },
+    { value: 'friendship', label: 'Friendship' },
+    { value: 'long_term', label: 'Long-term' },
+    { value: 'marriage', label: 'Marriage' },
+    { value: 'casual', label: 'Casual' },
+    { value: 'not_sure', label: 'Not sure yet' },
+];
+
+export const RELATIONSHIP_STATUS_OPTIONS = [
+    { value: 'single', label: 'Single' },
+    { value: 'divorced', label: 'Divorced' },
+    { value: 'widowed', label: 'Widowed' },
+    { value: 'separated', label: 'Separated' },
+    { value: 'prefer_not_to_say', label: 'Prefer not to say' },
+];
