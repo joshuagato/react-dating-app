@@ -5,6 +5,11 @@ const getProfile = async () => {
     return response.data;
 }
 
+const getPartnerProfile = async userId => {
+    const response = await protectedApi.get(`/user/partner-profile//${userId}`);
+    return response.data;
+}
+
 const updateProfile = async data => {
     const response = await protectedApi.put('/user/update-profile', data);
     return response.data;
@@ -46,6 +51,8 @@ const completeProfileSetup = async data => {
 }
 
 export const getProfileHandler = async () => await getProfile();
+
+export const getPartnerProfileHandler = async userId => await getPartnerProfile(userId);
 
 export const updateProfileHandler = async data => await updateProfile(data);
 
