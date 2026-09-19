@@ -14,7 +14,6 @@ import { getChatMessagesHandler, markMessageAsReadHandler, sendMessageHandler, e
 
 import ChatLayout from '../components/Layouts/ChatLayout';
 import HelmetHeader from '../components/HelmetHeader';
-import './chat.css';
 
 export default function Chat() {
     const navigate = useNavigate();
