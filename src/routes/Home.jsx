@@ -93,7 +93,7 @@ const Home = () => {
                                     </svg>
                                 </Link>
                                 <Link
-                                    to="/matches"
+                                    to={encountersPath}
                                     className="inline-flex items-center px-8 py-4 border-2 border-red-400 text-red-400 text-lg font-semibold rounded-full hover:bg-red-400 hover:text-white transition-all duration-300"
                                 >
                                     Explore
