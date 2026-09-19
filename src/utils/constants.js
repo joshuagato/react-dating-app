@@ -1,7 +1,7 @@
 import { io } from 'socket.io-client';
 import Cookies from 'js-cookie';
 
-export const APP_NAME = 'StreamMatch';
+export const APP_NAME = 'Crushr';
 
 export const baseURL = import.meta.env.VITE_REACT_APP_BACKEND_BASE_URL;
 export const userId = Cookies.get('user_id');
