@@ -21,21 +21,22 @@ export default function Chat() {
     const location = useLocation();
 
     // User context status
-    const [isPremium] = useState(false);
+    const [isPremium] = useState(true);
 
     const [message, setMessage] = useState('');
     const [messages, setMessages] = useState([]);
-    const [decryptedMessages, setDecryptedMessages] = useState({});
+    // const [decryptedMessages, setDecryptedMessages] = useState({});
     const [isTyping, setIsTyping] = useState(false);
     const [showPicker, setShowPicker] = useState(false);
 
-    // Popover Context Menu, Reply, & Edit States
+    // Popover Context Menu, Reply, Edit, & Highlight States
     const [activeActionMessage, setActiveActionMessage] = useState(null);
     const [replyingTo, setReplyingTo] = useState(null);
     const [editingMessage, setEditingMessage] = useState(null);
     const [detailsModalMessage, setDetailsModalMessage] = useState(null);
     const [showPremiumModal, setShowPremiumModal] = useState(false);
     const [showCopyToast, setShowCopyToast] = useState(false);
+    const [highlightedMessageId, setHighlightedMessageId] = useState(null);
 
     const { chat_id, myself, partner = {
         id: '', name: '', picture: '',
@@ -55,12 +56,12 @@ export default function Chat() {
                 }
             }
             if (isMounted) {
-                setDecryptedMessages(map);
+                // setDecryptedMessages(map);
             }
         };
 
         if (messages.length > 0) {
-            decryptAll();
+            // decryptAll();
         }
         return () => { isMounted = false; };
     }, [messages]);
@@ -87,10 +88,24 @@ export default function Chat() {
 
     const isDetails = true;
 
-    // ========== SCROLL FUNCTIONS ==========
+    // ========== SCROLL & HIGHLIGHT FUNCTIONS ==========
     const scrollToBottom = useCallback((behavior = 'smooth') => {
         if (messagesEndRef.current) {
             messagesEndRef.current.scrollIntoView({ behavior, block: 'end' });
+        }
+    }, []);
+
+    const scrollToMessage = useCallback((targetId) => {
+        if (!targetId || !chatContainerRef.current) return;
+
+        const targetElement = chatContainerRef.current.querySelector(`[data-message-id="${targetId}"]`);
+        if (targetElement) {
+            targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            setHighlightedMessageId(targetId);
+
+            setTimeout(() => {
+                setHighlightedMessageId(null);
+            }, 1500);
         }
     }, []);
 
@@ -402,7 +417,8 @@ export default function Chat() {
             setShowPremiumModal(true);
         } else {
             setEditingMessage(msg);
-            const plainContent = decryptedMessages[msg.id] || msg.content;
+            // const plainContent = decryptedMessages[msg.id] || msg.content;
+            const plainContent = decryptText(msg.content);
             setMessage(plainContent);
             if (inputRef.current) inputRef.current.focus();
         }
@@ -418,7 +434,8 @@ export default function Chat() {
     };
 
     const handleCopyMessage = async (msg) => {
-        const plainText = decryptedMessages[msg.id] || msg.content;
+        // const plainText = decryptedMessages[msg.id] || msg.content;
+        const plainText = decryptText(msg.content);
         try {
             await navigator.clipboard.writeText(plainText);
             setActiveActionMessage(null);
@@ -502,14 +519,16 @@ export default function Chat() {
             const { name, picture } = profile;
             const pictureUrl = buildPictureUrl(baseURL, picture);
 
-            const { sent_at, delivered_at, read_at, id, reply_to_id, edited_at } = msg;
+            const { content, sent_at, delivered_at, read_at, id, reply_to_id, edited_at } = msg;
 
-            const decryptedContent = decryptedMessages[id] || 'Decrypting...';
+            // const decryptedContent = decryptedMessages[id] || 'Decrypting...';
+            const isHighlighted = highlightedMessageId === id;
 
             // Resolve replied parent message details
             const repliedMessage = reply_to_id ? messages.find(m => m.id === reply_to_id) : null;
             const repliedSenderProfile = repliedMessage ? getUserProfile(repliedMessage.sender_id, [myself, partner]) : null;
-            const decryptedRepliedContent = repliedMessage ? (decryptedMessages[repliedMessage.id] || repliedMessage.content) : null;
+            // const decryptedRepliedContent = repliedMessage ? (decryptedMessages[repliedMessage.id] || repliedMessage.content) : null;
+            const decryptedRepliedContent = repliedMessage ? (decryptText(repliedMessage.content)) : null;
 
             return (
                 <Fragment key={id || index}>
@@ -549,10 +568,17 @@ export default function Chat() {
                             )}
                         </div>
 
-                        <div className={`flex flex-col chat-bubble ${isOwn ? '' : 'chat-bubble-error'} relative max-w-md`}>
+                        <div className={`flex flex-col chat-bubble ${isOwn ? '' : 'chat-bubble-error'} relative max-w-md transition-all duration-300 ${isHighlighted ? 'ring-4 ring-amber-400 scale-[1.02] shadow-lg' : ''
+                            }`}>
                             {/* Attached Quoted Message Snippet */}
                             {repliedMessage && (
-                                <div className="mb-2 p-2 bg-black/20 rounded border-l-4 border-amber-400 text-xs">
+                                <div
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        scrollToMessage(repliedMessage.id);
+                                    }}
+                                    className="mb-2 p-2 bg-black/20 hover:bg-black/30 transition-colors rounded border-l-4 border-amber-400 text-xs cursor-pointer select-none"
+                                >
                                     <span className="font-semibold block text-amber-200">
                                         {repliedSenderProfile?.name || 'User'}
                                     </span>
@@ -560,7 +586,8 @@ export default function Chat() {
                                 </div>
                             )}
 
-                            <span style={{ whiteSpace: 'pre-wrap' }}>{decryptedContent}</span>
+                            {/* <span style={{ whiteSpace: 'pre-wrap' }}>{decryptedContent}</span> */}
+                            <span style={{ whiteSpace: 'pre-wrap' }}>{decryptText(content)}</span>
 
                             <div className="flex items-center justify-end gap-1 mt-1">
                                 {edited_at && (
@@ -569,11 +596,15 @@ export default function Chat() {
 
                                 {/* Status Indicators */}
                                 {isOwn && isPremium && (
-                                    <span className="text-xs inline-block">
-                                        {sent_at && !delivered_at && !read_at && <LiaCheckSolid color='gray' size={15} />}
-                                        {sent_at && delivered_at && !read_at && <LiaCheckDoubleSolid color='gray' size={15} />}
-                                        {sent_at && delivered_at && read_at && <LiaCheckDoubleSolid color='blue' size={15} />}
-                                    </span>
+                                    <>
+                                        <span className="chat-footer opacity-50">{timeTo12Hour(sent_at)}</span>
+
+                                        <span className="text-xs inline-block">
+                                            {sent_at && !delivered_at && !read_at && <LiaCheckSolid color='gray' size={15} />}
+                                            {sent_at && delivered_at && !read_at && <LiaCheckDoubleSolid color='gray' size={15} />}
+                                            {sent_at && delivered_at && read_at && <LiaCheckDoubleSolid color='blue' size={15} />}
+                                        </span>
+                                    </>
                                 )}
                             </div>
                         </div>
@@ -581,7 +612,7 @@ export default function Chat() {
                 </Fragment>
             );
         });
-    }, [isDetails, messages, decryptedMessages, myself, partner, isPremium]);
+    }, [isDetails, messages, myself, partner, isPremium, highlightedMessageId, scrollToMessage]);
 
     // ========== RENDER ==========
     return (
@@ -624,7 +655,8 @@ export default function Chat() {
                                     <Edit2 size={12} /> Editing Message
                                 </span>
                                 <p className="text-gray-600 truncate mt-0.5">
-                                    {decryptedMessages[editingMessage.id] || editingMessage.content}
+                                    {/* {decryptedMessages[editingMessage.id] || editingMessage.content} */}
+                                    {decryptText(editingMessage.content)}
                                 </p>
                             </div>
                             <button
@@ -645,7 +677,8 @@ export default function Chat() {
                                     Replying to {getUserProfile(replyingTo.sender_id, [myself, partner]).name}
                                 </span>
                                 <p className="text-gray-600 truncate mt-0.5">
-                                    {decryptedMessages[replyingTo.id] || replyingTo.content}
+                                    {/* {decryptedMessages[replyingTo.id] || replyingTo.content} */}
+                                    {decryptText(replyingTo.content)}
                                 </p>
                             </div>
                             <button
