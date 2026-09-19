@@ -235,7 +235,7 @@ export default function AdvancedProfile() {
 
     return (
         <Layout heading={UPLOAD_PICTURE_TEXT}>
-            <HelmetHeader pageTitle={'Final Setup Step'} />
+            <HelmetHeader pageTitle={'Advanced Setup Step'} />
 
             <div className="w-full max-w-md mx-auto space-y-6 px-4 py-2">
                 {/* Location Section */}

@@ -9,7 +9,7 @@ import { CircleX, CircleCheck, AlertTriangle, Loader2, Info } from 'lucide-react
 
 import Layout from '../components/Layouts/SetupLayout';
 import { setupFinalProfileHandler, getVerificationSelfieHandler } from '../tanstack/user';
-import { encountersPath, UPLOAD_PICTURE_TEXT } from '../utils/constants';
+import { profilePagePath, UPLOAD_PICTURE_TEXT } from '../utils/constants';
 import HelmetHeader from '../components/HelmetHeader';
 import SubmitButton from '../components/SubmitButton';
 import { unsetErrorSetMessage, unsetMessageSetError } from '../utils/functions';
@@ -259,7 +259,7 @@ export default function FinalProfile() {
             if (success) {
                 unsetErrorSetMessage(setError, setMessage, message);
                 toast.success(message, { autoClose: 5000, theme: 'colored' });
-                navigate(encountersPath, { replace: true });
+                navigate(profilePagePath, { replace: true });
             } else {
                 unsetMessageSetError(setMessage, setError, message);
                 toast.error(message, { autoClose: 5000, theme: 'colored' });
@@ -273,7 +273,7 @@ export default function FinalProfile() {
 
     return (
         <Layout heading={UPLOAD_PICTURE_TEXT}>
-            <HelmetHeader pageTitle={'Pictures'} />
+            <HelmetHeader pageTitle={'Final Setup Step'} />
 
             {/* Hidden image element to parse verification selfie for Face-API */}
             {selfieUrl && (
