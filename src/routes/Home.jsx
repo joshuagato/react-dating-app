@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from "react-router";
+import { encountersPath } from '../utils/constants';
 
 const Home = () => {
     const [user, setUser] = useState(null);
@@ -45,7 +46,7 @@ const Home = () => {
                         {user ? (
                             <div className="flex flex-col sm:flex-row gap-4 justify-center">
                                 <Link
-                                    to="/matches"
+                                    to={encountersPath}
                                     className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-pink-500 to-red-500 text-white text-lg font-semibold rounded-full hover:from-pink-600 hover:to-red-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
                                 >
                                     Start Discovering
@@ -64,7 +65,7 @@ const Home = () => {
                                     </svg>
                                 </Link>
                                 <Link
-                                    to="/profile"
+                                    to={encountersPath}
                                     className="inline-flex items-center px-8 py-4 border-2 border-red-400 text-red-400 text-lg font-semibold rounded-full hover:bg-red-400 hover:text-white transition-all duration-300"
                                 >
                                     View Profile
