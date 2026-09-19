@@ -1,24 +1,32 @@
 // import PropTypes from 'prop-types';
 import { useEffect, useState } from 'react';
-import { NavLink, useLocation } from 'react-router';
+import { NavLink, useLocation, useNavigate } from 'react-router';
 import {
     SlidersHorizontal, LocateFixed, Copy, Heart, MessageCircleCode, User,
-    MoreHorizontal, Menu
+    MoreHorizontal, Menu, ArrowLeft
 } from 'lucide-react';
-import { chatsPath, encountersPath, likesPath, nearbyPath, profilePath, socket, userId } from '../../utils/constants';
-import { chooseColour, chooseTextColour, isSame, pathMatched } from '../../utils/functions';
+import {
+    baseURL, chatsPath, encountersPath, likesPath, nearbyPath, profilePath, socket,
+    userId
+} from '../../utils/constants';
+import {
+    chooseColour, chooseTextColour, isSame, pathMatched, formatLastSeenDate,
+    buildPictureUrl
+} from '../../utils/functions';
 import { getUnreadChatsCountHandler } from '../../tanstack/chat';
 import { getNewLikesCountHandler } from '../../tanstack/encounter';
 
 import AdSense from '../AdSense';
 
-const MainLayout = ({ children, partnerName, partnerAge, lastSeen, onlineStatus, chat_id }) => {
+const MainLayout = ({ children, partnerName, partnerAge, partnerPicture, lastSeen, onlineStatus, chat_id }) => {
     const currentPathName = useLocation().pathname;
+    const navigate = useNavigate();
     const [unreadChatsCount, setUnreadChatsCount] = useState(0);
     const [newLikesCount, setNewLikesCount] = useState(0);
 
     useEffect(() => {
         (async () => {
+
             const chatsResponse = await getUnreadChatsCountHandler();
             setUnreadChatsCount(chatsResponse.count);
 
@@ -29,7 +37,7 @@ const MainLayout = ({ children, partnerName, partnerAge, lastSeen, onlineStatus,
 
     useEffect(() => {
         const handleNewMessage = async ({ message }) => {
-            if (message && isSame(message.recipient_id, userId) && !isSame(message.chat_id, chat_id)) {
+            if (message && isSame(message.recipient_id, userId) && chat_id && !isSame(message.chat_id, chat_id)) {
                 const chatsResponse = await getUnreadChatsCountHandler();
                 setUnreadChatsCount(chatsResponse.count);
             }
@@ -51,18 +59,26 @@ const MainLayout = ({ children, partnerName, partnerAge, lastSeen, onlineStatus,
         };
     }, []);
 
+    const pictureUrl = buildPictureUrl(baseURL, partnerPicture);
+
     return (
         <div className="h-screen w-full flex flex-col items-center justify-center bg-gradient-to-br from-emerald-200 to-cyan-800 select-none">
-            <div className='relative h-full w-full lg:max-w-xl flex flex-col'>
+            <div className='relative h-full w-full lg:max-w-2xl flex flex-col'>
 
                 {/* Header Section: 7vh */}
                 <section className="w-full h-[7vh] flex justify-between items-center bg-white py-2 px-4 z-10 border-b border-[#e2e8f0]">
-                    <div className='bg-clip-text text-transparent bg-gradient-to-r from-violet-600 to-pink-600'>
-                        <h1 className="text-xl font-bold flex items-center gap-2">
-                            <span>{partnerName}, {partnerAge}</span>
-                            {onlineStatus && <span className='block w-2 h-2 bg-green-700 rounded-full'></span>}
-                        </h1>
-                        {lastSeen && <p className='text-sm'>{lastSeen}</p>}
+                    <div className='flex gap-2'>
+                        <div className='w-10'>
+                            <img src={pictureUrl} alt="Profile Picture" />
+                        </div>
+                        <div className='bg-clip-text text-transparent bg-gradient-to-r from-violet-600 to-pink-600'>
+                            <h1 className="text-xl font-bold flex items-center gap-2">
+                                <span>{partnerName}, {partnerAge}</span>
+                                {onlineStatus && <span className='block w-2 h-2 bg-green-700 rounded-full'></span>}
+                            </h1>
+                            {lastSeen && <p className='text-sm'>{formatLastSeenDate(lastSeen)}</p>}
+                            {!lastSeen && <p className='text-sm'>Online</p>}
+                        </div>
                     </div>
                     {pathMatched(encountersPath, currentPathName) &&
                         <div className='flex gap-4'>
@@ -116,6 +132,10 @@ const MainLayout = ({ children, partnerName, partnerAge, lastSeen, onlineStatus,
                             </article>
                         </div>
                     }
+
+                    <article className='cursor-pointer hover:bg-emerald-50 rounded-full' onClick={() => navigate(-1)}>
+                        <ArrowLeft />
+                    </article>
                 </section>
 
                 {/* Main Content Area: 76vh */}
