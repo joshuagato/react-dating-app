@@ -12,7 +12,6 @@ import SubmitButton from "../components/SubmitButton";
 import HelmetHeader from "../components/HelmetHeader";
 
 import { loginHandler, googleAuthHandler } from '../tanstack/auth';
-import { getProfileHandler } from '../tanstack/user';
 import {
     unsetErrorSetMessage, unsetMessageSetError, unsetEmailPasswordField,
     unsetAllErrors, connectSocket
@@ -44,9 +43,6 @@ const Auth = () => {
 
     // Reusable redirect & socket handler post-auth
     const handleAuthSuccess = async (response) => {
-        const profile = await getProfileHandler();
-        console.log({ profile });
-
         unsetErrorSetMessage(setError, setMessage, response.message);
         unsetEmailPasswordField(setEmail, setPassword);
         toast.success(response.message, { autoClose: 7000, theme: 'colored' });
