@@ -13,7 +13,6 @@ import SwitchContextButton from "../components/SwitchContextButton";
 import HelmetHeader from "../components/HelmetHeader";
 
 import { signUpHandler, googleAuthHandler } from '../tanstack/auth';
-import { getProfileHandler } from '../tanstack/user';
 import {
     unsetErrorSetMessage, unsetMessageSetError, unsetEmailPasswordFields,
     unsetEmailPasswordField, unsetAllErrors, connectSocket
@@ -45,7 +44,6 @@ const SignUp = () => {
 
     // Handle authentication success (Shared logic)
     const handleAuthSuccess = async (response) => {
-        const profile = await getProfileHandler();
 
         unsetErrorSetMessage(setError, setMessage, response.message);
         unsetEmailPasswordField(setEmail, setPassword);
