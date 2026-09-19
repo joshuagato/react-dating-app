@@ -11,7 +11,6 @@ import SwitchContextButton from "../components/SwitchContextButton";
 import HelmetHeader from "../components/HelmetHeader";
 
 import { resetPasswordHandler } from '../tanstack/auth';
-// import { getProfileHandler } from '../tanstack/user';
 import {
     unsetErrorSetMessage, unsetMessageSetError, unsetPasswordFields, disableSubmitButtonFor,
     unsetAllErrors
