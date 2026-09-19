@@ -1,18 +1,22 @@
 import { defineConfig } from 'vite'
 import tailwindcss from '@tailwindcss/vite'
 import react, { reactCompilerPreset } from '@vitejs/plugin-react'
-import babel from '@rolldown/plugin-babel'
-import { VitePWA } from 'vite-plugin-pwa';
+import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
     plugins: [
         tailwindcss(),
-        react(),
-        babel({ presets: [reactCompilerPreset()] }),
+        react({
+            babel: {
+                presets: [reactCompilerPreset()] // 👈 Pass reactCompilerPreset directly inside react()
+            }
+        }),
         VitePWA({
             registerType: 'autoUpdate',
-            includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
+            devOptions: {
+                enabled: false // Disables local Service Worker on localhost
+            },
             manifest: {
                 name: 'Crushr',
                 short_name: 'Crushr',
@@ -42,4 +46,5 @@ export default defineConfig({
             }
         })
     ],
+    base: '/'
 })
