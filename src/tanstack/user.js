@@ -6,7 +6,7 @@ const getProfile = async () => {
 }
 
 const getPartnerProfile = async userId => {
-    const response = await protectedApi.get(`/user/partner-profile//${userId}`);
+    const response = await protectedApi.get(`/user/partner-profile/${userId}`);
     return response.data;
 }
 
