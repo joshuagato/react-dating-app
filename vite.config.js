@@ -9,13 +9,17 @@ export default defineConfig({
         tailwindcss(),
         react({
             babel: {
-                presets: [reactCompilerPreset()] // 👈 Pass reactCompilerPreset directly inside react()
+                presets: [reactCompilerPreset()]
             }
         }),
         VitePWA({
             registerType: 'autoUpdate',
             devOptions: {
-                enabled: false // Disables local Service Worker on localhost
+                enabled: true
+            },
+            workbox: {
+                // Increases precache limit to 5 MB
+                maximumFileSizeToCacheInBytes: 5242880
             },
             manifest: {
                 name: 'Crushr',
@@ -46,5 +50,31 @@ export default defineConfig({
             }
         })
     ],
+    build: {
+        rolldownOptions: {
+            output: {
+                manualChunks(id) {
+                    if (id.includes('node_modules')) {
+                        // Strict matching for core React dependencies
+                        if (
+                            id.includes('/node_modules/react/') ||
+                            id.includes('/node_modules/react-dom/') ||
+                            id.includes('/node_modules/react-router/') ||
+                            id.includes('/node_modules/react-router-dom/')
+                        ) {
+                            return 'vendor-core';
+                        }
+                        if (id.includes('lucide-react') || id.includes('react-icons')) {
+                            return 'vendor-icons';
+                        }
+                        if (id.includes('date-fns')) {
+                            return 'vendor-date-fns';
+                        }
+                        return 'vendor';
+                    }
+                },
+            },
+        },
+    },
     base: '/'
 })
