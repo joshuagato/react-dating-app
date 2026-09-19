@@ -58,6 +58,7 @@ export const nearbyPath = '/nearby';
 export const profilePath = '/profile';
 export const premiumPath = '/premium';
 export const homePath = '/';
+export const partnerProfilePath = '/partner-profile';
 
 export const VERIFICATION_CHANNEL = {
     SIGNUP: 'signup', LOGIN: 'login'
