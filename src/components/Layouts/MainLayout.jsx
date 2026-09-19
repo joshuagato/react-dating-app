@@ -11,6 +11,7 @@ import {
 import { chooseColour, chooseTextColour, isSame, pathMatched } from '../../utils/functions';
 import { getUnreadChatsCountHandler } from '../../tanstack/chat';
 import { getNewLikesCountHandler } from '../../tanstack/encounter';
+import { useLogout } from '../../hooks/useLogout';
 
 import AdSense from '../AdSense';
 import { Sparkles, Crown, Lock, ArrowLeft } from 'lucide-react';
@@ -20,6 +21,7 @@ const MainLayout = ({ children, pageTitle, pageDetails }) => {
     const [unreadChatsCount, setUnreadChatsCount] = useState(0);
     const [newLikesCount, setNewLikesCount] = useState(0);
     const navigate = useNavigate();
+    const logout = useLogout();
 
     useEffect(() => {
         (async () => {
@@ -45,6 +47,10 @@ const MainLayout = ({ children, pageTitle, pageDetails }) => {
             socket.off('new_message', handleNewMessage);
         };
     }, []);
+
+    function logoutHandler() {
+        return logout();
+    }
 
     return (
         <div className="h-screen w-full flex flex-col items-center justify-center bg-gradient-to-br from-emerald-200 to-cyan-800 select-none">
@@ -192,7 +198,7 @@ const MainLayout = ({ children, pageTitle, pageDetails }) => {
                             <div tabIndex={0} role="button" className="cursor-pointer"><MoreHorizontal /></div>
                             <ul tabIndex="-1" className="dropdown-content menu bg-base-100 rounded-box z-1 w-52 p-2 shadow-sm">
                                 <li><NavLink to={premiumPath}>Upgrade</NavLink></li>
-                                <li><a>Logout</a></li>
+                                <li><button onClick={logoutHandler}>Logout</button></li>
                             </ul>
                         </article>
                     </div>
