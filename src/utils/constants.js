@@ -49,6 +49,7 @@ export const basicProfilePath = '/basic-profile';
 export const advancedProfilePath = '/advanced-profile';
 export const finalProfilePath = '/final-profile';
 export const profilePagePath = '/profile-page';
+export const installPagePath = '/install';
 
 export const encountersPath = '/encounters';
 export const likesPath = '/likes';
