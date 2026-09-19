@@ -1,5 +1,10 @@
 import { protectedApi } from "../axios";
 
+const getEncountersProfiles = async (query) => {
+    const response = await protectedApi.get(`/encounter/get-encounters-profiles?${query}`);
+    return response.data;
+}
+
 const likeUser = async data => {
     const response = await protectedApi.post('/encounter/like-user', data);
     return response.data;
@@ -43,3 +48,4 @@ export const usersDisLikedByMeHandler = async () => await usersDisLikedByMe();
 
 export const getNewLikesCountHandler = async () => await getNewLikesCount();
 
+export const getEncountersProfilesHandler = async (query) => await getEncountersProfiles(query);
