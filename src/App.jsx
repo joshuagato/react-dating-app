@@ -16,12 +16,13 @@ import Nearby from './routes/Nearby';
 import Chats from './routes/Chats';
 import Chat from './routes/Chat';
 import Profile from './routes/Profile';
-import ApkDownload from './routes/ApkDownload';
+import InstallApp from './routes/InstallApp';
 import PremiumPackages from './routes/PremiumPackages';
 // import FaceDetector from './routes/FaceDetector';
 import ProfilePageSetup from './routes/ProfilePageSetup';
 import PartnerProfile from './routes/PartnerProfile';
 import Others from "./routes/Others";
+import { PWAProvider } from './components/PWAContext';
 import { baseURL, userId } from './utils/constants';
 import { connectSocket } from './utils/functions';
 
@@ -31,33 +32,33 @@ function App() {
     connectSocket(baseURL, userId);
 
     return (
+        <PWAProvider>
+            <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="login" element={<Login />} />
+                <Route path="signup" element={<SignUp />} />
+                <Route path="verify-email" element={<Verify />} />
+                <Route path="reset-password" element={<ResetPassword />} />
+                <Route path="confirm-reset-password" element={<ConfirmPasswordReset />} />
+                <Route path="set-new-password" element={<SetNewPassword />} />
+                <Route path="basic-profile" element={<BasicProfile />} />
+                <Route path="advanced-profile" element={<AdvancedProfile />} />
+                <Route path="final-profile" element={<FinalProfile />} />
+                <Route path="profile-page" element={<ProfilePageSetup />} />
+                <Route path="partner-profile" element={<PartnerProfile />} />
+                <Route path="encounters" element={<Encounters />} />
+                <Route path="likes" element={<Likes />} />
+                <Route path="nearby" element={<Nearby />} />
+                <Route path="chats" element={<Chats />} />
+                <Route path="chat" element={<Chat />} />
+                <Route path="profile" element={<Profile />} />
+                {/* <Route path="matcher" element={<Matcher />} /> */}
+                <Route path="install" element={<InstallApp />} />
+                <Route path="premium" element={<PremiumPackages />} />
+                {/* <Route path="face" element={<FaceDetector />} /> */}
+                <Route path="others" element={<Others />} />
 
-        <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="login" element={<Login />} />
-            <Route path="signup" element={<SignUp />} />
-            <Route path="verify-email" element={<Verify />} />
-            <Route path="reset-password" element={<ResetPassword />} />
-            <Route path="confirm-reset-password" element={<ConfirmPasswordReset />} />
-            <Route path="set-new-password" element={<SetNewPassword />} />
-            <Route path="basic-profile" element={<BasicProfile />} />
-            <Route path="advanced-profile" element={<AdvancedProfile />} />
-            <Route path="final-profile" element={<FinalProfile />} />
-            <Route path="profile-page" element={<ProfilePageSetup />} />
-            <Route path="partner-profile" element={<PartnerProfile />} />
-            <Route path="encounters" element={<Encounters />} />
-            <Route path="likes" element={<Likes />} />
-            <Route path="nearby" element={<Nearby />} />
-            <Route path="chats" element={<Chats />} />
-            <Route path="chat" element={<Chat />} />
-            <Route path="profile" element={<Profile />} />
-            {/* <Route path="matcher" element={<Matcher />} /> */}
-            <Route path="download-android" element={<ApkDownload />} />
-            <Route path="premium" element={<PremiumPackages />} />
-            {/* <Route path="face" element={<FaceDetector />} /> */}
-            <Route path="others" element={<Others />} />
-
-            {/* <Route element={<AuthLayout />}>
+                {/* <Route element={<AuthLayout />}>
                     <Route path="login" element={<Login />} />
                     <Route path="register" element={<Register />} />
                 </Route>
@@ -67,7 +68,8 @@ function App() {
                     <Route path=":city" element={<City />} />
                     <Route path="trending" element={<Trending />} />
                 </Route> */}
-        </Routes>
+            </Routes>
+        </PWAProvider>
     )
 }
 
