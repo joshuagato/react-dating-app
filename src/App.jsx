@@ -40,6 +40,7 @@ function App() {
                 <Route path="verify-email" element={<Verify />} />
                 <Route path="reset-password" element={<ResetPassword />} />
                 <Route path="confirm-reset-password" element={<ConfirmPasswordReset />} />
+                <Route path="install" element={<InstallApp />} />
 
                 {/* Protected Routes (Require Authentication) */}
                 <Route element={<ProtectedRoute />}>
@@ -55,7 +56,7 @@ function App() {
                     <Route path="chats" element={<Chats />} />
                     <Route path="chat" element={<Chat />} />
                     <Route path="profile" element={<Profile />} />
-                    <Route path="install" element={<InstallApp />} />
+
                     <Route path="premium" element={<PremiumPackages />} />
                     <Route path="others" element={<Others />} />
                 </Route>
