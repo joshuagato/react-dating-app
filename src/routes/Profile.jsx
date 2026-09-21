@@ -42,7 +42,12 @@ import HelmetHeader from '../components/HelmetHeader';
 import { PROFILE_TITLE, PROFILE_TEXT, GENDER, baseURL } from '../utils/constants';
 import { buildPictureUrl } from '../utils/functions';
 import { compressImage, compareFaces } from '../utils/imageProcessing';
-import { getVerificationSelfieHandler, getProfileHandler, updateProfileHandler } from '../tanstack/user';
+import {
+    getVerificationSelfieHandler,
+    getProfileHandler,
+    updateProfileHandler,
+    deletePictureHandler,
+} from '../tanstack/user';
 
 const REASON_OPTIONS = [
     'Long-term relationship',
@@ -179,7 +184,13 @@ export default function Profile() {
 
     const [modalInfo, setModalInfo] = useState({ isOpen: false, success: false, title: '', message: '' });
 
-    const [deletedPicIds, setDeletedPicIds] = useState([]);
+    // Confirmation modal for picture deletion
+    const [deleteConfirm, setDeleteConfirm] = useState({
+        isOpen: false,
+        itemId: null,      // local slot id
+        dbId: null,        // backend picture id, null if never saved
+        isDeleting: false,
+    });
 
     const [userData, setUserData] = useState({
         first_name: '',
@@ -190,6 +201,7 @@ export default function Profile() {
         date_of_birth: '',
         country: '',
         city: '',
+        country_code: '',
         longitude: '',
         latitude: ''
     });
@@ -224,6 +236,41 @@ export default function Profile() {
         useSensor(TouchSensor, { activationConstraint: { distance: 5 } })
     );
 
+    /* ---------------------------------------------------------------------- */
+    /* Helpers                                                                */
+    /* ---------------------------------------------------------------------- */
+
+    // Map a list of backend pictures to the slot grid, preserving slot order.
+    const syncItemsWithPictures = useCallback((pictures) => {
+        setItems((prev) =>
+            prev.map((item, index) => {
+                const slotPosition = index + 1;
+                const existingPic = pictures.find(
+                    (p) => Number(p.position) === slotPosition
+                );
+
+                if (existingPic) {
+                    const imageUrl = existingPic.image_url || existingPic.path;
+                    const fullImageUrl = imageUrl
+                        ? buildPictureUrl(baseURL, imageUrl)
+                        : null;
+
+                    return {
+                        ...item,
+                        dbId: existingPic.id,
+                        imagePreview: fullImageUrl,
+                        file: null,
+                    };
+                }
+                return { ...item, dbId: null, imagePreview: null, file: null };
+            })
+        );
+    }, []);
+
+    /* ---------------------------------------------------------------------- */
+    /* Initial Load                                                           */
+    /* ---------------------------------------------------------------------- */
+
     useEffect(() => {
         (async () => {
             try {
@@ -233,7 +280,7 @@ export default function Profile() {
                         setSelfieUrl(selfieRes.data.base64);
                     }
                 } catch (err) {
-                    console.error("Verification selfie not found:", err);
+                    console.error('Verification selfie not found:', err);
                 }
 
                 const response = await getProfileHandler();
@@ -251,6 +298,7 @@ export default function Profile() {
                             date_of_birth: user.date_of_birth || '',
                             country: user.country || 'Unknown',
                             city: user.city || 'Unknown',
+                            country_code: user.country_code || '',
                             longitude: user.longitude || '',
                             latitude: user.latitude || ''
                         });
@@ -279,33 +327,21 @@ export default function Profile() {
                     }
 
                     if (Array.isArray(pictures) && pictures.length > 0) {
-                        setItems(prev => prev.map((item, index) => {
-                            const slotPosition = index + 1;
-                            const existingPic = pictures.find(p => Number(p.position) === slotPosition);
-
-                            if (existingPic) {
-                                const imageUrl = existingPic.image_url || existingPic.path;
-                                const fullImageUrl = imageUrl ? buildPictureUrl(baseURL, imageUrl) : null;
-
-                                return {
-                                    ...item,
-                                    dbId: existingPic.id,
-                                    imagePreview: fullImageUrl,
-                                    file: null
-                                };
-                            }
-                            return item;
-                        }));
+                        syncItemsWithPictures(pictures);
                     }
                 }
             } catch (error) {
-                console.error("Failed to load user profile:", error);
-                toast.error("Failed to load profile details.");
+                console.error('Failed to load user profile:', error);
+                toast.error('Failed to load profile details.');
             } finally {
                 setLoading(false);
             }
         })();
-    }, []);
+    }, [syncItemsWithPictures]);
+
+    /* ---------------------------------------------------------------------- */
+    /* Drag & Drop                                                            */
+    /* ---------------------------------------------------------------------- */
 
     const handleDragEnd = (event) => {
         const { active, over } = event;
@@ -316,17 +352,25 @@ export default function Profile() {
         }
     };
 
+    /* ---------------------------------------------------------------------- */
+    /* Image Upload / Removal                                                 */
+    /* ---------------------------------------------------------------------- */
+
     const handleImageUpdate = async (id, file, position, isRemove = false) => {
         const targetItem = items.find(item => item.id === id);
 
+        // --- Removal path: open confirmation modal, don't delete yet ---
         if (isRemove || !file) {
-            if (targetItem?.dbId) {
-                setDeletedPicIds(prev => [...prev, targetItem.dbId]);
-            }
-            setItems(prev => prev.map(item => item.id === id ? { ...item, dbId: null, imagePreview: null, file: null } : item));
+            setDeleteConfirm({
+                isOpen: true,
+                itemId: id,
+                dbId: targetItem?.dbId || null,
+                isDeleting: false,
+            });
             return;
         }
 
+        // --- Upload path (unchanged) ---
         setProcessingImage(true);
 
         try {
@@ -351,10 +395,6 @@ export default function Profile() {
                     setProcessingImage(false);
                     return;
                 }
-            }
-
-            if (targetItem?.dbId) {
-                setDeletedPicIds(prev => [...prev, targetItem.dbId]);
             }
 
             setItems(prev =>
@@ -383,6 +423,55 @@ export default function Profile() {
         }
     };
 
+    /* ---------------------------------------------------------------------- */
+    /* Picture Deletion (confirmed)                                           */
+    /* ---------------------------------------------------------------------- */
+
+    const closeDeleteConfirm = () => {
+        if (deleteConfirm.isDeleting) return;
+        setDeleteConfirm({ isOpen: false, itemId: null, dbId: null, isDeleting: false });
+    };
+
+    const confirmDeletePicture = async () => {
+        const { itemId, dbId } = deleteConfirm;
+
+        // Case A: never saved to the backend — just clear the local slot
+        if (!dbId) {
+            setItems(prev =>
+                prev.map(item =>
+                    item.id === itemId
+                        ? { ...item, dbId: null, imagePreview: null, file: null }
+                        : item
+                )
+            );
+            setDeleteConfirm({ isOpen: false, itemId: null, dbId: null, isDeleting: false });
+            toast.success('Photo removed.');
+            return;
+        }
+
+        // Case B: saved picture — delete server-side, then re-sync
+        setDeleteConfirm(prev => ({ ...prev, isDeleting: true }));
+        try {
+            await deletePictureHandler(dbId);
+
+            const refreshRes = await getProfileHandler();
+            if (refreshRes?.data?.pictures) {
+                syncItemsWithPictures(refreshRes.data.pictures);
+            }
+
+            toast.success('Photo deleted.');
+            setDeleteConfirm({ isOpen: false, itemId: null, dbId: null, isDeleting: false });
+        } catch (err) {
+            console.error('Delete picture failed:', err);
+            toast.error('Could not delete photo. Please try again.');
+            setDeleteConfirm(prev => ({ ...prev, isDeleting: false }));
+        }
+    };
+
+    /* ---------------------------------------------------------------------- */
+    /* Location                                                               */
+    /* ---------------------------------------------------------------------- */
+
     const handleRefreshLocation = async () => {
         setLocating(true);
         try {
@@ -405,6 +494,7 @@ export default function Profile() {
 
             let city = 'Unknown';
             let country = 'Unknown';
+            let countryCode = '';
 
             try {
                 const geoRes = await fetch(
@@ -414,9 +504,10 @@ export default function Profile() {
                 if (geoData?.address) {
                     city = geoData.address.city || geoData.address.town || geoData.address.village || geoData.address.county || 'Unknown';
                     country = geoData.address.country || 'Unknown';
+                    countryCode = (geoData.address.country_code || '').toLowerCase();
                 }
             } catch (geoErr) {
-                console.error("Reverse geocoding failed:", geoErr);
+                console.error('Reverse geocoding failed:', geoErr);
             }
 
             setUserData(prev => ({
@@ -424,18 +515,23 @@ export default function Profile() {
                 latitude: latitude.toFixed(6).toString(),
                 longitude: longitude.toFixed(6).toString(),
                 city,
-                country
+                country,
+                country_code: countryCode
             }));
 
-            toast.success("Location updated successfully!");
+            toast.success('Location updated successfully!');
 
         } catch (error) {
-            console.error("Capacitor Geolocation error:", error);
-            toast.error("Unable to retrieve location. Ensure GPS/Location permissions are enabled.");
+            console.error('Capacitor Geolocation error:', error);
+            toast.error('Unable to retrieve location. Ensure GPS/Location permissions are enabled.');
         } finally {
             setLocating(false);
         }
     };
+
+    /* ---------------------------------------------------------------------- */
+    /* Field handlers                                                         */
+    /* ---------------------------------------------------------------------- */
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -456,6 +552,10 @@ export default function Profile() {
         setVisibilityData(prev => ({ ...prev, [field]: !prev[field] }));
     };
 
+    /* ---------------------------------------------------------------------- */
+    /* Submit                                                                 */
+    /* ---------------------------------------------------------------------- */
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setFieldErrors({});
@@ -475,21 +575,16 @@ export default function Profile() {
         try {
             const formData = new FormData();
 
-            // Core Profile, User, and Visibility Data Payload
             formData.append('user', JSON.stringify(userData));
             formData.append('profile', JSON.stringify(profileData));
             formData.append('visibility', JSON.stringify(visibilityData));
 
-            // Picture Positions & Deletion Metadata
             const pictureMeta = items.map((item, index) => ({
                 dbId: item.dbId,
                 position: index + 1
             }));
-
             formData.append('pictureMeta', JSON.stringify(pictureMeta));
-            formData.append('deletedPictureIds', JSON.stringify(deletedPicIds));
 
-            // New Binary Picture Files attached with Slot Indices
             items.forEach((item, index) => {
                 if (item.file) {
                     const slotPosition = index + 1;
@@ -507,32 +602,24 @@ export default function Profile() {
                 return;
             }
 
-            setDeletedPicIds([]);
-            toast.success("Profile saved successfully!");
+            toast.success('Profile saved successfully!');
 
-            // Re-sync local state with back-end database records
             const refreshRes = await getProfileHandler();
             if (refreshRes?.data?.pictures) {
-                setItems(prev => prev.map((item, index) => {
-                    const slotPosition = index + 1;
-                    const existingPic = refreshRes.data.pictures.find(p => Number(p.position) === slotPosition);
-
-                    return existingPic ? {
-                        ...item,
-                        dbId: existingPic.id,
-                        imagePreview: buildPictureUrl(baseURL, existingPic.image_url || existingPic.path),
-                        file: null
-                    } : { ...item, dbId: null, imagePreview: null, file: null };
-                }));
+                syncItemsWithPictures(refreshRes.data.pictures);
             }
 
         } catch (error) {
-            console.error("Failed to save profile changes:", error);
-            toast.error("Failed to save profile changes.");
+            console.error('Failed to save profile changes:', error);
+            toast.error('Failed to save profile changes.');
         } finally {
             setSaving(false);
         }
     };
+
+    /* ---------------------------------------------------------------------- */
+    /* Render                                                                 */
+    /* ---------------------------------------------------------------------- */
 
     if (loading) {
         return (
@@ -565,6 +652,7 @@ export default function Profile() {
                 </div>
             )}
 
+            {/* Info / verification modal */}
             {modalInfo.isOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
                     <div className="bg-white rounded-xl max-w-sm w-full p-6 text-center shadow-2xl space-y-4">
@@ -584,6 +672,50 @@ export default function Profile() {
                         >
                             Got It
                         </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Picture delete confirmation modal */}
+            {deleteConfirm.isOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                    <div className="bg-white rounded-xl max-w-sm w-full p-6 text-center shadow-2xl space-y-4">
+                        <div className="flex justify-center">
+                            <AlertTriangle className="w-12 h-12 text-amber-500" />
+                        </div>
+                        <h3 className="text-lg font-bold text-slate-800">
+                            Delete this photo?
+                        </h3>
+                        <p className="text-xs text-slate-600">
+                            {deleteConfirm.dbId
+                                ? 'This will permanently remove the photo from your profile.'
+                                : 'This photo hasn\u2019t been saved yet. It will be removed from the upload slot.'}
+                        </p>
+                        <div className="flex gap-2 pt-2">
+                            <button
+                                type="button"
+                                onClick={closeDeleteConfirm}
+                                disabled={deleteConfirm.isDeleting}
+                                className="flex-1 py-2 bg-slate-100 text-slate-700 font-medium text-xs rounded-lg hover:bg-slate-200 transition-colors disabled:opacity-60"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={confirmDeletePicture}
+                                disabled={deleteConfirm.isDeleting}
+                                className="flex-1 py-2 bg-red-600 text-white font-medium text-xs rounded-lg hover:bg-red-700 transition-colors disabled:opacity-60 flex items-center justify-center gap-1.5"
+                            >
+                                {deleteConfirm.isDeleting ? (
+                                    <>
+                                        <Loader2 size={14} className="animate-spin" />
+                                        Deleting…
+                                    </>
+                                ) : (
+                                    'Delete'
+                                )}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
