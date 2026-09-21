@@ -88,7 +88,8 @@ export default function AdvancedProfile() {
                 latitude: lat,
                 longitude: lon,
                 city: address.city || address.town || address.village || address.suburb || 'Unknown City',
-                country: address.country || 'Unknown Country'
+                country: address.country || 'Unknown Country',
+                country_code: (address.country_code || '').toLowerCase() || null,
             };
 
             setLocationData(resolvedLocation);
@@ -212,6 +213,7 @@ export default function AdvancedProfile() {
                 verifiedSelfie: capturedImage,
                 city: locationData.city,
                 country: locationData.country,
+                country_code: locationData.country_code,
                 latitude: locationData.latitude,
                 longitude: locationData.longitude
             });
