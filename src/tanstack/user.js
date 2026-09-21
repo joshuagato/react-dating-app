@@ -50,6 +50,11 @@ const completeProfileSetup = async data => {
     return response.data;
 }
 
+const deletePicture = async id => {
+    const response = await protectedApi.delete(`/user/delete-picture/${id}`);
+    return response.data;
+}
+
 export const getProfileHandler = async () => await getProfile();
 
 export const getPartnerProfileHandler = async userId => await getPartnerProfile(userId);
@@ -69,3 +74,5 @@ export const getPotentialMatchProfilesHandler = async () => await getPotentialMa
 export const getNearbyUsersHandler = async () => await getNearbyUsers();
 
 export const completeProfileSetupHandler = async data => await completeProfileSetup(data);
+
+export const deletePictureHandler = async id => await deletePicture(id);
