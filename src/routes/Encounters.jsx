@@ -4,7 +4,7 @@ import { Swiper as ReactSwiper, SwiperSlide } from 'swiper/react';
 import { Pagination, Navigation } from 'swiper/modules';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-    Heart, X, SendHorizontal, Star, Megaphone, CheckCircle, Clock, Sparkles, User, Crown, AlertCircle
+    Heart, X, SendHorizontal, Star, Megaphone, CheckCircle, Clock, Sparkles, User, Crown,
 } from 'lucide-react';
 
 import 'swiper/css';
@@ -15,16 +15,39 @@ import './Encounters.css';
 
 import {
     ENCOUNTERS_TITLE, ENCOUNTERS_TEXT, baseURL, ENCOUNTER_ACTION, chatPath,
-    partnerProfilePath, AD_EVERY_N_CARDS as FALLBACK_AD_EVERY_N,
+    partnerProfilePath, premiumPath,
+    AD_EVERY_N_CARDS as FALLBACK_AD_EVERY_N,
 } from '../utils/constants';
 import { buildPictureUrl } from '../utils/functions';
 import { getEncountersProfilesHandler } from '../tanstack/encounter';
 import { likeUserHandler, dislikeUserHandler } from '../tanstack/encounter';
+import { getPremiumStatusHandler } from '../tanstack/user';
 
 import MainLayout from '../components/Layouts/MainLayout';
 import HelmetHeader from '../components/HelmetHeader';
 
-export default function Encounters({ isFreeUser = true }) {
+/* ------------------------------------------------------------------ */
+/* Injected keyframes for the super-like burst                        */
+/* ------------------------------------------------------------------ */
+const burstStyles = `
+@keyframes superRing {
+    0%   { width: 60px;  height: 60px;  opacity: 0; transform: scale(0.5); }
+    20%  {                               opacity: 1;                     }
+    100% { width: 480px; height: 480px; opacity: 0; transform: scale(1);   }
+}
+@keyframes superStar {
+    0%   { opacity: 0; transform: scale(0.3) rotate(-30deg); }
+    30%  { opacity: 1; transform: scale(1.2) rotate(10deg);  }
+    70%  { opacity: 1; transform: scale(1)   rotate(0deg);   }
+    100% { opacity: 0; transform: scale(1.4) rotate(20deg);  }
+}
+@keyframes superSpark {
+    0%   { opacity: 1; transform: translate(0, 0) scale(0.6); }
+    100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(1.2); }
+}
+`;
+
+export default function Encounters() {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
 
@@ -36,13 +59,20 @@ export default function Encounters({ isFreeUser = true }) {
     const [quotaExhausted, setQuotaExhausted] = useState(false);
     const [adEveryN, setAdEveryN] = useState(FALLBACK_AD_EVERY_N);
 
+    // Premium status — null while loading, true/false once resolved.
+    const [isPremium, setIsPremium] = useState(null);
+
     // Premium Feature Modal State
     const [showPremiumModal, setShowPremiumModal] = useState(false);
     const [premiumFeatureName, setPremiumFeatureName] = useState('');
 
     // Match overlay state. When non-null, the overlay is shown and the
     // card stack is paused.
-    const [matchInfo, setMatchInfo] = useState(null); // { chatId, recipientId, name, picture }
+    const [matchInfo, setMatchInfo] = useState(null);
+
+    // Super-like burst overlay. Non-null while the burst is playing.
+    // Shape: { cardId }
+    const [superLikeBurst, setSuperLikeBurst] = useState(null);
 
     const [likeTrigger, setLikeTrigger] = useState(false);
     const [dislikeTrigger, setDislikeTrigger] = useState(false);
@@ -51,16 +81,32 @@ export default function Encounters({ isFreeUser = true }) {
     const dragInfo = useRef({ startX: 0, startY: 0, isDragging: false });
     const isProcessingDismiss = useRef(false);
 
+    /* ---------------------------------------------------------------- */
+    /* Premium status query                                             */
+    /* ---------------------------------------------------------------- */
+    const { data: premiumStatusData } = useQuery({
+        queryKey: ['premium-status'],
+        queryFn: getPremiumStatusHandler,
+    });
+
+    useEffect(() => {
+        if (!premiumStatusData) return;
+        setIsPremium(Boolean(premiumStatusData.is_premium));
+    }, [premiumStatusData]);
+
+    // Derived convenience flag. `null` while the query is loading.
+    const isFreeUser = isPremium === null ? null : !isPremium;
+
     // Navigate directly to partner profile with user_id state
     const handleOpenPartnerProfile = (e, userId) => {
-        e.stopPropagation(); // Prevents dragging handlers from triggering
+        e.stopPropagation();
         if (!userId) return;
         navigate(partnerProfilePath, { state: { user_id: userId } });
     };
 
-    // ---------------------------------------------------------------
-    // Card factory
-    // ---------------------------------------------------------------
+    /* ---------------------------------------------------------------- */
+    /* Card factory                                                     */
+    /* ---------------------------------------------------------------- */
     const createCardData = useCallback((item, id) => {
         if (item.type === 'ad') {
             return {
@@ -119,9 +165,9 @@ export default function Encounters({ isFreeUser = true }) {
         };
     }, []);
 
-    // ---------------------------------------------------------------
-    // Sequence builder
-    // ---------------------------------------------------------------
+    /* ---------------------------------------------------------------- */
+    /* Sequence builder                                                 */
+    /* ---------------------------------------------------------------- */
     const buildCardSequence = useCallback(
         (userProfiles, freeTier, adEveryN, quotaVariant, resetsAt) => {
             const sequence = [];
@@ -152,10 +198,10 @@ export default function Encounters({ isFreeUser = true }) {
     );
 
     const seedCards = useCallback(
-        (fetchedProfiles, quotaVariant, resetsAt) => {
+        (fetchedProfiles, quotaVariant, resetsAt, freeTier) => {
             const sequencedItems = buildCardSequence(
                 fetchedProfiles,
-                isFreeUser,
+                freeTier,
                 adEveryN,
                 quotaVariant,
                 resetsAt
@@ -171,12 +217,12 @@ export default function Encounters({ isFreeUser = true }) {
             nextCardId.current = initialCount;
             setCards(initialCards);
         },
-        [adEveryN, buildCardSequence, createCardData, isFreeUser]
+        [adEveryN, buildCardSequence, createCardData]
     );
 
-    // ---------------------------------------------------------------
-    // Fetch
-    // ---------------------------------------------------------------
+    /* ---------------------------------------------------------------- */
+    /* Fetch                                                            */
+    /* ---------------------------------------------------------------- */
     const { data: encounterData, refetch: refetchEncounters } = useQuery({
         queryKey: ['encounters'],
         queryFn: () => getEncountersProfilesHandler('max_distance=211'),
@@ -184,6 +230,8 @@ export default function Encounters({ isFreeUser = true }) {
 
     useEffect(() => {
         if (!encounterData) return;
+        if (isFreeUser === null) return;
+
         const {
             users: fetchedProfiles = [],
             myself: fetchedMyself = {},
@@ -199,11 +247,11 @@ export default function Encounters({ isFreeUser = true }) {
 
         if (fetchedExhausted || fetchedProfiles.length === 0) {
             const resetsAt = fetchedQuota?.resetsAt || null;
-            seedCards([], fetchedExhausted, resetsAt);
+            seedCards([], fetchedExhausted, resetsAt, isFreeUser);
             return;
         }
-        seedCards(fetchedProfiles, false, null);
-    }, [encounterData, seedCards]);
+        seedCards(fetchedProfiles, false, null, isFreeUser);
+    }, [encounterData, seedCards, isFreeUser]);
 
     const appendNewCard = useCallback(
         (currentProfilesList) => {
@@ -225,22 +273,27 @@ export default function Encounters({ isFreeUser = true }) {
     );
 
     const triggerButtonFeedback = (direction) => {
-        if (direction === 'like') {
+        if (direction === 'like' || direction === 'super_like') {
             setLikeTrigger((prev) => !prev);
         } else {
             setDislikeTrigger((prev) => !prev);
         }
     };
 
+    /* ---------------------------------------------------------------- */
+    /* Swipe decision — handles like / dislike / super_like             */
+    /* ---------------------------------------------------------------- */
     const handleSwipeDecision = async (direction, card) => {
         if (card.type !== 'profile') return;
 
-        setQuota((prev) => {
-            if (!prev) return prev;
-            const seen = prev.seen + 1;
-            const remaining = Math.max(0, prev.limit - seen);
-            return { ...prev, seen, remaining };
-        });
+        if (isFreeUser) {
+            setQuota((prev) => {
+                if (!prev) return prev;
+                const seen = prev.seen + 1;
+                const remaining = Math.max(0, prev.limit - seen);
+                return { ...prev, seen, remaining };
+            });
+        }
 
         const data = { recipient_id: card.profileId };
 
@@ -250,7 +303,11 @@ export default function Encounters({ isFreeUser = true }) {
             return;
         }
 
-        data.action = ENCOUNTER_ACTION.LIKE;
+        data.action =
+            direction === 'super_like'
+                ? ENCOUNTER_ACTION.SUPER_LIKE
+                : ENCOUNTER_ACTION.LIKE;
+
         try {
             const response = await likeUserHandler(data);
 
@@ -272,7 +329,10 @@ export default function Encounters({ isFreeUser = true }) {
         appendNewCard();
     };
 
-    const handleButtonClick = (direction) => {
+    /* ---------------------------------------------------------------- */
+    /* Swipe animation for a card                                       */
+    /* ---------------------------------------------------------------- */
+    const triggerSwipe = (direction) => {
         if (isProcessingDismiss.current) return;
         if (matchInfo) return;
         isProcessingDismiss.current = true;
@@ -291,7 +351,7 @@ export default function Encounters({ isFreeUser = true }) {
                 return prev;
             }
 
-            const multiplier = direction === 'like' ? 1 : -1;
+            const multiplier = direction === 'dislike' ? -1 : 1;
 
             activeCard.isDismissing = true;
             activeCard.transition =
@@ -304,6 +364,13 @@ export default function Encounters({ isFreeUser = true }) {
             setTimeout(() => {
                 setCards((p) => p.filter((c) => c.id !== activeCard.id));
                 isProcessingDismiss.current = false;
+
+                // Clear the burst once the card is gone
+                setSuperLikeBurst((prevBurst) =>
+                    prevBurst && prevBurst.cardId === activeCard.id
+                        ? null
+                        : prevBurst
+                );
             }, 800);
 
             handleSwipeDecision(direction, activeCard);
@@ -311,6 +378,50 @@ export default function Encounters({ isFreeUser = true }) {
         });
     };
 
+    // Public entry point for the bottom action buttons (dislike, like)
+    const handleButtonClick = (direction) => triggerSwipe(direction);
+
+    /* ---------------------------------------------------------------- */
+    /* Super like button — burst, then swipe                            */
+    /* ---------------------------------------------------------------- */
+    const handleSuperLikeClick = () => {
+        if (isFreeUser === null) return;
+
+        if (isFreeUser) {
+            setPremiumFeatureName('Super Like');
+            setShowPremiumModal(true);
+            return;
+        }
+
+        if (isProcessingDismiss.current) return;
+        if (matchInfo) return;
+
+        const activeCard = cards[cards.length - 1];
+        if (
+            !activeCard ||
+            activeCard.isDismissing ||
+            activeCard.type === 'end' ||
+            activeCard.type === 'ad'
+        ) {
+            return;
+        }
+
+        // Show the burst first, then kick off the swipe on the next tick
+        // so the overlay gets a paint before the card starts flying off.
+        setSuperLikeBurst({ cardId: activeCard.id });
+        setTimeout(() => triggerSwipe('super_like'), 80);
+    };
+
+    // Safety net — clears the burst if something interrupts the flow
+    useEffect(() => {
+        if (!superLikeBurst) return;
+        const t = setTimeout(() => setSuperLikeBurst(null), 900);
+        return () => clearTimeout(t);
+    }, [superLikeBurst]);
+
+    /* ---------------------------------------------------------------- */
+    /* Keep `partner` in sync with the top card                         */
+    /* ---------------------------------------------------------------- */
     useEffect(() => {
         if (cards?.length > 0) {
             const targetCard = cards[cards.length - 1];
@@ -333,23 +444,23 @@ export default function Encounters({ isFreeUser = true }) {
         }
     }, [cards]);
 
-    // Handle clicks on premium action buttons (Star & Message)
-    const handlePremiumFeatureClick = (feature) => {
+    // Handle clicks on the message button in the bottom bar
+    const handleMessageClick = () => {
+        if (isFreeUser === null) return;
+
         if (isFreeUser) {
-            setPremiumFeatureName(
-                feature === 'star' ? 'Super Like' : 'Direct Messaging'
-            );
+            setPremiumFeatureName('Direct Messaging');
             setShowPremiumModal(true);
             return;
         }
 
-        if (feature === 'message') {
-            navigate(chatPath, { state: { myself, partner } });
-        } else if (feature === 'star') {
-            handleButtonClick('like');
-        }
+        if (!partner.id) return;
+        navigate(chatPath, { state: { myself, partner } });
     };
 
+    /* ---------------------------------------------------------------- */
+    /* Drag handlers                                                    */
+    /* ---------------------------------------------------------------- */
     const isTouchDevice = () =>
         'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
@@ -489,6 +600,7 @@ export default function Encounters({ isFreeUser = true }) {
     return (
         <MainLayout pageTitle={ENCOUNTERS_TITLE} pageDetails={ENCOUNTERS_TEXT}>
             <HelmetHeader pageTitle={ENCOUNTERS_TITLE} />
+            <style>{burstStyles}</style>
 
             <div className="relative w-full h-full flex flex-col overflow-hidden select-none rounded-xl fade-in">
                 <div
@@ -529,9 +641,7 @@ export default function Encounters({ isFreeUser = true }) {
                         return (
                             <div
                                 key={card.id}
-                                className={`absolute rounded-[20px] overflow-hidden shadow-[2px_2px_20px_rgba(0,0,0,0.5)] card-token transition-all ${card.isDismissing
-                                    ? 'pointer-events-none'
-                                    : ''
+                                className={`absolute rounded-[20px] overflow-hidden shadow-[2px_2px_20px_rgba(0,0,0,0.5)] card-token transition-all ${card.isDismissing ? 'pointer-events-none' : ''
                                     } ${card.type === 'end'
                                         ? 'cursor-default'
                                         : 'cursor-grab active:cursor-grabbing'
@@ -539,11 +649,9 @@ export default function Encounters({ isFreeUser = true }) {
                                 style={{
                                     ...stackStyle,
                                     transform:
-                                        card.transform ||
-                                        stackStyle.transform,
+                                        card.transform || stackStyle.transform,
                                     transition:
-                                        card.transition ||
-                                        'transform 0.5s ease',
+                                        card.transition || 'transform 0.5s ease',
                                     zIndex: stackIndex,
                                 }}
                                 {...interactiveProps}
@@ -598,9 +706,7 @@ export default function Encounters({ isFreeUser = true }) {
                                             card.resetsAt && (
                                                 <p className="text-xs text-amber-200 mb-4">
                                                     Resets at{' '}
-                                                    {formatResetTime(
-                                                        card.resetsAt
-                                                    )}
+                                                    {formatResetTime(card.resetsAt)}
                                                 </p>
                                             )}
                                         {card.variant !== 'quota' && (
@@ -629,28 +735,28 @@ export default function Encounters({ isFreeUser = true }) {
                                             allowTouchMove={false}
                                             className="w-full h-full"
                                         >
-                                            {card.pictures.map(
-                                                (picture, idx) => (
-                                                    <SwiperSlide key={idx}>
-                                                        <img
-                                                            src={buildPictureUrl(
-                                                                baseURL,
-                                                                picture.path
-                                                            )}
-                                                            alt={`${card.name ||
-                                                                'Profile'
-                                                                } picture ${idx + 1
-                                                                }`}
-                                                            className="w-full h-full object-cover pointer-events-none"
-                                                        />
-                                                    </SwiperSlide>
-                                                )
-                                            )}
+                                            {card.pictures.map((picture, idx) => (
+                                                <SwiperSlide key={idx}>
+                                                    <img
+                                                        src={buildPictureUrl(
+                                                            baseURL,
+                                                            picture.path
+                                                        )}
+                                                        alt={`${card.name || 'Profile'
+                                                            } picture ${idx + 1}`}
+                                                        className="w-full h-full object-cover pointer-events-none"
+                                                    />
+                                                </SwiperSlide>
+                                            ))}
                                         </ReactSwiper>
 
-                                        {/* Clickable Profile Details Overlay */}
                                         <div
-                                            onClick={(e) => handleOpenPartnerProfile(e, card.profileId)}
+                                            onClick={(e) =>
+                                                handleOpenPartnerProfile(
+                                                    e,
+                                                    card.profileId
+                                                )
+                                            }
                                             className="profile-click-area absolute bottom-0 left-0 right-0 z-20 p-4 bg-gradient-to-t from-black/80 via-black/70 to-transparent text-white cursor-pointer hover:via-black/80 transition-all flex justify-between items-end pointer-events-auto"
                                         >
                                             <div>
@@ -673,7 +779,6 @@ export default function Encounters({ isFreeUser = true }) {
                                                 )}
                                             </div>
 
-                                            {/* Profile Info Button Badge */}
                                             <div className="bg-white/20 hover:bg-white/30 backdrop-blur-md p-2 rounded-full border border-white/30 text-white transition-all">
                                                 <User size={18} />
                                             </div>
@@ -691,7 +796,7 @@ export default function Encounters({ isFreeUser = true }) {
                         {partner.id && partner.name && (
                             <div
                                 id="star"
-                                onClick={() => handlePremiumFeatureClick('star')}
+                                onClick={handleSuperLikeClick}
                                 className={`icon-button star-color cursor-pointer ${likeTrigger ? 'trigger-alt' : 'trigger'
                                     }`}
                             >
@@ -717,7 +822,7 @@ export default function Encounters({ isFreeUser = true }) {
                         {partner.id && partner.name && (
                             <div
                                 id="message"
-                                onClick={() => handlePremiumFeatureClick('message')}
+                                onClick={handleMessageClick}
                                 className={`icon-button message-color cursor-pointer ${likeTrigger ? 'trigger-alt' : 'trigger'
                                     }`}
                             >
@@ -727,9 +832,50 @@ export default function Encounters({ isFreeUser = true }) {
                     </article>
                 )}
 
-                {quota && !quotaExhausted && !matchInfo && (
+                {/* Quota hint — only shown to free users */}
+                {isFreeUser && quota && !quotaExhausted && !matchInfo && (
                     <div className="text-xs text-gray-400 text-center pb-1">
                         {quota.remaining} of {quota.limit} encounters left today
+                    </div>
+                )}
+
+                {/* ---------------- SUPER LIKE BURST ---------------- */}
+                {superLikeBurst && (
+                    <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center">
+                        {/* Radiating rings */}
+                        <span className="absolute rounded-full border-4 border-amber-400/70 animate-[superRing_0.9s_ease-out_forwards]" />
+                        <span className="absolute rounded-full border-4 border-yellow-300/60 animate-[superRing_0.9s_ease-out_0.1s_forwards]" />
+                        <span className="absolute rounded-full border-4 border-pink-400/50 animate-[superRing_0.9s_ease-out_0.2s_forwards]" />
+
+                        {/* Central star burst */}
+                        <span className="absolute text-amber-300 animate-[superStar_0.9s_ease-out_forwards]">
+                            <Star size={96} fill="currentColor" strokeWidth={0} />
+                        </span>
+
+                        {/* Flying sparks */}
+                        {[...Array(8)].map((_, i) => {
+                            const angle = (i / 8) * Math.PI * 2;
+                            const dx = Math.cos(angle) * 140;
+                            const dy = Math.sin(angle) * 140;
+                            return (
+                                <span
+                                    key={i}
+                                    className="absolute text-yellow-400"
+                                    style={{
+                                        '--dx': `${dx}px`,
+                                        '--dy': `${dy}px`,
+                                        animation: `superSpark 0.8s ease-out forwards`,
+                                        animationDelay: `${i * 20}ms`,
+                                    }}
+                                >
+                                    <Star
+                                        size={16}
+                                        fill="currentColor"
+                                        strokeWidth={0}
+                                    />
+                                </span>
+                            );
+                        })}
                     </div>
                 )}
 
@@ -796,14 +942,16 @@ export default function Encounters({ isFreeUser = true }) {
                                 <span className="font-semibold text-amber-400">
                                     {premiumFeatureName}
                                 </span>{' '}
-                                is a premium feature. Upgrade your plan to send direct messages, super likes, and enjoy unlimited encounters!
+                                is a premium feature. Upgrade your plan to send
+                                direct messages, super likes, and enjoy unlimited
+                                encounters!
                             </p>
 
                             <div className="flex flex-col gap-3">
                                 <button
                                     onClick={() => {
                                         setShowPremiumModal(false);
-                                        // Navigate to billing or subscription upgrade page if required
+                                        navigate(premiumPath);
                                     }}
                                     className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 font-bold hover:brightness-105 transition shadow-md"
                                 >
