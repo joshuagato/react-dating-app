@@ -45,6 +45,11 @@ const getNearbyUsers = async () => {
     return response.data;
 }
 
+const getPremiumStatus = async () => {
+    const response = await protectedApi.get('/user/premium-status');
+    return response.data;
+}
+
 const completeProfileSetup = async data => {
     const response = await protectedApi.put('/user/complete-profile-setup', data);
     return response.data;
@@ -72,6 +77,8 @@ export const getVerificationSelfieHandler = async () => await getVerificationSel
 export const getPotentialMatchProfilesHandler = async () => await getPotentialMatchProfiles();
 
 export const getNearbyUsersHandler = async () => await getNearbyUsers();
+
+export const getPremiumStatusHandler = async () => await getPremiumStatus();
 
 export const completeProfileSetupHandler = async data => await completeProfileSetup(data);
 
