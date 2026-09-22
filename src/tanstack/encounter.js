@@ -1,51 +1,43 @@
 import { protectedApi } from "../axios";
 
-const getEncountersProfiles = async (query) => {
+export const getEncountersProfilesHandler = async (query) => {
     const response = await protectedApi.get(`/encounter/get-encounters-profiles?${query}`);
     return response.data;
 }
 
-const likeUser = async data => {
+export const likeUserHandler = async data => {
     const response = await protectedApi.post('/encounter/like-user', data);
     return response.data;
 }
 
-const dislikeUser = async data => {
+export const dislikeUserHandler = async data => {
     const response = await protectedApi.post('/encounter/dislike-user', data);
     return response.data;
 }
 
-const usersWhoLikeMe = async () => {
+export const usersWhoLikeMeHandler = async () => {
     const response = await protectedApi.get('/encounter/users-who-like-me');
     return response.data;
 }
 
-const usersWhoDisLikeMe = async () => {
+export const usersWhoDisLikeMeHandler = async () => {
     const response = await protectedApi.get('/encounter/users-who-dislike-me');
     return response.data;
 }
 
-const usersDisLikedByMe = async () => {
+export const usersDisLikedByMeHandler = async () => {
     const response = await protectedApi.get('/encounter/users-disliked-by-me');
     return response.data;
 }
 
-const getNewLikesCount = async () => {
+export const getNewLikesCountHandler = async () => {
     const response = await protectedApi.get('/encounter/get-new-likes-count');
     return response.data;
 }
 
-
-export const likeUserHandler = async data => await likeUser(data);
-
-export const dislikeUserHandler = async data => await dislikeUser(data);
-
-export const usersWhoLikeMeHandler = async () => await usersWhoLikeMe();
-
-export const usersWhoDisLikeMeHandler = async () => await usersWhoDisLikeMe();
-
-export const usersDisLikedByMeHandler = async () => await usersDisLikedByMe();
-
-export const getNewLikesCountHandler = async () => await getNewLikesCount();
-
-export const getEncountersProfilesHandler = async (query) => await getEncountersProfiles(query);
+export const markLikesAsSeenHandler = async initiatorIds => {
+    const response = await protectedApi.post('/encounter/mark-likes-seen', {
+        initiator_ids: initiatorIds,
+    });
+    return response.data;
+};
