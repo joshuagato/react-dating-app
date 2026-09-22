@@ -281,7 +281,7 @@ export default function Nearby() {
             <HelmetHeader pageTitle={NEARBY_TITLE} />
             <style>{burstStyles}</style>
 
-            <div className="relative w-full h-full flex flex-col overflow-y-auto select-none px-4 sm:px-8 py-6 scroll-bar">
+            <div className="relative w-full h-full flex flex-col overflow-y-auto select-none px-3 sm:px-4 py-6 scroll-bar">
                 {/* Header */}
                 <div className="flex items-center justify-between mb-6">
                     <div>
@@ -300,7 +300,7 @@ export default function Nearby() {
 
                 {/* Profiles Grid */}
                 {loading ? (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-4 sm:gap-6">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-2 sm:gap-3">
                         {[...Array(6)].map((_, i) => (
                             <div
                                 key={i}
@@ -309,7 +309,7 @@ export default function Nearby() {
                         ))}
                     </div>
                 ) : profiles.length > 0 ? (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-4 sm:gap-6">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-2 sm:gap-3">
                         {profiles.map((profile, index) => (
                             <article
                                 key={profile.id || index}
