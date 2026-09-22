@@ -1,10 +1,12 @@
+// Encounters.jsx
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { Swiper as ReactSwiper, SwiperSlide } from 'swiper/react';
 import { Pagination, Navigation } from 'swiper/modules';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-    Heart, X, SendHorizontal, Star, Megaphone, CheckCircle, Clock, Sparkles, User, Crown,
+    Heart, X, SendHorizontal, Star, Megaphone, CheckCircle, Clock,
+    Sparkles, User, Crown, SlidersHorizontal, Lock,
 } from 'lucide-react';
 
 import 'swiper/css';
@@ -15,7 +17,7 @@ import './Encounters.css';
 
 import {
     ENCOUNTERS_TITLE, ENCOUNTERS_TEXT, baseURL, ENCOUNTER_ACTION, chatPath,
-    partnerProfilePath, premiumPath,
+    partnerProfilePath, premiumPath, GENDER,
     AD_EVERY_N_CARDS as FALLBACK_AD_EVERY_N,
 } from '../utils/constants';
 import { buildPictureUrl } from '../utils/functions';
@@ -47,6 +49,15 @@ const burstStyles = `
 }
 `;
 
+const DEFAULT_FILTER = {
+    max_distance_km: 200,
+    interested_in: GENDER.EVERYONE,
+    min_age: 18,
+    max_age: 100,
+    online_only: false,
+    premium_only: false,
+};
+
 export default function Encounters() {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
@@ -66,6 +77,11 @@ export default function Encounters() {
     const [showPremiumModal, setShowPremiumModal] = useState(false);
     const [premiumFeatureName, setPremiumFeatureName] = useState('');
 
+    // Filter modal state
+    const [showFilterModal, setShowFilterModal] = useState(false);
+    const [filterDraft, setFilterDraft] = useState(DEFAULT_FILTER);
+    const [activeFilter, setActiveFilter] = useState(DEFAULT_FILTER);
+
     // Match overlay state. When non-null, the overlay is shown and the
     // card stack is paused.
     const [matchInfo, setMatchInfo] = useState(null);
@@ -80,6 +96,7 @@ export default function Encounters() {
     const nextCardId = useRef(0);
     const dragInfo = useRef({ startX: 0, startY: 0, isDragging: false });
     const isProcessingDismiss = useRef(false);
+    const filterDraftTouched = useRef(false);
 
     /* ---------------------------------------------------------------- */
     /* Premium status query                                             */
@@ -96,6 +113,68 @@ export default function Encounters() {
 
     // Derived convenience flag. `null` while the query is loading.
     const isFreeUser = isPremium === null ? null : !isPremium;
+
+    /* ---------------------------------------------------------------- */
+    /* Build query string from a filter object                          */
+    /* ---------------------------------------------------------------- */
+    const buildEncounterQuery = useCallback((f) => {
+        const params = new URLSearchParams();
+        if (f?.max_distance_km) params.set('max_distance', f.max_distance_km);
+        if (f?.interested_in) params.set('interested_in', f.interested_in);
+        if (f?.min_age) params.set('min_age', f.min_age);
+        if (f?.max_age) params.set('max_age', f.max_age);
+        f?.online_only ? params.set('online_only', 'true') : params.set('online_only', 'false');
+        (f?.premium_only) ? params.set('premium_only', 'true') : params.set('premium_only', 'false');
+        return params.toString();
+    }, []);
+
+    /* ---------------------------------------------------------------- */
+    /* Fetch                                                            */
+    /* ---------------------------------------------------------------- */
+    const {
+        data: encounterData,
+        refetch: refetchEncounters,
+    } = useQuery({
+        queryKey: ['encounters', activeFilter],
+        queryFn: () =>
+            getEncountersProfilesHandler(buildEncounterQuery(activeFilter)),
+    });
+
+    // Seed the draft from the server once, unless the user has started
+    // editing it already.
+    useEffect(() => {
+        const serverFilter = encounterData?.filter;
+        if (!serverFilter) return;
+        if (filterDraftTouched.current) return;
+        setFilterDraft((prev) => ({ ...prev, ...serverFilter }));
+        setActiveFilter((prev) => ({ ...prev, ...serverFilter }));
+    }, [encounterData]);
+
+    useEffect(() => {
+        if (!encounterData) return;
+        if (isFreeUser === null) return;
+
+        const {
+            users: fetchedProfiles = [],
+            myself: fetchedMyself = {},
+            quota: fetchedQuota = null,
+            quotaExhausted: fetchedExhausted = false,
+            adEveryN: fetchedAdEveryN = FALLBACK_AD_EVERY_N,
+        } = encounterData;
+
+        setMyself(fetchedMyself);
+        setQuota(fetchedQuota);
+        setQuotaExhausted(fetchedExhausted);
+        setAdEveryN(fetchedAdEveryN);
+
+        if (fetchedExhausted || fetchedProfiles.length === 0) {
+            const resetsAt = fetchedQuota?.resetsAt || null;
+            seedCards([], fetchedExhausted, resetsAt, isFreeUser);
+            return;
+        }
+        seedCards(fetchedProfiles, false, null, isFreeUser);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [encounterData, isFreeUser]);
 
     // Navigate directly to partner profile with user_id state
     const handleOpenPartnerProfile = (e, userId) => {
@@ -169,15 +248,11 @@ export default function Encounters() {
     /* Sequence builder                                                 */
     /* ---------------------------------------------------------------- */
     const buildCardSequence = useCallback(
-        (userProfiles, freeTier, adEveryN, quotaVariant, resetsAt) => {
+        (userProfiles, freeTier, everyN, quotaVariant, resetsAt) => {
             const sequence = [];
             userProfiles.forEach((profile, index) => {
                 sequence.push({ ...profile, type: 'profile' });
-                if (
-                    freeTier &&
-                    adEveryN > 0 &&
-                    (index + 1) % adEveryN === 0
-                ) {
+                if (freeTier && everyN > 0 && (index + 1) % everyN === 0) {
                     sequence.push({
                         type: 'ad',
                         id: `ad-${index}`,
@@ -219,39 +294,6 @@ export default function Encounters() {
         },
         [adEveryN, buildCardSequence, createCardData]
     );
-
-    /* ---------------------------------------------------------------- */
-    /* Fetch                                                            */
-    /* ---------------------------------------------------------------- */
-    const { data: encounterData, refetch: refetchEncounters } = useQuery({
-        queryKey: ['encounters'],
-        queryFn: () => getEncountersProfilesHandler('max_distance=211'),
-    });
-
-    useEffect(() => {
-        if (!encounterData) return;
-        if (isFreeUser === null) return;
-
-        const {
-            users: fetchedProfiles = [],
-            myself: fetchedMyself = {},
-            quota: fetchedQuota = null,
-            quotaExhausted: fetchedExhausted = false,
-            adEveryN: fetchedAdEveryN = FALLBACK_AD_EVERY_N,
-        } = encounterData;
-
-        setMyself(fetchedMyself);
-        setQuota(fetchedQuota);
-        setQuotaExhausted(fetchedExhausted);
-        setAdEveryN(fetchedAdEveryN);
-
-        if (fetchedExhausted || fetchedProfiles.length === 0) {
-            const resetsAt = fetchedQuota?.resetsAt || null;
-            seedCards([], fetchedExhausted, resetsAt, isFreeUser);
-            return;
-        }
-        seedCards(fetchedProfiles, false, null, isFreeUser);
-    }, [encounterData, seedCards, isFreeUser]);
 
     const appendNewCard = useCallback(
         (currentProfilesList) => {
@@ -365,7 +407,6 @@ export default function Encounters() {
                 setCards((p) => p.filter((c) => c.id !== activeCard.id));
                 isProcessingDismiss.current = false;
 
-                // Clear the burst once the card is gone
                 setSuperLikeBurst((prevBurst) =>
                     prevBurst && prevBurst.cardId === activeCard.id
                         ? null
@@ -406,8 +447,6 @@ export default function Encounters() {
             return;
         }
 
-        // Show the burst first, then kick off the swipe on the next tick
-        // so the overlay gets a paint before the card starts flying off.
         setSuperLikeBurst({ cardId: activeCard.id });
         setTimeout(() => triggerSwipe('super_like'), 80);
     };
@@ -456,6 +495,47 @@ export default function Encounters() {
 
         if (!partner.id) return;
         navigate(chatPath, { state: { myself, partner } });
+    };
+
+    /* ---------------------------------------------------------------- */
+    /* Filter modal handlers                                            */
+    /* ---------------------------------------------------------------- */
+    const handleOpenFilters = () => {
+        filterDraftTouched.current = false;
+        setFilterDraft({ ...activeFilter });
+        setShowFilterModal(true);
+    };
+
+    const handleFilterChange = (patch) => {
+        filterDraftTouched.current = true;
+        setFilterDraft((prev) => ({ ...prev, ...patch }));
+    };
+
+    const handleApplyFilters = async () => {
+        setShowFilterModal(false);
+        filterDraftTouched.current = false;
+
+        const nextFilter = { ...filterDraft };
+        setActiveFilter(nextFilter);
+
+        // Wipe the deck so the new query result seeds a fresh one.
+        setCards([]);
+        setProfiles([]);
+        nextCardId.current = 0;
+
+        await queryClient.invalidateQueries({ queryKey: ['encounters'] });
+        const result = await refetchEncounters();
+        // If the query key change hasn't triggered a refetch yet (rare),
+        // this explicit fetch guarantees fresh data with the new filter.
+        if (!result?.data) {
+            await queryClient.fetchQuery({
+                queryKey: ['encounters', nextFilter],
+                queryFn: () =>
+                    getEncountersProfilesHandler(
+                        buildEncounterQuery(nextFilter)
+                    ),
+            });
+        }
     };
 
     /* ---------------------------------------------------------------- */
@@ -537,7 +617,7 @@ export default function Encounters() {
                 return updated;
             });
         },
-        [appendNewCard, matchInfo]
+        [matchInfo]
     );
 
     const handleDragEnd = useCallback(() => {
@@ -598,7 +678,11 @@ export default function Encounters() {
     };
 
     return (
-        <MainLayout pageTitle={ENCOUNTERS_TITLE} pageDetails={ENCOUNTERS_TEXT}>
+        <MainLayout
+            pageTitle={ENCOUNTERS_TITLE}
+            pageDetails={ENCOUNTERS_TEXT}
+            onOpenFilters={handleOpenFilters}
+        >
             <HelmetHeader pageTitle={ENCOUNTERS_TITLE} />
             <style>{burstStyles}</style>
 
@@ -842,17 +926,14 @@ export default function Encounters() {
                 {/* ---------------- SUPER LIKE BURST ---------------- */}
                 {superLikeBurst && (
                     <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center">
-                        {/* Radiating rings */}
                         <span className="absolute rounded-full border-4 border-amber-400/70 animate-[superRing_0.9s_ease-out_forwards]" />
                         <span className="absolute rounded-full border-4 border-yellow-300/60 animate-[superRing_0.9s_ease-out_0.1s_forwards]" />
                         <span className="absolute rounded-full border-4 border-pink-400/50 animate-[superRing_0.9s_ease-out_0.2s_forwards]" />
 
-                        {/* Central star burst */}
                         <span className="absolute text-amber-300 animate-[superStar_0.9s_ease-out_forwards]">
                             <Star size={96} fill="currentColor" strokeWidth={0} />
                         </span>
 
-                        {/* Flying sparks */}
                         {[...Array(8)].map((_, i) => {
                             const angle = (i / 8) * Math.PI * 2;
                             const dx = Math.cos(angle) * 140;
@@ -967,7 +1048,266 @@ export default function Encounters() {
                         </div>
                     </div>
                 )}
+
+                {/* ---------------- FILTER MODAL ---------------- */}
+                {showFilterModal && (
+                    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-sm p-0 sm:p-4 fade-in">
+                        <div className="w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl bg-slate-900 border border-slate-800 text-white shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+                            {/* Header */}
+                            <div className="px-6 pt-5 pb-3 border-b border-slate-800 flex items-center justify-between flex-shrink-0">
+                                <div className="flex items-center gap-2">
+                                    <SlidersHorizontal
+                                        size={18}
+                                        className="text-violet-400"
+                                    />
+                                    <h3 className="text-lg font-bold">
+                                        Filters
+                                    </h3>
+                                </div>
+                                <button
+                                    onClick={() => setShowFilterModal(false)}
+                                    className="p-2 rounded-full hover:bg-slate-800 transition-colors"
+                                    aria-label="Close filters"
+                                >
+                                    <X size={18} />
+                                </button>
+                            </div>
+
+                            {/* Body */}
+                            <div className="px-6 py-5 space-y-6 overflow-y-auto flex-1">
+                                {/* --- Distance --- */}
+                                <div>
+                                    <div className="flex items-center justify-between mb-2">
+                                        <label className="text-sm font-semibold">
+                                            Max Distance
+                                        </label>
+                                        <span className="text-sm font-bold text-violet-400">
+                                            {filterDraft.max_distance_km} km
+                                        </span>
+                                    </div>
+                                    <input
+                                        type="range"
+                                        min={1}
+                                        max={isFreeUser ? 200 : 500}
+                                        step={1}
+                                        value={filterDraft.max_distance_km}
+                                        onChange={(e) =>
+                                            handleFilterChange({
+                                                max_distance_km: Number(
+                                                    e.target.value
+                                                ),
+                                            })
+                                        }
+                                        className="w-full range range-xs range-primary"
+                                    />
+                                    {isFreeUser ? (
+                                        <p className="text-[11px] text-amber-400 mt-2 flex items-center gap-1">
+                                            <Crown size={11} />
+                                            Upgrade to Premium to search up to
+                                            500 km.
+                                        </p>
+                                    ) : (
+                                        <p className="text-[11px] text-slate-500 mt-2">
+                                            Premium: up to 500 km.
+                                        </p>
+                                    )}
+                                </div>
+
+                                {/* --- Gender --- */}
+                                <div>
+                                    <label className="text-sm font-semibold mb-2 block">
+                                        Show me
+                                    </label>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {[
+                                            { key: GENDER.MEN, label: 'Men' },
+                                            { key: GENDER.WOMEN, label: 'Women' },
+                                            { key: GENDER.EVERYONE, label: 'Everyone' },
+                                        ].map((opt) => {
+                                            const active =
+                                                filterDraft.interested_in ===
+                                                opt.key;
+                                            return (
+                                                <button
+                                                    key={opt.key}
+                                                    type="button"
+                                                    onClick={() =>
+                                                        handleFilterChange({
+                                                            interested_in:
+                                                                opt.key,
+                                                        })
+                                                    }
+                                                    className={`py-2.5 rounded-xl text-sm font-semibold border transition-all ${active
+                                                        ? 'bg-gradient-to-r from-violet-600 to-pink-600 text-white border-transparent shadow-md'
+                                                        : 'bg-slate-800 text-slate-300 border-slate-700 hover:border-slate-600'
+                                                        }`}
+                                                >
+                                                    {opt.label}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                {/* --- Age range --- */}
+                                <div>
+                                    <div className="flex items-center justify-between mb-2">
+                                        <label className="text-sm font-semibold">
+                                            Age Range
+                                        </label>
+                                        <span className="text-sm font-bold text-violet-400">
+                                            {filterDraft.min_age} –{' '}
+                                            {filterDraft.max_age}
+                                        </span>
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        <div>
+                                            <div className="flex justify-between text-[11px] text-slate-400 mb-1">
+                                                <span>Min</span>
+                                                <span>{filterDraft.min_age}</span>
+                                            </div>
+                                            <input
+                                                type="range"
+                                                min={18}
+                                                max={100}
+                                                value={filterDraft.min_age}
+                                                onChange={(e) => {
+                                                    const v = Number(
+                                                        e.target.value
+                                                    );
+                                                    handleFilterChange({
+                                                        min_age: Math.min(
+                                                            v,
+                                                            filterDraft.max_age
+                                                        ),
+                                                    });
+                                                }}
+                                                className="w-full range range-xs range-primary"
+                                            />
+                                        </div>
+                                        <div>
+                                            <div className="flex justify-between text-[11px] text-slate-400 mb-1">
+                                                <span>Max</span>
+                                                <span>{filterDraft.max_age}</span>
+                                            </div>
+                                            <input
+                                                type="range"
+                                                min={18}
+                                                max={100}
+                                                value={filterDraft.max_age}
+                                                onChange={(e) => {
+                                                    const v = Number(
+                                                        e.target.value
+                                                    );
+                                                    handleFilterChange({
+                                                        max_age: Math.max(
+                                                            v,
+                                                            filterDraft.min_age
+                                                        ),
+                                                    });
+                                                }}
+                                                className="w-full range range-xs range-primary"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* --- Premium-gated toggles --- */}
+                                <div className="space-y-3">
+                                    <ToggleRow
+                                        label="Online users only"
+                                        description="Only show people who are online right now."
+                                        checked={filterDraft.online_only}
+                                        locked={isFreeUser}
+                                        onToggle={() =>
+                                            !isFreeUser &&
+                                            handleFilterChange({
+                                                online_only:
+                                                    !filterDraft.online_only,
+                                            })
+                                        }
+                                    />
+                                    <ToggleRow
+                                        label="Premium users only"
+                                        description="Only show users with an active premium plan."
+                                        checked={filterDraft.premium_only}
+                                        locked={isFreeUser}
+                                        onToggle={() =>
+                                            !isFreeUser &&
+                                            handleFilterChange({
+                                                premium_only:
+                                                    !filterDraft.premium_only,
+                                            })
+                                        }
+                                    />
+                                    {isFreeUser && (
+                                        <p className="text-[11px] text-amber-400 flex items-center gap-1">
+                                            <Crown size={11} />
+                                            Online-only and Premium-only filters
+                                            require Premium.
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Footer */}
+                            <div className="px-6 py-4 border-t border-slate-800 flex gap-3 flex-shrink-0">
+                                <button
+                                    onClick={() => setShowFilterModal(false)}
+                                    className="flex-1 py-3 rounded-xl bg-slate-800 text-slate-300 font-semibold hover:bg-slate-700 transition"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleApplyFilters}
+                                    className="flex-1 py-3 rounded-xl bg-gradient-to-r from-violet-600 to-pink-600 text-white font-bold hover:brightness-110 transition shadow-md"
+                                >
+                                    Apply Filters
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </MainLayout>
+    );
+}
+
+/* ------------------------------------------------------------------ */
+/* Toggle row used in the filter modal                                 */
+/* ------------------------------------------------------------------ */
+function ToggleRow({ label, description, checked, locked, onToggle }) {
+    return (
+        <div
+            className={`flex items-start justify-between gap-4 p-3 rounded-xl border ${locked
+                ? 'bg-slate-900/50 border-slate-800 opacity-70'
+                : 'bg-slate-800/60 border-slate-700'
+                }`}
+        >
+            <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-semibold">{label}</span>
+                    {locked && (
+                        <Lock size={12} className="text-amber-400" />
+                    )}
+                </div>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                    {description}
+                </p>
+            </div>
+            <button
+                type="button"
+                onClick={onToggle}
+                disabled={locked}
+                className={`relative w-11 h-6 rounded-full flex-shrink-0 transition-colors ${checked ? 'bg-violet-600' : 'bg-slate-700'
+                    } ${locked ? 'cursor-not-allowed' : ''}`}
+            >
+                <span
+                    className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-md transition-transform ${checked ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                />
+            </button>
+        </div>
     );
 }
