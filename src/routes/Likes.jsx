@@ -19,7 +19,7 @@ import {
     usersDisLikedByMeHandler,
     likeUserHandler,
     dislikeUserHandler,
-    // markLikesAsSeenHandler
+    markLikesAsSeenHandler,
 } from '../tanstack/encounter';
 
 import MainLayout from '../components/Layouts/MainLayout';
@@ -108,14 +108,15 @@ export default function Likes() {
     /* ---------------------------------------------------------------- */
     /* Mark-as-seen                                                     */
     /* ---------------------------------------------------------------- */
-    const markAsSeen = useCallback(async (profileId) => {
-        if (!profileId || trackedSeenIds.current.has(profileId)) return;
-        trackedSeenIds.current.add(profileId);
+    const markAsSeen = useCallback(async (userId) => {
+        if (!userId || trackedSeenIds.current.has(userId)) return;
+        trackedSeenIds.current.add(userId);
         try {
-            // await markLikesAsSeenHandler([profileId]);
-            console.log(`Marked profile ${profileId} as seen`);
+            await markLikesAsSeenHandler([userId]);
         } catch (error) {
-            console.error(`Failed to mark profile ${profileId} as seen:`, error);
+            console.error(`Failed to mark profile ${userId} as seen:`, error);
+            // Roll back the optimistic guard so a later retry can succeed.
+            trackedSeenIds.current.delete(userId);
         }
     }, []);
 
@@ -129,13 +130,13 @@ export default function Likes() {
             (entries) => {
                 entries.forEach((entry) => {
                     if (entry.isIntersecting) {
-                        const profileId = entry.target.getAttribute(
+                        const userId = entry.target.getAttribute(
                             'data-profile-id'
                         );
                         const isSeen =
                             entry.target.getAttribute('data-seen') === 'true';
-                        if (profileId && !isSeen) {
-                            markAsSeen(profileId);
+                        if (userId && !isSeen) {
+                            markAsSeen(userId);
                         }
                     }
                 });
@@ -349,14 +350,13 @@ export default function Likes() {
                         {[...Array(6)].map((_, i) => (
                             <div
                                 key={i}
-                                className="w-full aspect-[3/4] bg-gray-800/50 animate-pulse rounded-2xl"
+                                className="w-full aspect-[3/4] bg-gray-800/50 animate-pulse rounded-2xl border border-white/10"
                             />
                         ))}
                     </div>
                 ) : filteredProfiles.length > 0 ? (
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-4">
                         {filteredProfiles.map((profile, index) => {
-                            const profileId = profile.id || profile._id || index;
                             const isUnseen = profile.seen === false;
                             const shouldBlur = isPremium === false;
                             const isSuperLike =
@@ -364,9 +364,9 @@ export default function Likes() {
 
                             return (
                                 <article
-                                    key={profileId}
+                                    key={profile.user_id ?? index}
                                     data-profile-card
-                                    data-profile-id={profileId}
+                                    data-profile-id={profile.user_id}
                                     data-seen={profile.seen ?? true}
                                     onClick={() => handleOpenProfile(profile)}
                                     className={`group relative w-full aspect-[3/4] rounded-2xl overflow-hidden cursor-pointer shadow-lg transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl border ${isSuperLike
