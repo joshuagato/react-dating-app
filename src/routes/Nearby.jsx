@@ -300,9 +300,12 @@ export default function Nearby() {
 
                 {/* Profiles Grid */}
                 {loading ? (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-4 sm:gap-6">
                         {[...Array(6)].map((_, i) => (
-                            <div key={i} className="w-full aspect-[3/4] bg-gray-800/50 animate-pulse rounded-2xl" />
+                            <div
+                                key={i}
+                                className="w-full aspect-[3/4] bg-gray-800/50 animate-pulse rounded-2xl border border-white/10"
+                            />
                         ))}
                     </div>
                 ) : profiles.length > 0 ? (
