@@ -1,19 +1,39 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router';
 import { Heart, Star, X, MapPin, Radar, Briefcase, GraduationCap, ChevronLeft, ChevronRight, Crown } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 
-import { NEARBY_TITLE, NEARBY_TEXT, baseURL } from '../utils/constants';
-import { getNearbyUsersHandler } from '../tanstack/user';
+import { NEARBY_TITLE, NEARBY_TEXT, baseURL, premiumPath, ENCOUNTER_ACTION } from '../utils/constants';
+import { getNearbyUsersHandler, getPremiumStatusHandler } from '../tanstack/user';
+import { likeUserHandler, dislikeUserHandler } from '../tanstack/encounter';
 
 import MainLayout from '../components/Layouts/MainLayout';
 import HelmetHeader from '../components/HelmetHeader';
 import { buildPictureUrl } from '../utils/functions';
 
+/* ------------------------------------------------------------------ */
+/* Injected keyframes for the super-like burst (mirrors Encounters)   */
+/* ------------------------------------------------------------------ */
+const burstStyles = `
+@keyframes superRing {
+    0%   { width: 60px;  height: 60px;  opacity: 0; transform: scale(0.5); }
+    20%  {                               opacity: 1;                     }
+    100% { width: 480px; height: 480px; opacity: 0; transform: scale(1);   }
+}
+@keyframes superStar {
+    0%   { opacity: 0; transform: scale(0.3) rotate(-30deg); }
+    30%  { opacity: 1; transform: scale(1.2) rotate(10deg);  }
+    70%  { opacity: 1; transform: scale(1)   rotate(0deg);   }
+    100% { opacity: 0; transform: scale(1.4) rotate(20deg);  }
+}
+@keyframes superSpark {
+    0%   { opacity: 1; transform: translate(0, 0) scale(0.6); }
+    100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(1.2); }
+}
+`;
+
 export default function Nearby() {
     const navigate = useNavigate();
-
-    // Replace this with your actual user state/auth context hook (e.g., const { user } = useAuth();)
-    const [isPremium] = useState(true);
 
     const [profiles, setProfiles] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -22,26 +42,56 @@ export default function Nearby() {
 
     // State to toggle the Premium Modal
     const [showPremiumModal, setShowPremiumModal] = useState(false);
+    const [premiumFeatureName, setPremiumFeatureName] = useState('');
+
+    // Super-like burst overlay. Non-null while the burst is playing.
+    // Shape: { profileId }
+    const [superLikeBurst, setSuperLikeBurst] = useState(null);
 
     // Touch gesture tracking for swiping photos on mobile
     const [touchStartX, setTouchStartX] = useState(0);
     const [touchEndX, setTouchEndX] = useState(0);
 
-    useEffect(() => {
-        (async () => {
-            try {
-                const response = await getNearbyUsersHandler();
-                const fetchedProfiles = response?.userProfiles || [];
-                setProfiles(fetchedProfiles);
-            } catch (error) {
-                console.error("Failed to fetch nearby profiles:", error);
-            } finally {
-                setLoading(false);
-            }
-        })();
+    // Prevent double-firing an action on the same card
+    const isProcessingAction = useRef(false);
+
+    /* ---------------------------------------------------------------- */
+    /* Premium status                                                   */
+    /* ---------------------------------------------------------------- */
+    const { data: premiumStatusData } = useQuery({
+        queryKey: ['premium-status'],
+        queryFn: getPremiumStatusHandler,
+    });
+
+    // null while loading, true/false once resolved.
+    const isPremium =
+        premiumStatusData === undefined
+            ? null
+            : Boolean(premiumStatusData?.is_premium);
+
+    /* ---------------------------------------------------------------- */
+    /* Fetch nearby profiles                                            */
+    /* ---------------------------------------------------------------- */
+    const fetchProfiles = useCallback(async () => {
+        setLoading(true);
+        try {
+            const response = await getNearbyUsersHandler();
+            const fetchedProfiles = response?.userProfiles || [];
+            setProfiles(fetchedProfiles);
+        } catch (error) {
+            console.error('Failed to fetch nearby profiles:', error);
+        } finally {
+            setLoading(false);
+        }
     }, []);
 
-    // Handle keypresses for image navigation on desktop
+    useEffect(() => {
+        fetchProfiles();
+    }, [fetchProfiles]);
+
+    /* ---------------------------------------------------------------- */
+    /* Keypress navigation for the profile modal                        */
+    /* ---------------------------------------------------------------- */
     useEffect(() => {
         const handleKeyDown = (e) => {
             if (!selectedProfile) return;
@@ -54,18 +104,26 @@ export default function Nearby() {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [selectedProfile, activeImageIndex]);
 
-    // Handle interactions for free vs premium users
+    /* ---------------------------------------------------------------- */
+    /* Premium guard                                                    */
+    /* ---------------------------------------------------------------- */
     const handleActionGuard = (callback) => {
+        // Wait until status resolves — don't accidentally let a free user
+        // through, and don't nag a premium user with a false positive.
+        if (isPremium === null) return;
+
         if (!isPremium) {
+            setPremiumFeatureName('This');
             setShowPremiumModal(true);
             return;
         }
         if (callback) callback();
     };
 
-    // Open profile modal
     const handleOpenProfile = (profile) => {
+        if (isPremium === null) return;
         if (!isPremium) {
+            setPremiumFeatureName('Viewing full profiles');
             setShowPremiumModal(true);
             return;
         }
@@ -78,7 +136,9 @@ export default function Nearby() {
         setActiveImageIndex(0);
     };
 
-    // Carousel Navigation
+    /* ---------------------------------------------------------------- */
+    /* Carousel                                                         */
+    /* ---------------------------------------------------------------- */
     const handleNextImage = () => {
         if (!selectedProfile?.pictures?.length) return;
         setActiveImageIndex((prev) =>
@@ -93,7 +153,6 @@ export default function Nearby() {
         );
     };
 
-    // Touch handlers for mobile photo swiping
     const handleTouchStart = (e) => {
         setTouchStartX(e.targetTouches[0].clientX);
     };
@@ -117,9 +176,98 @@ export default function Nearby() {
         setTouchEndX(0);
     };
 
+    /* ---------------------------------------------------------------- */
+    /* Action handlers: like / dislike / super-like                     */
+    /* ---------------------------------------------------------------- */
+    const removeProfileFromState = (profileId) => {
+        setProfiles((prev) => prev.filter((p) => p.id !== profileId));
+        setSelectedProfile((prev) =>
+            prev && prev.id === profileId ? null : prev
+        );
+    };
+
+    const runAction = async (direction, profile) => {
+        if (!profile?.id) return;
+        if (isProcessingAction.current) return;
+        isProcessingAction.current = true;
+
+        const recipientId = profile.id;
+        const data = { recipient_id: recipientId };
+
+        // Optimistically remove the card so the UI feels instant.
+        removeProfileFromState(recipientId);
+
+        try {
+            if (direction === 'dislike') {
+                data.action = ENCOUNTER_ACTION.DISLIKE;
+                await dislikeUserHandler(data);
+            } else {
+                data.action =
+                    direction === 'super_like'
+                        ? ENCOUNTER_ACTION.SUPER_LIKE
+                        : ENCOUNTER_ACTION.LIKE;
+                await likeUserHandler(data);
+            }
+        } catch (err) {
+            console.error(`${direction} failed:`, err);
+            // On failure, re-fetch so the card can reappear if the server
+            // still considers it valid.
+        } finally {
+            isProcessingAction.current = false;
+            // Re-fetch the list after every action, regardless of outcome,
+            // so the page reflects the server's current state.
+            fetchProfiles();
+        }
+    };
+
+    /* ---------------------------------------------------------------- */
+    /* Public button entry points                                       */
+    /* ---------------------------------------------------------------- */
+
+    // Like — free for everyone.
+    const handleLike = (e, profile) => {
+        if (e) e.stopPropagation();
+        if (!profile) return;
+        runAction('like', profile);
+    };
+
+    // Dislike — free for everyone.
+    const handleDislike = (e, profile) => {
+        if (e) e.stopPropagation();
+        if (!profile) return;
+        runAction('dislike', profile);
+    };
+
+    // Super-like — premium only, plays the burst first.
+    const handleSuperLike = (e, profile) => {
+        if (e) e.stopPropagation();
+        if (!profile) return;
+
+        if (isPremium === null) return;
+
+        if (!isPremium) {
+            setPremiumFeatureName('Super Like');
+            setShowPremiumModal(true);
+            return;
+        }
+
+        // Fire the burst overlay first, then kick off the action on the
+        // next tick so the overlay gets a paint before the card disappears.
+        setSuperLikeBurst({ profileId: profile.id });
+        setTimeout(() => runAction('super_like', profile), 80);
+    };
+
+    // Safety net — clears the burst if something interrupts the flow
+    useEffect(() => {
+        if (!superLikeBurst) return;
+        const t = setTimeout(() => setSuperLikeBurst(null), 900);
+        return () => clearTimeout(t);
+    }, [superLikeBurst]);
+
     return (
         <MainLayout pageTitle={NEARBY_TITLE} pageDetails={NEARBY_TEXT}>
             <HelmetHeader pageTitle={NEARBY_TITLE} />
+            <style>{burstStyles}</style>
 
             <div className="relative w-full h-full flex flex-col overflow-y-auto select-none px-4 sm:px-8 py-6 scroll-bar">
                 {/* Header */}
@@ -186,29 +334,23 @@ export default function Nearby() {
                                     {/* Action Buttons */}
                                     <div className="flex items-center gap-2 mt-3 pt-2 border-t border-white/10 opacity-90 sm:opacity-0 group-hover:opacity-100 transition-opacity">
                                         <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleActionGuard();
-                                            }}
+                                            onClick={(e) => handleDislike(e, profile)}
                                             className="flex-1 py-1.5 flex items-center justify-center rounded-xl bg-gray-800/80 hover:bg-red-500/20 text-gray-300 hover:text-red-400 transition-colors border border-white/5"
+                                            aria-label="Dislike"
                                         >
                                             <X size={16} />
                                         </button>
                                         <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleActionGuard();
-                                            }}
+                                            onClick={(e) => handleSuperLike(e, profile)}
                                             className="p-1.5 flex items-center justify-center rounded-xl bg-gray-800/80 hover:bg-amber-500/20 text-amber-400 transition-colors border border-white/5"
+                                            aria-label="Super Like"
                                         >
                                             <Star size={16} fill="currentColor" />
                                         </button>
                                         <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleActionGuard();
-                                            }}
+                                            onClick={(e) => handleLike(e, profile)}
                                             className="flex-1 py-1.5 flex items-center justify-center rounded-xl bg-gradient-to-r from-pink-500 to-violet-600 text-white font-medium hover:brightness-110 transition-all shadow-md"
+                                            aria-label="Like"
                                         >
                                             <Heart size={16} fill="currentColor" />
                                         </button>
@@ -273,7 +415,7 @@ export default function Nearby() {
                                 </div>
                             )}
 
-                            {/* Carousel Navigation Buttons for ALL Screen Sizes */}
+                            {/* Carousel Navigation Buttons */}
                             {selectedProfile.pictures?.length > 1 && (
                                 <>
                                     <button
@@ -337,25 +479,67 @@ export default function Nearby() {
                         {/* Action Toolbar */}
                         <div className="p-4 bg-gray-900/90 border-t border-white/5 flex items-center gap-3">
                             <button
-                                onClick={handleCloseModal}
+                                onClick={(e) => handleDislike(e, selectedProfile)}
                                 className="p-3 rounded-2xl bg-gray-800 text-gray-300 hover:bg-gray-700 transition-colors"
+                                aria-label="Dislike"
                             >
                                 <X size={20} />
                             </button>
                             <button
-                                onClick={() => handleActionGuard()}
+                                onClick={(e) => handleSuperLike(e, selectedProfile)}
                                 className="p-3 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:bg-amber-500/30 transition-colors"
+                                aria-label="Super Like"
                             >
                                 <Star size={20} fill="currentColor" />
                             </button>
                             <button
-                                onClick={() => handleActionGuard()}
+                                onClick={(e) => handleLike(e, selectedProfile)}
                                 className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-pink-500 to-violet-600 text-white font-medium hover:brightness-110 transition-all shadow-lg flex items-center justify-center gap-2"
                             >
                                 <Heart size={18} fill="currentColor" /> Like Profile
                             </button>
                         </div>
                     </div>
+                </div>
+            )}
+
+            {/* ---------------- SUPER LIKE BURST ---------------- */}
+            {superLikeBurst && (
+                <div className="pointer-events-none fixed inset-0 z-[60] flex items-center justify-center">
+                    {/* Radiating rings */}
+                    <span className="absolute rounded-full border-4 border-amber-400/70 animate-[superRing_0.9s_ease-out_forwards]" />
+                    <span className="absolute rounded-full border-4 border-yellow-300/60 animate-[superRing_0.9s_ease-out_0.1s_forwards]" />
+                    <span className="absolute rounded-full border-4 border-pink-400/50 animate-[superRing_0.9s_ease-out_0.2s_forwards]" />
+
+                    {/* Central star burst */}
+                    <span className="absolute text-amber-300 animate-[superStar_0.9s_ease-out_forwards]">
+                        <Star size={96} fill="currentColor" strokeWidth={0} />
+                    </span>
+
+                    {/* Flying sparks */}
+                    {[...Array(8)].map((_, i) => {
+                        const angle = (i / 8) * Math.PI * 2;
+                        const dx = Math.cos(angle) * 140;
+                        const dy = Math.sin(angle) * 140;
+                        return (
+                            <span
+                                key={i}
+                                className="absolute text-yellow-400"
+                                style={{
+                                    '--dx': `${dx}px`,
+                                    '--dy': `${dy}px`,
+                                    animation: `superSpark 0.8s ease-out forwards`,
+                                    animationDelay: `${i * 20}ms`,
+                                }}
+                            >
+                                <Star
+                                    size={16}
+                                    fill="currentColor"
+                                    strokeWidth={0}
+                                />
+                            </span>
+                        );
+                    })}
                 </div>
             )}
 
@@ -376,11 +560,17 @@ export default function Nearby() {
 
                         <h3 className="text-xl font-bold text-white mb-2">Premium Feature</h3>
                         <p className="text-sm text-gray-300 mb-6 leading-relaxed">
-                            Viewing profiles and interacting with nearby matches is exclusive to Premium members. Upgrade to connect instantly!
+                            <span className="font-semibold text-amber-400">
+                                {premiumFeatureName || 'This feature'}
+                            </span>{' '}
+                            is exclusive to Premium members. Upgrade to connect instantly!
                         </p>
 
                         <button
-                            onClick={() => navigate('/premium')}
+                            onClick={() => {
+                                setShowPremiumModal(false);
+                                navigate(premiumPath);
+                            }}
                             className="w-full py-3 px-6 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 text-white font-semibold shadow-lg hover:brightness-110 transition-all flex items-center justify-center gap-2"
                         >
                             <Crown size={18} />
