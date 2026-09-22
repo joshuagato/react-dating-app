@@ -4,12 +4,10 @@ const AdSense = ({ client, slot, format = 'auto', responsive = 'true' }) => {
     const adRef = useRef(null);
 
     useEffect(() => {
-        // Prevent double execution in React StrictMode
         if (adRef.current && adRef.current.getAttribute('data-adsbygoogle-status')) {
             return;
         }
 
-        // Delay execution slightly to ensure container has a non-zero computed width
         const timer = setTimeout(() => {
             try {
                 if (window.adsbygoogle && adRef.current) {
@@ -24,11 +22,29 @@ const AdSense = ({ client, slot, format = 'auto', responsive = 'true' }) => {
     }, []);
 
     return (
-        <div style={{ width: '100%', minWidth: '250px', display: 'flex', justifyContent: 'center' }}>
+        <div
+            style={{
+                width: '100%',
+                maxWidth: '100%',
+                height: '100%',
+                maxHeight: '100%',
+                overflow: 'hidden',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+            }}
+        >
             <ins
                 ref={adRef}
                 className="adsbygoogle"
-                style={{ display: 'block', width: '100%', minWidth: '250px', height: '100%' }}
+                style={{
+                    display: 'block',
+                    width: '100%',
+                    minWidth: '250px',
+                    height: '100%',
+                    maxHeight: '100%',
+                    overflow: 'hidden',
+                }}
                 data-ad-client={client}
                 data-ad-slot={slot}
                 data-ad-format={format}
