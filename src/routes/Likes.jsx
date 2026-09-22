@@ -5,11 +5,12 @@ import { useQuery } from '@tanstack/react-query';
 import {
     Heart, X, Sparkles, MapPin, Briefcase,
     GraduationCap, Crown, ChevronLeft, ChevronRight, Star, User,
+    Maximize2, SendHorizontal, Users, Clock, CheckCircle2,
 } from 'lucide-react';
 
 import {
     LIKES_TITLE, LIKES_TEXT, baseURL, premiumPath, partnerProfilePath,
-    ENCOUNTER_ACTION,
+    chatPath, ENCOUNTER_ACTION,
 } from '../utils/constants';
 import { buildPictureUrl } from '../utils/functions';
 import { getPremiumStatusHandler } from '../tanstack/user';
@@ -31,6 +32,28 @@ const FILTERS = {
     REGULAR: 'regular',
 };
 
+/* ------------------------------------------------------------------ */
+/* Reusable InfoRow (mirrors Nearby / PartnerProfile)                 */
+/* ------------------------------------------------------------------ */
+function InfoRow({ icon, label, value, iconBg = 'bg-violet-50', iconColor = 'text-violet-600' }) {
+    if (!value) return null;
+    return (
+        <div className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
+            <div className={`flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center ${iconBg} ${iconColor}`}>
+                {icon}
+            </div>
+            <div className="min-w-0">
+                <p className="text-[11px] uppercase tracking-wider font-semibold text-slate-400">
+                    {label}
+                </p>
+                <p className="text-sm font-medium text-slate-700 capitalize break-words">
+                    {value}
+                </p>
+            </div>
+        </div>
+    );
+}
+
 export default function Likes() {
     const navigate = useNavigate();
 
@@ -40,6 +63,8 @@ export default function Likes() {
     const [filter, setFilter] = useState(FILTERS.ALL);
 
     const [activeImageIndex, setActiveImageIndex] = useState(0);
+    const [isFullscreen, setIsFullscreen] = useState(false);
+
     const [touchStartX, setTouchStartX] = useState(0);
     const [touchEndX, setTouchEndX] = useState(0);
 
@@ -115,7 +140,6 @@ export default function Likes() {
             await markLikesAsSeenHandler([userId]);
         } catch (error) {
             console.error(`Failed to mark profile ${userId} as seen:`, error);
-            // Roll back the optimistic guard so a later retry can succeed.
             trackedSeenIds.current.delete(userId);
         }
     }, []);
@@ -158,17 +182,8 @@ export default function Likes() {
     }, [loading, filteredProfiles, setupObserver]);
 
     /* ---------------------------------------------------------------- */
-    /* Premium guard + modal control                                    */
+    /* Modal control                                                    */
     /* ---------------------------------------------------------------- */
-    const handleActionGuard = (callback) => {
-        if (isPremium === null) return;
-        if (!isPremium) {
-            setShowPremiumModal(true);
-            return;
-        }
-        if (callback) callback();
-    };
-
     const handleOpenProfile = (profile) => {
         if (isPremium === null) return;
         if (!isPremium) {
@@ -177,21 +192,24 @@ export default function Likes() {
         }
         setSelectedProfile(profile);
         setActiveImageIndex(0);
+        setIsFullscreen(false);
     };
 
     const handleCloseModal = () => {
         setSelectedProfile(null);
         setActiveImageIndex(0);
+        setIsFullscreen(false);
     };
 
     /* ---------------------------------------------------------------- */
-    /* Navigate to the full partner profile                             */
+    /* Navigate to full partner profile                                 */
     /* ---------------------------------------------------------------- */
     const handleOpenPartnerProfile = () => {
         if (!selectedProfile?.user_id) return;
         const userId = selectedProfile.user_id;
         setSelectedProfile(null);
         setActiveImageIndex(0);
+        setIsFullscreen(false);
         navigate(partnerProfilePath, { state: { user_id: userId } });
     };
 
@@ -232,7 +250,27 @@ export default function Likes() {
     };
 
     /* ---------------------------------------------------------------- */
-    /* Action handlers: like / dislike                                  */
+    /* Keyboard nav for modal + lightbox                                */
+    /* ---------------------------------------------------------------- */
+    useEffect(() => {
+        if (!selectedProfile) return;
+        const onKey = (e) => {
+            if (isFullscreen) {
+                if (e.key === 'Escape') setIsFullscreen(false);
+                if (e.key === 'ArrowLeft') handlePrevImage();
+                if (e.key === 'ArrowRight') handleNextImage();
+                return;
+            }
+            if (e.key === 'Escape') handleCloseModal();
+            if (e.key === 'ArrowLeft') handlePrevImage();
+            if (e.key === 'ArrowRight') handleNextImage();
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [selectedProfile, activeImageIndex, isFullscreen]);
+
+    /* ---------------------------------------------------------------- */
+    /* Action handlers                                                  */
     /* ---------------------------------------------------------------- */
     const removeProfileFromState = (profileId) => {
         setProfiles((prev) =>
@@ -251,7 +289,6 @@ export default function Likes() {
 
         const data = { recipient_id: recipientId };
 
-        // Optimistic removal so the UI feels instant.
         removeProfileFromState(recipientId);
 
         try {
@@ -266,18 +303,14 @@ export default function Likes() {
             console.error(`${direction} failed:`, err);
         } finally {
             isProcessingAction.current = false;
-            // Re-fetch so the page reflects the server's current state.
             fetchProfiles();
         }
     };
 
-    // Match back — likes the user who already liked me.
     const handleLike = (e, profile) => {
         if (e) e.stopPropagation();
         if (!profile) return;
         if (isPremium === null) return;
-        // Liking someone back from the likes list is a premium action,
-        // mirroring the existing gate on the card buttons.
         if (!isPremium) {
             setShowPremiumModal(true);
             return;
@@ -285,7 +318,6 @@ export default function Likes() {
         runAction('like', profile);
     };
 
-    // Pass — dislikes the user.
     const handleDislike = (e, profile) => {
         if (e) e.stopPropagation();
         if (!profile) return;
@@ -296,6 +328,31 @@ export default function Likes() {
         }
         runAction('dislike', profile);
     };
+
+    // Message — navigates to the chat screen with this partner.
+    const handleMessage = (e, profile) => {
+        if (e) e.stopPropagation();
+        if (!profile?.user_id) return;
+
+        const partner = {
+            id: profile.user_id,
+            name: profile.name,
+            picture: profile.pictures?.[0]?.path || '',
+            age: profile.age,
+            city: profile.location || profile.city,
+        };
+        setSelectedProfile(null);
+        setActiveImageIndex(0);
+        setIsFullscreen(false);
+        navigate(chatPath, { state: { partner } });
+    };
+
+    const hasPictures =
+        Array.isArray(selectedProfile?.pictures) &&
+        selectedProfile.pictures.length > 0;
+
+    const isSuperLike =
+        selectedProfile?.action === ENCOUNTER_ACTION.SUPER_LIKE;
 
     return (
         <MainLayout pageTitle={LIKES_TITLE} pageDetails={LIKES_TEXT}>
@@ -359,7 +416,7 @@ export default function Likes() {
                         {filteredProfiles.map((profile, index) => {
                             const isUnseen = profile.seen === false;
                             const shouldBlur = isPremium === false;
-                            const isSuperLike =
+                            const isSuperLikeCard =
                                 profile.action === ENCOUNTER_ACTION.SUPER_LIKE;
 
                             return (
@@ -369,13 +426,12 @@ export default function Likes() {
                                     data-profile-id={profile.user_id}
                                     data-seen={profile.seen ?? true}
                                     onClick={() => handleOpenProfile(profile)}
-                                    className={`group relative w-full aspect-[3/4] rounded-2xl overflow-hidden cursor-pointer shadow-lg transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl border ${isSuperLike
+                                    className={`group relative w-full aspect-[3/4] rounded-2xl overflow-hidden cursor-pointer shadow-lg transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl border ${isSuperLikeCard
                                         ? 'border-amber-400/60 ring-2 ring-amber-400/20 hover:shadow-amber-500/25'
                                         : 'border-white/10 hover:shadow-pink-500/10'
                                         }`}
                                 >
-                                    {/* Super-like card tint */}
-                                    {isSuperLike && (
+                                    {isSuperLikeCard && (
                                         <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 via-transparent to-yellow-400/10 z-10 pointer-events-none" />
                                     )}
 
@@ -396,9 +452,6 @@ export default function Likes() {
 
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent opacity-80 group-hover:opacity-95 transition-opacity" />
 
-                                    {/* Top-right: NEW badge — reserved for the
-                                        unseen state only, never displaced by
-                                        the super-like indicator */}
                                     {isUnseen && (
                                         <span className="absolute top-3 right-3 z-20 flex items-center gap-1 text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-full bg-gradient-to-r from-pink-500 to-violet-600 text-white shadow-lg animate-pulse">
                                             <Sparkles size={10} /> NEW
@@ -411,13 +464,9 @@ export default function Likes() {
                                         </span>
                                     )}
 
-                                    {/* Centre overlay — super-like pill (type
-                                        indicator) stacked above the crown
-                                        (free-tier lock). Neither one takes
-                                        the top-right badge slot. */}
-                                    {(isSuperLike || shouldBlur) && (
+                                    {(isSuperLikeCard || shouldBlur) && (
                                         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 pointer-events-none">
-                                            {isSuperLike && (
+                                            {isSuperLikeCard && (
                                                 <span className="flex items-center gap-1 text-[10px] sm:text-xs font-bold px-2.5 py-1 rounded-full bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-900 shadow-lg shadow-amber-500/40">
                                                     <Star
                                                         size={11}
@@ -430,7 +479,7 @@ export default function Likes() {
 
                                             {shouldBlur && (
                                                 <div
-                                                    className={`p-3 rounded-full backdrop-blur-md shadow-lg border ${isSuperLike
+                                                    className={`p-3 rounded-full backdrop-blur-md shadow-lg border ${isSuperLikeCard
                                                         ? 'bg-amber-500/20 border-amber-400/50 text-amber-300'
                                                         : 'bg-black/60 border-amber-500/30 text-amber-400'
                                                         }`}
@@ -465,7 +514,7 @@ export default function Likes() {
                                             </button>
                                             <button
                                                 onClick={(e) => handleLike(e, profile)}
-                                                className={`flex-1 py-1.5 flex items-center justify-center rounded-xl text-white font-medium hover:brightness-110 transition-all shadow-md ${isSuperLike
+                                                className={`flex-1 py-1.5 flex items-center justify-center rounded-xl text-white font-medium hover:brightness-110 transition-all shadow-md ${isSuperLikeCard
                                                     ? 'bg-gradient-to-r from-amber-400 to-yellow-500'
                                                     : 'bg-gradient-to-r from-pink-500 to-violet-600'
                                                     }`}
@@ -501,198 +550,292 @@ export default function Likes() {
                 )}
             </div>
 
-            {/* Detailed Profile Modal */}
+            {/* ------------------------------------------------ */}
+            {/* Profile Modal — PartnerProfile design            */}
+            {/* ------------------------------------------------ */}
             {selectedProfile && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-2 sm:p-4 animate-fade-in">
-                    <div
-                        className={`relative w-full max-w-md bg-gray-900 rounded-3xl overflow-hidden shadow-2xl max-h-[88vh] flex flex-col border ${selectedProfile.action === ENCOUNTER_ACTION.SUPER_LIKE
-                            ? 'border-amber-400/40'
-                            : 'border-white/10'
-                            }`}
-                    >
-                        {/* Super-like banner inside the modal */}
-                        {selectedProfile.action ===
-                            ENCOUNTER_ACTION.SUPER_LIKE && (
-                                <div className="absolute top-0 left-0 right-0 z-30 px-4 py-2 bg-gradient-to-r from-amber-400 to-yellow-500 flex items-center justify-center gap-2 text-slate-900 text-xs font-bold">
-                                    <Star
-                                        size={13}
-                                        fill="currentColor"
-                                        strokeWidth={0}
-                                    />
-                                    {selectedProfile.name} sent you a Super Like
-                                </div>
-                            )}
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-3 sm:p-4 animate-fade-in">
+                    <div className="relative w-full max-w-md bg-slate-50 rounded-3xl overflow-hidden shadow-2xl max-h-[92vh] flex flex-col">
+                        {/* Super-like banner (kept above everything) */}
+                        {isSuperLike && (
+                            <div className="absolute top-0 inset-x-0 z-40 px-4 py-2 bg-gradient-to-r from-amber-400 to-yellow-500 flex items-center justify-center gap-2 text-slate-900 text-xs font-bold">
+                                <Star size={13} fill="currentColor" strokeWidth={0} />
+                                {selectedProfile.name} sent you a Super Like
+                            </div>
+                        )}
 
+                        {/* Close button */}
                         <button
                             onClick={handleCloseModal}
-                            className="absolute right-4 z-30 p-2 rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors border border-white/10"
-                            style={{
-                                top:
-                                    selectedProfile.action ===
-                                        ENCOUNTER_ACTION.SUPER_LIKE
-                                        ? '52px'
-                                        : '16px',
-                            }}
+                            className="absolute right-3 z-30 p-2 rounded-full bg-black/50 backdrop-blur-md text-white hover:bg-black/75 transition-colors border border-white/20"
+                            style={{ top: isSuperLike ? '52px' : '12px' }}
+                            aria-label="Close"
                         >
                             <X size={18} />
                         </button>
 
-                        <div
-                            className="relative w-full h-80 sm:h-96 bg-black flex-shrink-0 select-none overflow-hidden"
-                            onTouchStart={handleTouchStart}
-                            onTouchMove={handleTouchMove}
-                            onTouchEnd={handleTouchEnd}
-                        >
-                            <img
-                                src={
-                                    buildPictureUrl(
-                                        baseURL,
-                                        selectedProfile.pictures?.[
-                                            activeImageIndex
-                                        ]?.path
-                                    ) || '/placeholder-avatar.png'
-                                }
-                                alt=""
-                                className="absolute inset-0 w-full h-full object-cover filter blur-xl opacity-40"
-                            />
-                            <img
-                                src={
-                                    buildPictureUrl(
-                                        baseURL,
-                                        selectedProfile.pictures?.[
-                                            activeImageIndex
-                                        ]?.path
-                                    ) || '/placeholder-avatar.png'
-                                }
-                                alt={`${selectedProfile.name} photo ${activeImageIndex + 1
-                                    }`}
-                                className="relative w-full h-full object-contain z-10 transition-all duration-300"
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-black/40 z-10 pointer-events-none" />
+                        {/* Scrollable body */}
+                        <div className="overflow-y-auto flex-1 scroll-bar">
+                            {/* Hero image area */}
+                            <div className="relative w-full aspect-[4/5] bg-slate-950">
+                                {hasPictures ? (
+                                    <>
+                                        <div
+                                            className="w-full h-full"
+                                            onTouchStart={handleTouchStart}
+                                            onTouchMove={handleTouchMove}
+                                            onTouchEnd={handleTouchEnd}
+                                        >
+                                            <img
+                                                src={
+                                                    buildPictureUrl(
+                                                        baseURL,
+                                                        selectedProfile.pictures[activeImageIndex]?.path
+                                                    ) ||
+                                                    buildPictureUrl(
+                                                        baseURL,
+                                                        selectedProfile.pictures[0]?.path
+                                                    ) ||
+                                                    '/placeholder-avatar.png'
+                                                }
+                                                alt={`${selectedProfile.name} - Picture ${activeImageIndex + 1}`}
+                                                className="w-full h-full object-contain"
+                                                draggable={false}
+                                            />
+                                        </div>
 
-                            {selectedProfile.pictures?.length > 1 && (
-                                <>
-                                    <button
-                                        onClick={handlePrevImage}
-                                        className="absolute left-3 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-black/40 hover:bg-black/70 text-white backdrop-blur-sm transition-all border border-white/10"
-                                        aria-label="Previous photo"
-                                    >
-                                        <ChevronLeft size={20} />
-                                    </button>
-                                    <button
-                                        onClick={handleNextImage}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-black/40 hover:bg-black/70 text-white backdrop-blur-sm transition-all border border-white/10"
-                                        aria-label="Next photo"
-                                    >
-                                        <ChevronRight size={20} />
-                                    </button>
-                                </>
-                            )}
+                                        {/* Progress indicators */}
+                                        {selectedProfile.pictures.length > 1 && (
+                                            <div className="absolute top-3 inset-x-4 z-20 flex gap-1.5">
+                                                {selectedProfile.pictures.map((_, idx) => (
+                                                    <div
+                                                        key={idx}
+                                                        onClick={() => setActiveImageIndex(idx)}
+                                                        className="flex-1 h-1 rounded-full cursor-pointer overflow-hidden bg-white/30 backdrop-blur-sm"
+                                                    >
+                                                        <div
+                                                            className={`h-full bg-white transition-all duration-300 ${idx === activeImageIndex ? 'w-full' : 'w-0'
+                                                                }`}
+                                                        />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
 
-                            {selectedProfile.pictures?.length > 1 && (
-                                <div className="absolute top-4 left-4 z-20 flex items-center gap-1 bg-black/50 backdrop-blur-md px-2.5 py-1 rounded-full text-xs font-semibold text-white border border-white/10">
-                                    {activeImageIndex + 1} /{' '}
-                                    {selectedProfile.pictures.length}
-                                </div>
-                            )}
+                                        {/* Prev / Next */}
+                                        {selectedProfile.pictures.length > 1 && (
+                                            <>
+                                                <button
+                                                    onClick={handlePrevImage}
+                                                    className="absolute left-3 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-black/50 text-white hover:bg-black/75 backdrop-blur-md transition-all active:scale-95"
+                                                    aria-label="Previous photo"
+                                                >
+                                                    <ChevronLeft size={20} />
+                                                </button>
+                                                <button
+                                                    onClick={handleNextImage}
+                                                    className="absolute right-3 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-black/50 text-white hover:bg-black/75 backdrop-blur-md transition-all active:scale-95"
+                                                    aria-label="Next photo"
+                                                >
+                                                    <ChevronRight size={20} />
+                                                </button>
+                                            </>
+                                        )}
 
-                            {selectedProfile.pictures?.length > 1 && (
-                                <div className="absolute bottom-3 inset-x-0 z-20 flex items-center justify-center gap-1.5 px-4">
-                                    {selectedProfile.pictures.map((_, idx) => (
+                                        {/* Fullscreen trigger */}
                                         <button
-                                            key={idx}
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setActiveImageIndex(idx);
-                                            }}
-                                            className={`h-1.5 rounded-full transition-all duration-300 ${idx === activeImageIndex
-                                                ? 'w-6 bg-white'
-                                                : 'w-1.5 bg-white/40 hover:bg-white/70'
-                                                }`}
-                                        />
-                                    ))}
-                                </div>
-                            )}
+                                            onClick={() => setIsFullscreen(true)}
+                                            className="absolute bottom-3 right-3 z-20 bg-black/50 hover:bg-black/75 backdrop-blur-md text-white p-2.5 rounded-full transition-all duration-200 border border-white/20 shadow-lg active:scale-95"
+                                            title="View fullscreen"
+                                            aria-label="View fullscreen"
+                                        >
+                                            <Maximize2 className="w-4 h-4" />
+                                        </button>
 
-                            <div className="absolute bottom-6 left-4 right-4 z-20 text-white pointer-events-none">
-                                <h2 className="text-2xl font-bold drop-shadow-md">
-                                    {selectedProfile.name},{' '}
-                                    {selectedProfile.age}
-                                </h2>
-                                {selectedProfile.location && (
-                                    <p className="flex items-center gap-1 text-sm text-gray-200 mt-0.5 drop-shadow">
-                                        <MapPin
-                                            size={14}
-                                            className="text-pink-400"
-                                        />{' '}
-                                        {selectedProfile.location}
-                                    </p>
+                                        {/* Scrim + name overlay */}
+                                        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/70 via-black/25 to-transparent" />
+                                        <div className="absolute bottom-4 left-4 right-16 z-10 text-white">
+                                            <h2 className="text-2xl font-bold drop-shadow-md leading-tight">
+                                                {selectedProfile.name}
+                                                {selectedProfile.age
+                                                    ? `, ${selectedProfile.age}`
+                                                    : ''}
+                                            </h2>
+                                            {selectedProfile.location && (
+                                                <p className="flex items-center gap-1 text-xs text-white/90 mt-0.5 drop-shadow">
+                                                    <MapPin className="w-3.5 h-3.5 text-pink-400" />
+                                                    {selectedProfile.location}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-slate-400">
+                                        <User size={48} />
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Body content */}
+                            <div className="p-5 space-y-5 pb-28">
+                                {/* Quick chips */}
+                                <div className="flex flex-wrap gap-2">
+                                    {selectedProfile.isOnline && (
+                                        <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-full">
+                                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                                            Online now
+                                        </span>
+                                    )}
+                                    {!selectedProfile.isOnline &&
+                                        selectedProfile.lastSeen && (
+                                            <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-full">
+                                                <Clock className="w-3.5 h-3.5" />
+                                                Last seen{' '}
+                                                {new Date(
+                                                    selectedProfile.lastSeen
+                                                ).toLocaleDateString()}
+                                            </span>
+                                        )}
+                                    {selectedProfile.gender && (
+                                        <span className="flex items-center gap-1.5 text-xs font-semibold text-violet-700 bg-violet-50 border border-violet-100 px-3 py-1.5 rounded-full capitalize">
+                                            <Users className="w-3.5 h-3.5" />
+                                            {selectedProfile.gender}
+                                        </span>
+                                    )}
+                                </div>
+
+                                {/* Bio */}
+                                {selectedProfile.bio && (
+                                    <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <Sparkles className="w-4 h-4 text-violet-500" />
+                                            <h3 className="font-bold text-slate-800 text-sm">
+                                                About
+                                            </h3>
+                                        </div>
+                                        <p className="text-sm text-slate-600 leading-relaxed italic">
+                                            "{selectedProfile.bio}"
+                                        </p>
+                                    </div>
+                                )}
+
+                                {/* Details */}
+                                {(selectedProfile.occupation ||
+                                    selectedProfile.education) && (
+                                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 space-y-3">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                                                <h3 className="font-bold text-slate-800 text-sm">
+                                                    Details
+                                                </h3>
+                                            </div>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                <InfoRow
+                                                    icon={<Briefcase className="w-4 h-4" />}
+                                                    label="Occupation"
+                                                    value={selectedProfile.occupation}
+                                                    iconBg="bg-amber-50"
+                                                    iconColor="text-amber-500"
+                                                />
+                                                <InfoRow
+                                                    icon={<GraduationCap className="w-4 h-4" />}
+                                                    label="Education"
+                                                    value={selectedProfile.education}
+                                                    iconBg="bg-blue-50"
+                                                    iconColor="text-blue-500"
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+
+                                {/* View full profile link */}
+                                {isPremium && (
+                                    <button
+                                        onClick={handleOpenPartnerProfile}
+                                        className="w-full py-3 rounded-2xl bg-violet-500/10 text-violet-700 border border-violet-200 hover:bg-violet-500/20 transition-colors font-semibold text-sm flex items-center justify-center gap-2"
+                                    >
+                                        <User size={16} />
+                                        View Full Profile
+                                    </button>
                                 )}
                             </div>
                         </div>
 
-                        <div className="p-5 space-y-4 overflow-y-auto flex-1 text-gray-300 scroll-bar">
-                            {selectedProfile.bio && (
-                                <div>
-                                    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">
-                                        About
-                                    </h4>
-                                    <p className="text-sm leading-relaxed text-gray-200">
-                                        {selectedProfile.bio}
-                                    </p>
-                                </div>
-                            )}
-
-                            {selectedProfile.occupation && (
-                                <div className="flex items-center gap-2 text-sm text-gray-300">
-                                    <Briefcase
-                                        size={16}
-                                        className="text-pink-400 flex-shrink-0"
-                                    />
-                                    <span>{selectedProfile.occupation}</span>
-                                </div>
-                            )}
-
-                            {selectedProfile.education && (
-                                <div className="flex items-center gap-2 text-sm text-gray-300">
-                                    <GraduationCap
-                                        size={16}
-                                        className="text-violet-400 flex-shrink-0"
-                                    />
-                                    <span>{selectedProfile.education}</span>
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="p-4 bg-gray-900/90 border-t border-white/5 flex items-center gap-3 flex-shrink-0">
-                            {isPremium && (
-                                <button
-                                    onClick={handleOpenPartnerProfile}
-                                    className="p-3 rounded-2xl bg-violet-500/20 text-violet-300 border border-violet-500/30 hover:bg-violet-500/30 transition-colors"
-                                    aria-label="View Full Profile"
-                                    title="View Full Profile"
-                                >
-                                    <User size={20} />
-                                </button>
-                            )}
+                        {/* Sticky action bar */}
+                        <div className="absolute bottom-0 inset-x-0 p-3 bg-white/95 backdrop-blur-md border-t border-slate-200 flex items-center gap-2.5">
                             <button
                                 onClick={(e) => handleDislike(e, selectedProfile)}
-                                className="flex-1 py-3 rounded-2xl bg-gray-800 text-gray-300 font-medium hover:bg-gray-700 transition-colors"
+                                className="flex-1 py-3 rounded-2xl bg-slate-100 text-slate-600 hover:bg-red-50 hover:text-red-500 transition-colors border border-slate-200 font-semibold flex items-center justify-center"
+                                aria-label="Pass"
                             >
-                                Pass
+                                <X size={20} />
+                            </button>
+                            <button
+                                onClick={(e) => handleMessage(e, selectedProfile)}
+                                className="flex-1 py-3 rounded-2xl bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors border border-blue-200 font-semibold flex items-center justify-center"
+                                aria-label="Message"
+                            >
+                                <SendHorizontal size={20} />
                             </button>
                             <button
                                 onClick={(e) => handleLike(e, selectedProfile)}
-                                className={`flex-1 py-3 rounded-2xl font-medium hover:brightness-110 transition-all shadow-lg flex items-center justify-center gap-2 ${selectedProfile.action ===
-                                    ENCOUNTER_ACTION.SUPER_LIKE
+                                className={`flex-[1.6] py-3 rounded-2xl font-bold hover:brightness-110 transition-all shadow-lg flex items-center justify-center gap-2 ${isSuperLike
                                     ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-900'
                                     : 'bg-gradient-to-r from-pink-500 to-violet-600 text-white'
                                     }`}
                             >
-                                <Heart size={18} fill="currentColor" /> Match
-                                Back
+                                <Heart size={18} fill="currentColor" />
+                                Match Back
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Fullscreen Lightbox */}
+            {isFullscreen && hasPictures && (
+                <div className="fixed inset-0 z-[70] bg-black/95 flex items-center justify-center backdrop-blur-sm fade-in">
+                    <button
+                        onClick={() => setIsFullscreen(false)}
+                        className="absolute top-4 right-4 text-white/80 hover:text-white p-2 rounded-full bg-white/10 hover:bg-white/20 transition-all z-20"
+                        aria-label="Close"
+                    >
+                        <X className="w-6 h-6" />
+                    </button>
+
+                    <div className="absolute top-4 left-4 text-xs font-semibold text-white/80 bg-white/10 px-3 py-1 rounded-full z-20">
+                        {activeImageIndex + 1} / {selectedProfile.pictures.length}
+                    </div>
+
+                    {selectedProfile.pictures.length > 1 && (
+                        <>
+                            <button
+                                onClick={handlePrevImage}
+                                className="absolute left-4 text-white/80 hover:text-white p-3 rounded-full bg-white/10 hover:bg-white/20 transition-all z-20"
+                                aria-label="Previous"
+                            >
+                                <ChevronLeft className="w-6 h-6" />
+                            </button>
+                            <button
+                                onClick={handleNextImage}
+                                className="absolute right-4 text-white/80 hover:text-white p-3 rounded-full bg-white/10 hover:bg-white/20 transition-all z-20"
+                                aria-label="Next"
+                            >
+                                <ChevronRight className="w-6 h-6" />
+                            </button>
+                        </>
+                    )}
+
+                    <div className="w-full h-full p-4 flex items-center justify-center">
+                        <img
+                            src={buildPictureUrl(
+                                baseURL,
+                                selectedProfile.pictures[activeImageIndex]?.path
+                            )}
+                            alt={`${selectedProfile.name} full view`}
+                            className="max-w-full max-h-full object-contain rounded-lg"
+                            draggable={false}
+                        />
                     </div>
                 </div>
             )}
