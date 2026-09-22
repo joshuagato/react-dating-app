@@ -110,18 +110,18 @@ export const isSameDate = (message0, message1) => {
     return message0?.sent_at?.split('T')[0].toString() === message1.sent_at?.split('T')[0].toString();
 }
 
-export function formatMessageDate(dateInput, isLastMessage = false) {
+export function formatMessageDate(dateInput, isLastMessage = false, isMessageDetails = false) {
     if (!dateInput) return '';
 
     const date = new Date(dateInput);
     const now = new Date();
 
     // 1. Today
-    if (!isLastMessage && isToday(date)) {
+    if ((!isLastMessage || isMessageDetails) && isToday(date)) {
         return 'Today';
     }
 
-    if (isLastMessage && isToday(date)) {
+    if (isLastMessage && !isMessageDetails && isToday(date)) {
         return timeTo12Hour(dateInput);
     }
 
@@ -138,7 +138,7 @@ export function formatMessageDate(dateInput, isLastMessage = false) {
         return format(date, 'eeee'); // Returns 'Friday', 'Thursday', etc.
     }
 
-    if (isLastMessage) return format(date, 'MMM d, y');
+    if (isLastMessage || isMessageDetails) return format(date, 'MMM d, y');
 
     // 4. Older than 7 days
     return format(date, 'MMMM d, y');
