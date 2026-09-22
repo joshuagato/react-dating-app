@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router';
-import { Heart, Star, X, MapPin, Radar, Briefcase, GraduationCap, ChevronLeft, ChevronRight, Crown } from 'lucide-react';
+import { Heart, Star, X, MapPin, Radar, Briefcase, GraduationCap, ChevronLeft, ChevronRight, Crown, User } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 
-import { NEARBY_TITLE, NEARBY_TEXT, baseURL, premiumPath, ENCOUNTER_ACTION } from '../utils/constants';
+import { NEARBY_TITLE, NEARBY_TEXT, baseURL, premiumPath, partnerProfilePath, ENCOUNTER_ACTION } from '../utils/constants';
 import { getNearbyUsersHandler, getPremiumStatusHandler } from '../tanstack/user';
 import { likeUserHandler, dislikeUserHandler } from '../tanstack/encounter';
 
@@ -134,6 +134,18 @@ export default function Nearby() {
     const handleCloseModal = () => {
         setSelectedProfile(null);
         setActiveImageIndex(0);
+    };
+
+    /* ---------------------------------------------------------------- */
+    /* Navigate to the full partner profile                             */
+    /* ---------------------------------------------------------------- */
+    const handleOpenPartnerProfile = () => {
+        if (!selectedProfile?.id) return;
+        const userId = selectedProfile.id;
+        // Close the modal first so the transition feels clean, then navigate.
+        setSelectedProfile(null);
+        setActiveImageIndex(0);
+        navigate(partnerProfilePath, { state: { user_id: userId } });
     };
 
     /* ---------------------------------------------------------------- */
@@ -478,6 +490,16 @@ export default function Nearby() {
 
                         {/* Action Toolbar */}
                         <div className="p-4 bg-gray-900/90 border-t border-white/5 flex items-center gap-3">
+                            {isPremium && (
+                                <button
+                                    onClick={handleOpenPartnerProfile}
+                                    className="p-3 rounded-2xl bg-violet-500/20 text-violet-300 border border-violet-500/30 hover:bg-violet-500/30 transition-colors"
+                                    aria-label="View Full Profile"
+                                    title="View Full Profile"
+                                >
+                                    <User size={20} />
+                                </button>
+                            )}
                             <button
                                 onClick={(e) => handleDislike(e, selectedProfile)}
                                 className="p-3 rounded-2xl bg-gray-800 text-gray-300 hover:bg-gray-700 transition-colors"
