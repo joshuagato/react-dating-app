@@ -1,11 +1,17 @@
 import { useState, useEffect } from 'react';
-import { Star, MessageCircle, Users } from 'lucide-react';
+import { Star, MessageCircle, Users, Crown } from 'lucide-react';
 import { Link } from 'react-router';
+import { useQuery } from '@tanstack/react-query';
 import { LiaCheckDoubleSolid, LiaCheckSolid } from 'react-icons/lia';
 
-import { CHATS_TITLE, CHATS_TEXT, baseURL, userId, socket, chatPath } from '../utils/constants';
-import { buildPictureUrl, formatMessageDate, isCurrentUser, isSame, decryptText } from '../utils/functions';
+import {
+    CHATS_TITLE, CHATS_TEXT, baseURL, userId, socket, chatPath,
+} from '../utils/constants';
+import {
+    buildPictureUrl, formatMessageDate, isCurrentUser, isSame, decryptText,
+} from '../utils/functions';
 import { getChatsHandler } from '../tanstack/chat';
+import { getPremiumStatusHandler } from '../tanstack/user';
 
 import MainLayout from '../components/Layouts/MainLayout';
 import HelmetHeader from '../components/HelmetHeader';
@@ -16,76 +22,85 @@ export default function Chats() {
     const [onlineUsers, setOnlineUsers] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    // Fetch potential matches on mount
+    /* ---------------------------------------------------------------- */
+    /* Premium status — shared query key with the rest of the app       */
+    /* ---------------------------------------------------------------- */
+    const { data: premiumStatusData } = useQuery({
+        queryKey: ['premium-status'],
+        queryFn: getPremiumStatusHandler,
+    });
+
+    const isPremium =
+        premiumStatusData === undefined
+            ? null
+            : Boolean(premiumStatusData?.is_premium);
+
+    /* ---------------------------------------------------------------- */
+    /* Fetch chats on mount                                             */
+    /* ---------------------------------------------------------------- */
     useEffect(() => {
         (async () => {
             try {
                 setLoading(true);
                 const chatsResponse = await getChatsHandler();
-                const chats = chatsResponse.chats;
+                const fetchedChats = chatsResponse.chats;
 
-                if (chats.length > 0)
-                    setChats(chats);
-
+                if (fetchedChats.length > 0) setChats(fetchedChats);
             } catch (error) {
-                console.error("Failed to fetch match profiles:", error);
+                console.error('Failed to fetch match profiles:', error);
             } finally {
                 setLoading(false);
             }
         })();
     }, []);
 
-    // ========== SOCKET EVENT LISTENERS ==========
+    /* ---------------------------------------------------------------- */
+    /* Socket listeners                                                 */
+    /* ---------------------------------------------------------------- */
     useEffect(() => {
+        const refreshChats = async () => {
+            const chatsResponse = await getChatsHandler();
+            const fetchedChats = chatsResponse.chats;
+            if (fetchedChats.length > 0) setChats(fetchedChats);
+        };
+
         const handleNewMessage = async ({ message }) => {
             if (message && isSame(message.recipient_id, userId)) {
-                const chatsResponse = await getChatsHandler();
-                const chats = chatsResponse.chats;
-
-                if (chats.length > 0)
-                    setChats(chats);
+                await refreshChats();
             }
         };
 
         const handlePartnerTyping = ({ recipient_id, sender_id, isTyping }) => {
             if (recipient_id && isSame(recipient_id, userId)) {
-                if (isTyping) return setTypingUsers(prevState => [...prevState, sender_id]);
+                if (isTyping)
+                    return setTypingUsers((prevState) => [...prevState, sender_id]);
 
-                setTypingUsers(prevState => prevState.filter(id => id !== sender_id));
+                setTypingUsers((prevState) =>
+                    prevState.filter((id) => id !== sender_id)
+                );
             }
         };
 
         const handleMessageDelivered = async ({ message }) => {
             if (message && isSame(message.sender_id, userId)) {
-                const chatsResponse = await getChatsHandler();
-                const chats = chatsResponse.chats;
-
-                if (chats.length > 0)
-                    setChats(chats);
+                await refreshChats();
             }
         };
 
         const handleMessageRead = async ({ message }) => {
             if (message && isSame(message.sender_id, userId)) {
-                const chatsResponse = await getChatsHandler();
-                const chats = chatsResponse.chats;
-
-                if (chats.length > 0)
-                    setChats(chats);
+                await refreshChats();
             }
         };
 
         const handleUserStatusChange = async ({ user_id, is_online }) => {
-            const chatsResponse = await getChatsHandler();
-            const chats = chatsResponse.chats;
+            await refreshChats();
 
-            if (chats.length > 0)
-                setChats(chats);
+            if (is_online)
+                return setOnlineUsers((prevState) => [...prevState, user_id]);
 
-            if (is_online) return setOnlineUsers(prevState => [...prevState, user_id]);
-
-            setOnlineUsers(prevState => prevState.filter(id => id !== user_id));
-        }
+            setOnlineUsers((prevState) => prevState.filter((id) => id !== user_id));
+        };
 
         socket.on('partner_typing', handlePartnerTyping);
         socket.on('new_message', handleNewMessage);
@@ -102,7 +117,9 @@ export default function Chats() {
         };
     }, []);
 
-    // Render empty state
+    /* ---------------------------------------------------------------- */
+    /* Empty state                                                      */
+    /* ---------------------------------------------------------------- */
     const renderEmptyState = () => (
         <div className="w-full h-full flex flex-col items-center justify-center text-center py-16 px-4">
             <div className="relative mb-6">
@@ -116,8 +133,8 @@ export default function Chats() {
 
             <h3 className="text-2xl font-bold text-white mb-2">No Conversations Yet</h3>
             <p className="text-gray-400 max-w-sm mb-6 leading-relaxed">
-                Start a conversation by matching with someone new.
-                Your chats will appear here once you've connected with others.
+                Start a conversation by matching with someone new. Your chats
+                will appear here once you've connected with others.
             </p>
 
             <Link
@@ -145,11 +162,16 @@ export default function Chats() {
         </div>
     );
 
-    // Render loading state
+    /* ---------------------------------------------------------------- */
+    /* Loading state                                                    */
+    /* ---------------------------------------------------------------- */
     const renderLoading = () => (
         <div className="w-full space-y-4">
             {[...Array(4)].map((_, i) => (
-                <div key={i} className="w-full h-16 flex items-center gap-3 animate-pulse">
+                <div
+                    key={i}
+                    className="w-full h-16 flex items-center gap-3 animate-pulse"
+                >
                     <div className="w-14 h-14 rounded-full bg-gray-800/50 flex-shrink-0"></div>
                     <div className="flex-1 space-y-2">
                         <div className="h-4 bg-gray-800/50 rounded w-32"></div>
@@ -169,11 +191,22 @@ export default function Chats() {
                 {loading ? (
                     renderLoading()
                 ) : chats.length > 0 ? (
-                    <div className='w-full grid grid-cols-1 gap-4'>
+                    <div className="w-full grid grid-cols-1 gap-4">
                         {chats.map((chat, index) => {
-                            const { id: chat_id, myself, partner, unread_message_count = 0,
-                                last_message = {} } = chat;
-                            const { content = '', sender_id = '', sent_at = '', delivered_at = '', read_at = '' } = last_message || {};
+                            const {
+                                id: chat_id,
+                                myself,
+                                partner,
+                                unread_message_count = 0,
+                                last_message = {},
+                            } = chat;
+                            const {
+                                content = '',
+                                sender_id = '',
+                                sent_at = '',
+                                delivered_at = '',
+                                read_at = '',
+                            } = last_message || {};
 
                             const { id: partner_id, name, picture, is_online } = partner;
 
@@ -181,53 +214,92 @@ export default function Chats() {
                             const formatted = formatMessageDate(sent_at, true);
                             const pictureUrl = buildPictureUrl(baseURL, picture);
 
+                            // Read receipts are premium-only. Free users
+                            // still see their messages, just no tick marks.
+                            const showReceipts = isOwn && isPremium;
+
                             return (
-                                <Link to={chatPath} state={{ chat_id, myself, partner }} key={index} className='w-full h-15 flex justify-between items-center cursor-pointer active:bg-neutral-100 rounded-lg hover:bg-white/5 transition-colors p-2'>
-                                    <section className='flex gap-3'>
-                                        <div className='w-15 h-15 relative flex-shrink-0'>
-                                            <img className='w-full h-full object-cover rounded-full'
+                                <Link
+                                    to={chatPath}
+                                    state={{ chat_id, myself, partner }}
+                                    key={index}
+                                    className="w-full h-15 flex justify-between items-center cursor-pointer active:bg-neutral-100 rounded-lg hover:bg-white/5 transition-colors p-2"
+                                >
+                                    <section className="flex gap-3">
+                                        <div className="w-15 h-15 relative flex-shrink-0">
+                                            <img
+                                                className="w-full h-full object-cover rounded-full"
                                                 src={pictureUrl}
                                                 alt="User Profile Picture"
                                             />
-                                            {(is_online || onlineUsers.includes(partner_id)) && (
-                                                <span className='absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-gray-900'></span>
-                                            )}
+                                            {(is_online ||
+                                                onlineUsers.includes(partner_id)) && (
+                                                    <span className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-gray-900"></span>
+                                                )}
                                         </div>
-                                        <div className='w-50 sm:w-80 h-15'>
-                                            <div className='w-full h-full flex flex-col justify-center items-start'>
-                                                <h1 className='text-[14px] sm:text-[18px] font-semibold flex items-center gap-2
-                                                bg-clip-text text-transparent bg-gradient-to-r from-violet-600 to-pink-600'>
+                                        <div className="w-50 sm:w-80 h-15">
+                                            <div className="w-full h-full flex flex-col justify-center items-start">
+                                                <h1 className="text-[14px] sm:text-[18px] font-semibold flex items-center gap-2 bg-clip-text text-transparent bg-gradient-to-r from-violet-600 to-pink-600">
                                                     {name}
                                                 </h1>
-                                                <p className='w-full text-[12px] sm:text-[13px] text-gray-400'
-                                                    style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                                                <p
+                                                    className="w-full text-[12px] sm:text-[13px] text-gray-400"
+                                                    style={{
+                                                        overflow: 'hidden',
+                                                        textOverflow: 'ellipsis',
+                                                        whiteSpace: 'nowrap',
+                                                    }}
                                                 >
-                                                    {!typingUsers.includes(partner_id) ?
-                                                        <span className='flex items-center'>
-                                                            {isOwn && (
+                                                    {!typingUsers.includes(partner_id) ? (
+                                                        <span className="flex items-center">
+                                                            {showReceipts && (
                                                                 <span className="text-xs text-gray-500 mr-2 opacity-70 inline-block">
-                                                                    {sent_at && !delivered_at && !read_at && <LiaCheckSolid color='gray' size={15} />}
-                                                                    {sent_at && delivered_at && !read_at && <LiaCheckDoubleSolid color='gray' size={15} />}
-                                                                    {sent_at && delivered_at && read_at && <LiaCheckDoubleSolid color='blue' size={15} />}
+                                                                    {sent_at &&
+                                                                        !delivered_at &&
+                                                                        !read_at && (
+                                                                            <LiaCheckSolid
+                                                                                color="gray"
+                                                                                size={15}
+                                                                            />
+                                                                        )}
+                                                                    {sent_at &&
+                                                                        delivered_at &&
+                                                                        !read_at && (
+                                                                            <LiaCheckDoubleSolid
+                                                                                color="gray"
+                                                                                size={15}
+                                                                            />
+                                                                        )}
+                                                                    {sent_at &&
+                                                                        delivered_at &&
+                                                                        read_at && (
+                                                                            <LiaCheckDoubleSolid
+                                                                                color="blue"
+                                                                                size={15}
+                                                                            />
+                                                                        )}
                                                                 </span>
                                                             )}
                                                             <span>{decryptText(content)}</span>
-                                                        </span> :
+                                                        </span>
+                                                    ) : (
                                                         <span className="flex items-center gap-2">
-                                                            <span className="text-sm text-violet-400">typing</span>
+                                                            <span className="text-sm text-violet-400">
+                                                                typing
+                                                            </span>
                                                             <span className="typing-dots">
                                                                 <span className="dot"></span>
                                                                 <span className="dot"></span>
                                                                 <span className="dot"></span>
                                                             </span>
                                                         </span>
-                                                    }
+                                                    )}
                                                 </p>
                                             </div>
                                         </div>
                                     </section>
-                                    <section className='w-16 flex-shrink-0'>
-                                        <div className='w-full flex flex-col items-center gap-2'>
+                                    <section className="w-16 flex-shrink-0">
+                                        <div className="w-full flex flex-col items-center gap-2">
                                             {unread_message_count > 0 ? (
                                                 <span className="indicator-item badge badge-primary rounded-full w-6 h-6 text-[10px] font-bold bg-gradient-to-r from-violet-600 to-pink-600 border-none">
                                                     {unread_message_count}
@@ -235,7 +307,9 @@ export default function Chats() {
                                             ) : (
                                                 <Star size={15} className="text-gray-400" />
                                             )}
-                                            <span className='text-[10px] text-gray-500'>{formatted}</span>
+                                            <span className="text-[10px] text-gray-500">
+                                                {formatted}
+                                            </span>
                                         </div>
                                     </section>
                                 </Link>
@@ -247,7 +321,6 @@ export default function Chats() {
                 )}
             </div>
 
-            {/* Add typing animation styles */}
             <style jsx>{`
                 .typing-dots {
                     display: inline-flex;
@@ -257,20 +330,28 @@ export default function Chats() {
                 .typing-dots .dot {
                     width: 4px;
                     height: 4px;
-                    background-color: #8B5CF6;
+                    background-color: #8b5cf6;
                     border-radius: 50%;
-                    animation: typing-bounce 1.4s infinite both;
+                    animation: typing-bounce 1.4s both infinite;
                 }
-                .typing-dots .dot:nth-child(1) { animation-delay: -0.32s; }
-                .typing-dots .dot:nth-child(2) { animation-delay: -0.16s; }
-                .typing-dots .dot:nth-child(3) { animation-delay: 0s; }
-                
+                .typing-dots .dot:nth-child(1) {
+                    animation-delay: -0.32s;
+                }
+                .typing-dots .dot:nth-child(2) {
+                    animation-delay: -0.16s;
+                }
+                .typing-dots .dot:nth-child(3) {
+                    animation-delay: 0s;
+                }
+
                 @keyframes typing-bounce {
-                    0%, 80%, 100% { 
+                    0%,
+                    80%,
+                    100% {
                         transform: scale(0.6);
                         opacity: 0.4;
                     }
-                    40% { 
+                    40% {
                         transform: scale(1);
                         opacity: 1;
                     }
