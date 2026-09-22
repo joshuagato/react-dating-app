@@ -346,7 +346,7 @@ export default function Likes() {
                 )}
 
                 {loading ? (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-3">
                         {[...Array(6)].map((_, i) => (
                             <div
                                 key={i}
@@ -355,7 +355,7 @@ export default function Likes() {
                         ))}
                     </div>
                 ) : filteredProfiles.length > 0 ? (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-3">
                         {filteredProfiles.map((profile, index) => {
                             const isUnseen = profile.seen === false;
                             const shouldBlur = isPremium === false;
