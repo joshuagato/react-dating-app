@@ -299,3 +299,16 @@
         scrollbar-width: thin;
     }
 }
+
+
+/* @media (max-height: 932px) {
+    #adsense {
+        height: 7vh;
+    }
+}
+
+@media (max-height: 1138px) {
+    #adsense {
+        height: 7vh;
+    }
+} */
