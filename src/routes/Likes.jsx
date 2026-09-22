@@ -4,11 +4,12 @@ import { useNavigate } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import {
     Heart, X, Sparkles, MapPin, Briefcase,
-    GraduationCap, Crown, ChevronLeft, ChevronRight, Star,
+    GraduationCap, Crown, ChevronLeft, ChevronRight, Star, User,
 } from 'lucide-react';
 
 import {
-    LIKES_TITLE, LIKES_TEXT, baseURL, premiumPath, ENCOUNTER_ACTION,
+    LIKES_TITLE, LIKES_TEXT, baseURL, premiumPath, partnerProfilePath,
+    ENCOUNTER_ACTION,
 } from '../utils/constants';
 import { buildPictureUrl } from '../utils/functions';
 import { getPremiumStatusHandler } from '../tanstack/user';
@@ -16,6 +17,8 @@ import {
     usersWhoLikeMeHandler,
     usersWhoDisLikeMeHandler,
     usersDisLikedByMeHandler,
+    likeUserHandler,
+    dislikeUserHandler,
     // markLikesAsSeenHandler
 } from '../tanstack/encounter';
 
@@ -43,6 +46,7 @@ export default function Likes() {
     const [showPremiumModal, setShowPremiumModal] = useState(false);
 
     const trackedSeenIds = useRef(new Set());
+    const isProcessingAction = useRef(false);
 
     /* ---------------------------------------------------------------- */
     /* Premium status                                                   */
@@ -60,19 +64,22 @@ export default function Likes() {
     /* ---------------------------------------------------------------- */
     /* Fetch likes                                                      */
     /* ---------------------------------------------------------------- */
-    useEffect(() => {
-        (async () => {
-            try {
-                const response = await usersWhoLikeMeHandler();
-                const fetchedProfiles = response?.likes || [];
-                setProfiles(fetchedProfiles);
-            } catch (error) {
-                console.error('Failed to fetch match profiles:', error);
-            } finally {
-                setLoading(false);
-            }
-        })();
+    const fetchProfiles = useCallback(async () => {
+        setLoading(true);
+        try {
+            const response = await usersWhoLikeMeHandler();
+            const fetchedProfiles = response?.likes || [];
+            setProfiles(fetchedProfiles);
+        } catch (error) {
+            console.error('Failed to fetch match profiles:', error);
+        } finally {
+            setLoading(false);
+        }
     }, []);
+
+    useEffect(() => {
+        fetchProfiles();
+    }, [fetchProfiles]);
 
     /* ---------------------------------------------------------------- */
     /* Derived lists                                                    */
@@ -177,6 +184,17 @@ export default function Likes() {
     };
 
     /* ---------------------------------------------------------------- */
+    /* Navigate to the full partner profile                             */
+    /* ---------------------------------------------------------------- */
+    const handleOpenPartnerProfile = () => {
+        if (!selectedProfile?.user_id) return;
+        const userId = selectedProfile.user_id;
+        setSelectedProfile(null);
+        setActiveImageIndex(0);
+        navigate(partnerProfilePath, { state: { user_id: userId } });
+    };
+
+    /* ---------------------------------------------------------------- */
     /* Carousel                                                         */
     /* ---------------------------------------------------------------- */
     const handlePrevImage = (e) => {
@@ -210,6 +228,72 @@ export default function Likes() {
         else if (distance < -50) handlePrevImage();
         setTouchStartX(0);
         setTouchEndX(0);
+    };
+
+    /* ---------------------------------------------------------------- */
+    /* Action handlers: like / dislike                                  */
+    /* ---------------------------------------------------------------- */
+    const removeProfileFromState = (profileId) => {
+        setProfiles((prev) =>
+            prev.filter((p) => p.user_id !== profileId)
+        );
+        setSelectedProfile((prev) =>
+            prev && prev.user_id === profileId ? null : prev
+        );
+    };
+
+    const runAction = async (direction, profile) => {
+        const recipientId = profile?.user_id;
+        if (!recipientId) return;
+        if (isProcessingAction.current) return;
+        isProcessingAction.current = true;
+
+        const data = { recipient_id: recipientId };
+
+        // Optimistic removal so the UI feels instant.
+        removeProfileFromState(recipientId);
+
+        try {
+            if (direction === 'dislike') {
+                data.action = ENCOUNTER_ACTION.DISLIKE;
+                await dislikeUserHandler(data);
+            } else {
+                data.action = ENCOUNTER_ACTION.LIKE;
+                await likeUserHandler(data);
+            }
+        } catch (err) {
+            console.error(`${direction} failed:`, err);
+        } finally {
+            isProcessingAction.current = false;
+            // Re-fetch so the page reflects the server's current state.
+            fetchProfiles();
+        }
+    };
+
+    // Match back — likes the user who already liked me.
+    const handleLike = (e, profile) => {
+        if (e) e.stopPropagation();
+        if (!profile) return;
+        if (isPremium === null) return;
+        // Liking someone back from the likes list is a premium action,
+        // mirroring the existing gate on the card buttons.
+        if (!isPremium) {
+            setShowPremiumModal(true);
+            return;
+        }
+        runAction('like', profile);
+    };
+
+    // Pass — dislikes the user.
+    const handleDislike = (e, profile) => {
+        if (e) e.stopPropagation();
+        if (!profile) return;
+        if (isPremium === null) return;
+        if (!isPremium) {
+            setShowPremiumModal(true);
+            return;
+        }
+        runAction('dislike', profile);
     };
 
     return (
@@ -373,23 +457,19 @@ export default function Likes() {
 
                                         <div className="flex items-center gap-2 mt-3 pt-2 border-t border-white/10 opacity-90 sm:opacity-0 group-hover:opacity-100 transition-opacity">
                                             <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleActionGuard();
-                                                }}
+                                                onClick={(e) => handleDislike(e, profile)}
                                                 className="flex-1 py-1.5 flex items-center justify-center rounded-xl bg-gray-800/80 hover:bg-red-500/20 text-gray-300 hover:text-red-400 transition-colors border border-white/5"
+                                                aria-label="Pass"
                                             >
                                                 <X size={16} />
                                             </button>
                                             <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleActionGuard();
-                                                }}
+                                                onClick={(e) => handleLike(e, profile)}
                                                 className={`flex-1 py-1.5 flex items-center justify-center rounded-xl text-white font-medium hover:brightness-110 transition-all shadow-md ${isSuperLike
                                                     ? 'bg-gradient-to-r from-amber-400 to-yellow-500'
                                                     : 'bg-gradient-to-r from-pink-500 to-violet-600'
                                                     }`}
+                                                aria-label="Match Back"
                                             >
                                                 <Heart
                                                     size={16}
@@ -584,15 +664,25 @@ export default function Likes() {
                             )}
                         </div>
 
-                        <div className="p-4 bg-gray-900/90 border-t border-white/5 flex items-center gap-4 flex-shrink-0">
+                        <div className="p-4 bg-gray-900/90 border-t border-white/5 flex items-center gap-3 flex-shrink-0">
+                            {isPremium && (
+                                <button
+                                    onClick={handleOpenPartnerProfile}
+                                    className="p-3 rounded-2xl bg-violet-500/20 text-violet-300 border border-violet-500/30 hover:bg-violet-500/30 transition-colors"
+                                    aria-label="View Full Profile"
+                                    title="View Full Profile"
+                                >
+                                    <User size={20} />
+                                </button>
+                            )}
                             <button
-                                onClick={handleCloseModal}
+                                onClick={(e) => handleDislike(e, selectedProfile)}
                                 className="flex-1 py-3 rounded-2xl bg-gray-800 text-gray-300 font-medium hover:bg-gray-700 transition-colors"
                             >
                                 Pass
                             </button>
                             <button
-                                onClick={handleCloseModal}
+                                onClick={(e) => handleLike(e, selectedProfile)}
                                 className={`flex-1 py-3 rounded-2xl font-medium hover:brightness-110 transition-all shadow-lg flex items-center justify-center gap-2 ${selectedProfile.action ===
                                     ENCOUNTER_ACTION.SUPER_LIKE
                                     ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-slate-900'
