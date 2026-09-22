@@ -44,7 +44,6 @@ export default function PremiumPackages() {
     const prices = pricingData?.prices || {};
     const charges = pricingData?.charges || {};
     const publicKey = import.meta.env.VITE_REACT_APP_PAYSTACK_PUBLIC_KEY;
-    console.log({ pricingData })
 
     const formatPrice = (amount, currency = displayCurrency) => {
         if (amount == null) return '—';
@@ -85,6 +84,8 @@ export default function PremiumPackages() {
         }
 
         setSubmitting(true);
+
+        console.log(charge.currency)
 
         const paystack = new PaystackPop();
         paystack.newTransaction({
