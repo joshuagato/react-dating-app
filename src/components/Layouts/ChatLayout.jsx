@@ -1,32 +1,56 @@
-// import PropTypes from 'prop-types';
+// ChatLayout.jsx
 import { useEffect, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router';
+import { useQuery } from '@tanstack/react-query';
 import {
-    SlidersHorizontal, LocateFixed, Copy, Heart, MessageCircleCode, User,
-    MoreHorizontal, Menu, ArrowLeft
+    LocateFixed, Copy, Heart, MessageCircleCode, User,
+    ArrowLeft, ChevronRight, Crown,
 } from 'lucide-react';
+
 import {
-    baseURL, chatsPath, encountersPath, likesPath, nearbyPath, profilePath, socket,
-    userId
+    baseURL, chatsPath, encountersPath, likesPath, nearbyPath, profilePath,
+    partnerProfilePath, premiumPath, socket, userId,
 } from '../../utils/constants';
 import {
-    chooseColour, chooseTextColour, isSame, pathMatched, formatLastSeenDate,
-    buildPictureUrl
+    chooseColour, chooseTextColour, isSame, formatLastSeenDate, buildPictureUrl,
 } from '../../utils/functions';
 import { getUnreadChatsCountHandler } from '../../tanstack/chat';
 import { getNewLikesCountHandler } from '../../tanstack/encounter';
+import { getPremiumStatusHandler } from '../../tanstack/user';
 
 import AdSense from '../AdSense';
 
-const MainLayout = ({ children, partnerName, partnerAge, partnerPicture, lastSeen, onlineStatus, chat_id }) => {
+const ChatLayout = ({
+    children,
+    partnerId,
+    partnerName,
+    partnerAge,
+    partnerPicture,
+    lastSeen,
+    onlineStatus,
+    chat_id,
+}) => {
     const currentPathName = useLocation().pathname;
     const navigate = useNavigate();
     const [unreadChatsCount, setUnreadChatsCount] = useState(0);
     const [newLikesCount, setNewLikesCount] = useState(0);
 
+    /* ---------------------------------------------------------------- */
+    /* Premium status — shares the cached result with Chat/Encounters/  */
+    /* Nearby/Likes via the same query key.                             */
+    /* ---------------------------------------------------------------- */
+    const { data: premiumStatusData } = useQuery({
+        queryKey: ['premium-status'],
+        queryFn: getPremiumStatusHandler,
+    });
+
+    const isPremium =
+        premiumStatusData === undefined
+            ? null
+            : Boolean(premiumStatusData?.is_premium);
+
     useEffect(() => {
         (async () => {
-
             const chatsResponse = await getUnreadChatsCountHandler();
             setUnreadChatsCount(chatsResponse.count);
 
@@ -37,7 +61,12 @@ const MainLayout = ({ children, partnerName, partnerAge, partnerPicture, lastSee
 
     useEffect(() => {
         const handleNewMessage = async ({ message }) => {
-            if (message && isSame(message.recipient_id, userId) && chat_id && !isSame(message.chat_id, chat_id)) {
+            if (
+                message &&
+                isSame(message.recipient_id, userId) &&
+                chat_id &&
+                !isSame(message.chat_id, chat_id)
+            ) {
                 const chatsResponse = await getUnreadChatsCountHandler();
                 setUnreadChatsCount(chatsResponse.count);
             }
@@ -57,127 +86,171 @@ const MainLayout = ({ children, partnerName, partnerAge, partnerPicture, lastSee
             socket.off('new_message', handleNewMessage);
             socket.off('message_read', handleMessageRead);
         };
-    }, []);
+    }, [chat_id]);
 
     const pictureUrl = buildPictureUrl(baseURL, partnerPicture);
 
+    const openPartnerProfile = () => {
+        if (!partnerId) return;
+        navigate(partnerProfilePath, { state: { user_id: partnerId } });
+    };
+
+    /* ---------------------------------------------------------------- */
+    /* Status line — three states:                                      */
+    /*   1. Online       → always shown to everyone                     */
+    /*   2. Last seen    → premium only, others see an upgrade CTA      */
+    /*   3. Offline/no   → "Offline" for premium, upgrade CTA for free  */
+    /* ---------------------------------------------------------------- */
+    const renderStatusLine = () => {
+        if (onlineStatus) {
+            return (
+                <span className="text-emerald-600 font-medium">Online</span>
+            );
+        }
+
+        // Premium users get the real last-seen timestamp (or "Offline")
+        if (isPremium) {
+            return lastSeen ? (
+                formatLastSeenDate(lastSeen)
+            ) : (
+                'Offline'
+            );
+        }
+
+        // Free users see an upgrade prompt. During the null loading window
+        // we render nothing so there's no flash of the wrong state.
+        if (isPremium === null) {
+            return <span className="opacity-0">···</span>;
+        }
+
+        return (
+            <span className="inline-flex items-center gap-1 text-amber-600 font-medium">
+                <Crown size={11} className="flex-shrink-0" />
+                Upgrade to see last seen
+            </span>
+        );
+    };
+
+    // Free users get a tappable status line that goes to the premium page.
+    // Premium users get a plain span (no pointer interaction needed).
+    const isStatusClickable = !onlineStatus && isPremium === false;
+
+    const handleStatusClick = (e) => {
+        if (!isStatusClickable) return;
+        e.stopPropagation(); // don't trigger the partner-profile navigation
+        navigate(premiumPath);
+    };
+
     return (
         <div className="h-screen w-full flex flex-col items-center justify-center bg-gradient-to-br from-emerald-200 to-cyan-800 select-none">
-            <div className='relative h-full w-full lg:max-w-2xl flex flex-col'>
-
-                {/* Header Section: 7vh */}
-                <section className="w-full h-[7vh] flex justify-between items-center bg-white py-2 px-4 z-10 border-b border-[#e2e8f0]">
-                    <div className='flex gap-2'>
-                        <div className='w-10'>
-                            <img src={pictureUrl} alt="Profile Picture" />
+            <div className="relative h-full w-full lg:max-w-2xl flex flex-col">
+                {/* Header */}
+                <section className="w-full h-[7vh] flex items-center justify-between bg-white py-2 px-3 sm:px-4 z-10 border-b border-[#e2e8f0] shadow-sm">
+                    <button
+                        type="button"
+                        onClick={openPartnerProfile}
+                        className="flex items-center gap-3 min-w-0 flex-1 text-left rounded-2xl px-1 py-0.5 hover:bg-slate-50 active:bg-slate-100 transition-colors group"
+                    >
+                        <div className="relative flex-shrink-0">
+                            <img
+                                src={pictureUrl}
+                                alt={partnerName || 'Profile'}
+                                className="w-10 h-10 rounded-full object-cover ring-2 ring-white shadow-sm"
+                            />
+                            {onlineStatus && (
+                                <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full" />
+                            )}
                         </div>
-                        <div className='bg-clip-text text-transparent bg-gradient-to-r from-violet-600 to-pink-600'>
-                            <h1 className="text-xl font-bold flex items-center gap-2">
-                                <span>{partnerName}, {partnerAge}</span>
-                                {onlineStatus && <span className='block w-2 h-2 bg-green-700 rounded-full'></span>}
+
+                        <div className="min-w-0 flex-1">
+                            <h1 className="text-sm sm:text-base font-bold text-slate-800 flex items-center gap-1 truncate">
+                                <span className="truncate">
+                                    {partnerName}
+                                    {partnerAge ? `, ${partnerAge}` : ''}
+                                </span>
+                                <ChevronRight
+                                    size={16}
+                                    className="text-slate-400 group-hover:text-slate-600 flex-shrink-0 transition-colors"
+                                />
                             </h1>
-                            {lastSeen && <p className='text-sm'>{formatLastSeenDate(lastSeen)}</p>}
-                            {!lastSeen && <p className='text-sm'>Online</p>}
+
+                            {/* Status line — pointer-events only enabled for the
+                                upgrade prompt so tapping it doesn't also open
+                                the partner profile */}
+                            <p
+                                onClick={handleStatusClick}
+                                className={`text-[11px] sm:text-xs text-slate-500 truncate ${isStatusClickable
+                                    ? 'cursor-pointer hover:underline pointer-events-auto'
+                                    : 'pointer-events-none'
+                                    }`}
+                            >
+                                {renderStatusLine()}
+                            </p>
                         </div>
-                    </div>
-                    {pathMatched(encountersPath, currentPathName) &&
-                        <div className='flex gap-4'>
-                            <article className='cursor-pointer'>
-                                <div onClick={() => document.getElementById('my_modal_3').showModal()}>
-                                    <SlidersHorizontal />
-                                </div>
-                                <dialog id="my_modal_3" className="modal">
-                                    <div className="modal-box">
-                                        <form method="dialog">
-                                            <button className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
-                                        </form>
-                                        <h3 className="font-bold text-lg">Hello!</h3>
-                                        <p className="py-4">Press ESC key or click on ✕ button to close</p>
-                                        <input type="range" min={0} max="100" defaultValue="30" className="range range-xs" />
-                                    </div>
-                                </dialog>
-                            </article>
+                    </button>
 
-                            <article className="dropdown dropdown-end">
-                                <div tabIndex={0} role="button" className="cursor-pointer"><MoreHorizontal /></div>
-                                <ul tabIndex="-1" className="dropdown-content menu bg-base-100 rounded-box z-1 w-52 p-2 shadow-sm">
-                                    <li><a>Item 1</a></li>
-                                    <li><a>Item 2</a></li>
-                                </ul>
-                            </article>
-
-                            <article className="drawer">
-                                <input id="my-drawer-1" type="checkbox" className="drawer-toggle" />
-                                <div className="drawer-content">
-                                    <label htmlFor="my-drawer-1" className="cursor-pointer"><Menu /></label>
-                                </div>
-                                <div className="drawer-side z-50">
-                                    <label htmlFor="my-drawer-1" aria-label="close sidebar" className="drawer-overlay"></label>
-                                    <ul className="menu bg-base-200 min-h-full w-80 p-4">
-                                        <li><a>Sidebar Item 1</a></li>
-                                        <li><a>Sidebar Item 2</a></li>
-                                    </ul>
-                                </div>
-                            </article>
-                        </div>
-                    }
-
-                    {pathMatched(nearbyPath, currentPathName) &&
-                        <div className='flex gap-4'>
-                            <article className='cursor-pointer'>
-                                <SlidersHorizontal />
-                            </article>
-                            <article className='cursor-pointer'>
-                                <MoreHorizontal />
-                            </article>
-                        </div>
-                    }
-
-                    <article className='cursor-pointer hover:bg-emerald-50 rounded-full' onClick={() => navigate(-1)}>
-                        <ArrowLeft />
-                    </article>
+                    {/* Back arrow — far right */}
+                    <button
+                        onClick={() => navigate(-1)}
+                        className="p-1.5 rounded-full hover:bg-slate-100 transition-colors flex-shrink-0 ml-2"
+                        aria-label="Back"
+                    >
+                        <ArrowLeft size={20} className="text-slate-600" />
+                    </button>
                 </section>
 
-                {/* Main Content Area: 76vh */}
+                {/* Main content */}
                 <section className="w-full h-[76vh] bg-[#f8fafc] border-x border-[#e2e8f0] overflow-y-auto">
                     {children}
                 </section>
 
-                {/* Bottom Navigation Section: 10vh */}
+                {/* Bottom navigation */}
                 <section className="h-[10vh] w-full flex justify-between items-center bg-white py-2 px-4 border-t border-x border-[#e2e8f0] z-10">
-                    <div className='w-full flex justify-around'>
-                        <NavLink to={nearbyPath} className='flex flex-col items-center cursor-pointer'>
+                    <div className="w-full flex justify-around">
+                        <NavLink to={nearbyPath} className="flex flex-col items-center cursor-pointer">
                             <LocateFixed color={chooseColour(nearbyPath, currentPathName)} />
-                            <p className={`text-[10px] ${chooseTextColour(nearbyPath, currentPathName)}`}>Nearby</p>
+                            <p className={`text-[10px] ${chooseTextColour(nearbyPath, currentPathName)}`}>
+                                Nearby
+                            </p>
                         </NavLink>
-                        <NavLink to={encountersPath} className='flex flex-col items-center cursor-pointer'>
+                        <NavLink to={encountersPath} className="flex flex-col items-center cursor-pointer">
                             <Copy color={chooseColour(encountersPath, currentPathName)} />
-                            <p className={`text-[10px] ${chooseTextColour(encountersPath, currentPathName)}`}>Encounters</p>
+                            <p className={`text-[10px] ${chooseTextColour(encountersPath, currentPathName)}`}>
+                                Encounters
+                            </p>
                         </NavLink>
-                        <NavLink to={likesPath} className='indicator flex flex-col items-center cursor-pointer'>
-                            {newLikesCount > 0 &&
+                        <NavLink to={likesPath} className="indicator flex flex-col items-center cursor-pointer">
+                            {newLikesCount > 0 && (
                                 <span className="indicator-item badge badge-accent rounded-full w-6 h-6 text-[10px] font-bold">
                                     {newLikesCount}
-                                </span>}
+                                </span>
+                            )}
                             <Heart color={chooseColour(likesPath, currentPathName)} />
-                            <p className={`text-[10px] ${chooseTextColour(likesPath, currentPathName)}`}>Likes</p>
+                            <p className={`text-[10px] ${chooseTextColour(likesPath, currentPathName)}`}>
+                                Likes
+                            </p>
                         </NavLink>
-                        <NavLink to={chatsPath} className='indicator flex flex-col items-center cursor-pointer'>
-                            {unreadChatsCount > 0 &&
+                        <NavLink to={chatsPath} className="indicator flex flex-col items-center cursor-pointer">
+                            {unreadChatsCount > 0 && (
                                 <span className="indicator-item badge badge-primary rounded-full w-6 h-6 text-[10px] font-bold">
                                     {unreadChatsCount}
-                                </span>}
+                                </span>
+                            )}
                             <MessageCircleCode color={chooseColour(chatsPath, currentPathName)} />
-                            <p className={`text-[10px] ${chooseTextColour(chatsPath, currentPathName)}`}>Chats</p>
+                            <p className={`text-[10px] ${chooseTextColour(chatsPath, currentPathName)}`}>
+                                Chats
+                            </p>
                         </NavLink>
-                        <NavLink to={profilePath} className='flex flex-col items-center cursor-pointer'>
+                        <NavLink to={profilePath} className="flex flex-col items-center cursor-pointer">
                             <User color={chooseColour(profilePath, currentPathName)} />
-                            <p className={`text-[10px] ${chooseTextColour(profilePath, currentPathName)}`}>Profile</p>
+                            <p className={`text-[10px] ${chooseTextColour(profilePath, currentPathName)}`}>
+                                Profile
+                            </p>
                         </NavLink>
                     </div>
                 </section>
 
-                {/* AdSense Section: 7vh */}
+                {/* AdSense */}
                 <section className="h-[7vh] w-full flex justify-center items-center bg-white border-t border-x border-[#e2e8f0] overflow-hidden z-10">
                     <div className="w-full h-full flex justify-center items-center">
                         <AdSense
@@ -188,10 +261,9 @@ const MainLayout = ({ children, partnerName, partnerAge, partnerPicture, lastSee
                         />
                     </div>
                 </section>
-
             </div>
         </div>
     );
 };
 
-export default MainLayout;
+export default ChatLayout;
