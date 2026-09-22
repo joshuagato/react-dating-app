@@ -1,10 +1,21 @@
+// Nearby.jsx
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router';
-import { Heart, Star, X, MapPin, Radar, Briefcase, GraduationCap, ChevronLeft, ChevronRight, Crown, User } from 'lucide-react';
+import {
+    Heart, Star, X, MapPin, Radar, Briefcase, GraduationCap,
+    ChevronLeft, ChevronRight, Crown, User, Maximize2,
+    Cigarette, Wine, Ruler, Users, Sparkles, CheckCircle2,
+    Clock, SendHorizontal,
+} from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 
-import { NEARBY_TITLE, NEARBY_TEXT, baseURL, premiumPath, partnerProfilePath, ENCOUNTER_ACTION } from '../utils/constants';
-import { getNearbyUsersHandler, getPremiumStatusHandler } from '../tanstack/user';
+import {
+    NEARBY_TITLE, NEARBY_TEXT, baseURL, premiumPath,
+    partnerProfilePath, chatPath, ENCOUNTER_ACTION,
+} from '../utils/constants';
+import {
+    getNearbyUsersHandler, getPremiumStatusHandler,
+} from '../tanstack/user';
 import { likeUserHandler, dislikeUserHandler } from '../tanstack/encounter';
 
 import MainLayout from '../components/Layouts/MainLayout';
@@ -12,7 +23,7 @@ import HelmetHeader from '../components/HelmetHeader';
 import { buildPictureUrl } from '../utils/functions';
 
 /* ------------------------------------------------------------------ */
-/* Injected keyframes for the super-like burst (mirrors Encounters)   */
+/* Injected keyframes for the super-like burst                        */
 /* ------------------------------------------------------------------ */
 const burstStyles = `
 @keyframes superRing {
@@ -32,6 +43,31 @@ const burstStyles = `
 }
 `;
 
+/* ------------------------------------------------------------------ */
+/* Reusable pieces (mirrors PartnerProfile.jsx)                       */
+/* ------------------------------------------------------------------ */
+function InfoRow({ icon, label, value, iconBg = 'bg-violet-50', iconColor = 'text-violet-600' }) {
+    if (!value) return null;
+    return (
+        <div className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
+            <div className={`flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center ${iconBg} ${iconColor}`}>
+                {icon}
+            </div>
+            <div className="min-w-0">
+                <p className="text-[11px] uppercase tracking-wider font-semibold text-slate-400">
+                    {label}
+                </p>
+                <p className="text-sm font-medium text-slate-700 capitalize break-words">
+                    {value}
+                </p>
+            </div>
+        </div>
+    );
+}
+
+/* ------------------------------------------------------------------ */
+/* Main component                                                      */
+/* ------------------------------------------------------------------ */
 export default function Nearby() {
     const navigate = useNavigate();
 
@@ -40,19 +76,20 @@ export default function Nearby() {
     const [selectedProfile, setSelectedProfile] = useState(null);
     const [activeImageIndex, setActiveImageIndex] = useState(0);
 
-    // State to toggle the Premium Modal
+    // Fullscreen lightbox for the modal
+    const [isFullscreen, setIsFullscreen] = useState(false);
+
+    // Premium modal
     const [showPremiumModal, setShowPremiumModal] = useState(false);
     const [premiumFeatureName, setPremiumFeatureName] = useState('');
 
-    // Super-like burst overlay. Non-null while the burst is playing.
-    // Shape: { profileId }
+    // Super-like burst
     const [superLikeBurst, setSuperLikeBurst] = useState(null);
 
-    // Touch gesture tracking for swiping photos on mobile
+    // Touch gesture tracking (hero carousel)
     const [touchStartX, setTouchStartX] = useState(0);
     const [touchEndX, setTouchEndX] = useState(0);
 
-    // Prevent double-firing an action on the same card
     const isProcessingAction = useRef(false);
 
     /* ---------------------------------------------------------------- */
@@ -63,7 +100,6 @@ export default function Nearby() {
         queryFn: getPremiumStatusHandler,
     });
 
-    // null while loading, true/false once resolved.
     const isPremium =
         premiumStatusData === undefined
             ? null
@@ -90,11 +126,19 @@ export default function Nearby() {
     }, [fetchProfiles]);
 
     /* ---------------------------------------------------------------- */
-    /* Keypress navigation for the profile modal                        */
+    /* Keypress nav for the modal + lightbox                            */
     /* ---------------------------------------------------------------- */
     useEffect(() => {
         const handleKeyDown = (e) => {
             if (!selectedProfile) return;
+
+            if (isFullscreen) {
+                if (e.key === 'Escape') setIsFullscreen(false);
+                if (e.key === 'ArrowLeft') handlePrevImage();
+                if (e.key === 'ArrowRight') handleNextImage();
+                return;
+            }
+
             if (e.key === 'ArrowLeft') handlePrevImage();
             if (e.key === 'ArrowRight') handleNextImage();
             if (e.key === 'Escape') handleCloseModal();
@@ -102,24 +146,11 @@ export default function Nearby() {
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [selectedProfile, activeImageIndex]);
+    }, [selectedProfile, activeImageIndex, isFullscreen]);
 
     /* ---------------------------------------------------------------- */
-    /* Premium guard                                                    */
+    /* Modal control                                                    */
     /* ---------------------------------------------------------------- */
-    const handleActionGuard = (callback) => {
-        // Wait until status resolves — don't accidentally let a free user
-        // through, and don't nag a premium user with a false positive.
-        if (isPremium === null) return;
-
-        if (!isPremium) {
-            setPremiumFeatureName('This');
-            setShowPremiumModal(true);
-            return;
-        }
-        if (callback) callback();
-    };
-
     const handleOpenProfile = (profile) => {
         if (isPremium === null) return;
         if (!isPremium) {
@@ -134,6 +165,7 @@ export default function Nearby() {
     const handleCloseModal = () => {
         setSelectedProfile(null);
         setActiveImageIndex(0);
+        setIsFullscreen(false);
     };
 
     /* ---------------------------------------------------------------- */
@@ -142,7 +174,6 @@ export default function Nearby() {
     const handleOpenPartnerProfile = () => {
         if (!selectedProfile?.id) return;
         const userId = selectedProfile.id;
-        // Close the modal first so the transition feels clean, then navigate.
         setSelectedProfile(null);
         setActiveImageIndex(0);
         navigate(partnerProfilePath, { state: { user_id: userId } });
@@ -189,7 +220,7 @@ export default function Nearby() {
     };
 
     /* ---------------------------------------------------------------- */
-    /* Action handlers: like / dislike / super-like                     */
+    /* Actions                                                          */
     /* ---------------------------------------------------------------- */
     const removeProfileFromState = (profileId) => {
         setProfiles((prev) => prev.filter((p) => p.id !== profileId));
@@ -206,7 +237,6 @@ export default function Nearby() {
         const recipientId = profile.id;
         const data = { recipient_id: recipientId };
 
-        // Optimistically remove the card so the UI feels instant.
         removeProfileFromState(recipientId);
 
         try {
@@ -222,35 +252,24 @@ export default function Nearby() {
             }
         } catch (err) {
             console.error(`${direction} failed:`, err);
-            // On failure, re-fetch so the card can reappear if the server
-            // still considers it valid.
         } finally {
             isProcessingAction.current = false;
-            // Re-fetch the list after every action, regardless of outcome,
-            // so the page reflects the server's current state.
             fetchProfiles();
         }
     };
 
-    /* ---------------------------------------------------------------- */
-    /* Public button entry points                                       */
-    /* ---------------------------------------------------------------- */
-
-    // Like — free for everyone.
     const handleLike = (e, profile) => {
         if (e) e.stopPropagation();
         if (!profile) return;
         runAction('like', profile);
     };
 
-    // Dislike — free for everyone.
     const handleDislike = (e, profile) => {
         if (e) e.stopPropagation();
         if (!profile) return;
         runAction('dislike', profile);
     };
 
-    // Super-like — premium only, plays the burst first.
     const handleSuperLike = (e, profile) => {
         if (e) e.stopPropagation();
         if (!profile) return;
@@ -263,10 +282,26 @@ export default function Nearby() {
             return;
         }
 
-        // Fire the burst overlay first, then kick off the action on the
-        // next tick so the overlay gets a paint before the card disappears.
         setSuperLikeBurst({ profileId: profile.id });
         setTimeout(() => runAction('super_like', profile), 80);
+    };
+
+    // Message — opens the chat screen with this partner.
+    // The modal closes first so the navigation feels clean.
+    const handleMessage = (e, profile) => {
+        if (e) e.stopPropagation();
+        if (!profile?.id) return;
+
+        const partner = {
+            id: profile.id,
+            name: profile.name,
+            picture: profile.pictures?.[0] || profile.pictures?.[0]?.path || '',
+            age: profile.age,
+            city: profile.city,
+        };
+        setSelectedProfile(null);
+        setActiveImageIndex(0);
+        navigate(chatPath, { state: { partner } });
     };
 
     // Safety net — clears the burst if something interrupts the flow
@@ -275,6 +310,10 @@ export default function Nearby() {
         const t = setTimeout(() => setSuperLikeBurst(null), 900);
         return () => clearTimeout(t);
     }, [superLikeBurst]);
+
+    const hasPictures =
+        Array.isArray(selectedProfile?.pictures) &&
+        selectedProfile.pictures.length > 0;
 
     return (
         <MainLayout pageTitle={NEARBY_TITLE} pageDetails={NEARBY_TEXT}>
@@ -298,7 +337,7 @@ export default function Nearby() {
                     </div>
                 </div>
 
-                {/* Profiles Grid */}
+                {/* Grid */}
                 {loading ? (
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-2 sm:gap-3">
                         {[...Array(6)].map((_, i) => (
@@ -346,7 +385,6 @@ export default function Nearby() {
                                         </p>
                                     )}
 
-                                    {/* Action Buttons */}
                                     <div className="flex items-center gap-2 mt-3 pt-2 border-t border-white/10 opacity-90 sm:opacity-0 group-hover:opacity-100 transition-opacity">
                                         <button
                                             onClick={(e) => handleDislike(e, profile)}
@@ -379,7 +417,9 @@ export default function Nearby() {
                         <div className="relative w-20 h-20 rounded-full bg-pink-500/10 flex items-center justify-center mb-4 text-pink-500">
                             <Radar size={40} className="animate-spin-slow" />
                         </div>
-                        <h3 className="text-lg font-semibold text-white">No matches nearby right now</h3>
+                        <h3 className="text-lg font-semibold text-white">
+                            No matches nearby right now
+                        </h3>
                         <p className="text-sm text-gray-400 max-w-sm mt-1">
                             Try expanding your search distance filters or check back later.
                         </p>
@@ -387,161 +427,307 @@ export default function Nearby() {
                 )}
             </div>
 
-            {/* View Profile Modal */}
+            {/* ------------------------------------------------ */}
+            {/* Profile Modal — PartnerProfile design            */}
+            {/* ------------------------------------------------ */}
             {selectedProfile && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
-                    <div className="relative w-full max-w-md bg-gray-900 border border-white/10 rounded-3xl overflow-hidden shadow-2xl max-h-[90vh] flex flex-col">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-3 sm:p-4 animate-fade-in">
+                    <div className="relative w-full max-w-md bg-slate-50 rounded-3xl overflow-hidden shadow-2xl max-h-[92vh] flex flex-col">
+                        {/* Close button floats over the hero */}
                         <button
                             onClick={handleCloseModal}
-                            className="absolute top-4 right-4 z-30 p-2 rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors"
+                            className="absolute top-3 right-3 z-30 p-2 rounded-full bg-black/50 backdrop-blur-md text-white hover:bg-black/75 transition-colors border border-white/20"
+                            aria-label="Close"
                         >
-                            <X size={20} />
+                            <X size={18} />
                         </button>
 
-                        {/* Image Frame Container */}
-                        <div
-                            className="relative w-full aspect-[4/5] bg-gray-950 flex-shrink-0 touch-pan-y overflow-hidden"
-                            onTouchStart={handleTouchStart}
-                            onTouchMove={handleTouchMove}
-                            onTouchEnd={handleTouchEnd}
-                        >
-                            <img
-                                src={buildPictureUrl(baseURL, selectedProfile.pictures?.[activeImageIndex]) || buildPictureUrl(baseURL, selectedProfile.pictures?.[0]) || '/placeholder-avatar.png'}
-                                alt={`${selectedProfile.name} - Picture ${activeImageIndex + 1}`}
-                                className="w-full h-full object-cover transition-all duration-300"
-                            />
-
-                            <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-black/40 pointer-events-none" />
-
-                            {/* Navigation Bar Indicators */}
-                            {selectedProfile.pictures?.length > 1 && (
-                                <div className="absolute top-3 inset-x-4 z-20 flex gap-1.5">
-                                    {selectedProfile.pictures.map((_, idx) => (
+                        {/* -------- Scrollable body -------- */}
+                        <div className="overflow-y-auto flex-1 scroll-bar">
+                            {/* Hero image area */}
+                            <div className="relative w-full aspect-[4/5] bg-slate-950 group">
+                                {hasPictures ? (
+                                    <>
                                         <div
-                                            key={idx}
-                                            onClick={() => setActiveImageIndex(idx)}
-                                            className="flex-1 h-1 rounded-full cursor-pointer overflow-hidden bg-white/30 backdrop-blur-sm"
+                                            className="w-full h-full"
+                                            onTouchStart={handleTouchStart}
+                                            onTouchMove={handleTouchMove}
+                                            onTouchEnd={handleTouchEnd}
                                         >
-                                            <div
-                                                className={`h-full bg-white transition-all duration-300 ${idx === activeImageIndex ? 'w-full' : 'w-0'}`}
+                                            <img
+                                                src={
+                                                    buildPictureUrl(
+                                                        baseURL,
+                                                        selectedProfile.pictures[activeImageIndex]
+                                                    ) ||
+                                                    buildPictureUrl(
+                                                        baseURL,
+                                                        selectedProfile.pictures[0]
+                                                    ) ||
+                                                    '/placeholder-avatar.png'
+                                                }
+                                                alt={`${selectedProfile.name} - Picture ${activeImageIndex + 1}`}
+                                                className="w-full h-full object-contain"
+                                                draggable={false}
                                             />
                                         </div>
-                                    ))}
+
+                                        {/* Progress indicators */}
+                                        {selectedProfile.pictures.length > 1 && (
+                                            <div className="absolute top-3 inset-x-4 z-20 flex gap-1.5">
+                                                {selectedProfile.pictures.map((_, idx) => (
+                                                    <div
+                                                        key={idx}
+                                                        onClick={() => setActiveImageIndex(idx)}
+                                                        className="flex-1 h-1 rounded-full cursor-pointer overflow-hidden bg-white/30 backdrop-blur-sm"
+                                                    >
+                                                        <div
+                                                            className={`h-full bg-white transition-all duration-300 ${idx === activeImageIndex ? 'w-full' : 'w-0'
+                                                                }`}
+                                                        />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {/* Prev / Next */}
+                                        {selectedProfile.pictures.length > 1 && (
+                                            <>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handlePrevImage();
+                                                    }}
+                                                    className="absolute left-3 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-black/50 text-white hover:bg-black/75 backdrop-blur-md transition-all active:scale-95"
+                                                    aria-label="Previous photo"
+                                                >
+                                                    <ChevronLeft size={20} />
+                                                </button>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleNextImage();
+                                                    }}
+                                                    className="absolute right-3 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-black/50 text-white hover:bg-black/75 backdrop-blur-md transition-all active:scale-95"
+                                                    aria-label="Next photo"
+                                                >
+                                                    <ChevronRight size={20} />
+                                                </button>
+                                            </>
+                                        )}
+
+                                        {/* Fullscreen trigger */}
+                                        <button
+                                            onClick={() => setIsFullscreen(true)}
+                                            className="absolute bottom-3 right-3 z-20 bg-black/50 hover:bg-black/75 backdrop-blur-md text-white p-2.5 rounded-full transition-all duration-200 border border-white/20 shadow-lg active:scale-95"
+                                            title="View fullscreen"
+                                            aria-label="View fullscreen"
+                                        >
+                                            <Maximize2 className="w-4 h-4" />
+                                        </button>
+
+                                        {/* Gradient scrim + name overlay */}
+                                        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/70 via-black/25 to-transparent" />
+                                        <div className="absolute bottom-4 left-4 right-16 z-10 text-white">
+                                            <h2 className="text-2xl font-bold drop-shadow-md leading-tight">
+                                                {selectedProfile.name}
+                                                {selectedProfile.age ? `, ${selectedProfile.age}` : ''}
+                                            </h2>
+                                            <p className="flex items-center gap-1 text-xs text-white/90 mt-0.5 drop-shadow">
+                                                <MapPin className="w-3.5 h-3.5 text-pink-400" />
+                                                {selectedProfile.distanceFrom ??
+                                                    selectedProfile.distance ??
+                                                    '1'}{' '}
+                                                km away
+                                            </p>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-slate-400">
+                                        <User size={48} />
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Body content */}
+                            <div className="p-5 space-y-5 pb-28">
+                                {/* Quick chips */}
+                                <div className="flex flex-wrap gap-2">
+                                    {selectedProfile.isOnline && (
+                                        <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-full">
+                                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                                            Online now
+                                        </span>
+                                    )}
+                                    {!selectedProfile.isOnline &&
+                                        selectedProfile.lastSeen && (
+                                            <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-full">
+                                                <Clock className="w-3.5 h-3.5" />
+                                                Last seen{' '}
+                                                {new Date(
+                                                    selectedProfile.lastSeen
+                                                ).toLocaleDateString()}
+                                            </span>
+                                        )}
+                                    {selectedProfile.gender && (
+                                        <span className="flex items-center gap-1.5 text-xs font-semibold text-violet-700 bg-violet-50 border border-violet-100 px-3 py-1.5 rounded-full capitalize">
+                                            <Users className="w-3.5 h-3.5" />
+                                            {selectedProfile.gender}
+                                        </span>
+                                    )}
                                 </div>
-                            )}
 
-                            {/* Carousel Navigation Buttons */}
-                            {selectedProfile.pictures?.length > 1 && (
-                                <>
+                                {/* Bio */}
+                                {selectedProfile.bio && (
+                                    <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <Sparkles className="w-4 h-4 text-violet-500" />
+                                            <h3 className="font-bold text-slate-800 text-sm">
+                                                About
+                                            </h3>
+                                        </div>
+                                        <p className="text-sm text-slate-600 leading-relaxed italic">
+                                            "{selectedProfile.bio}"
+                                        </p>
+                                    </div>
+                                )}
+
+                                {/* Details */}
+                                {(selectedProfile.occupation ||
+                                    selectedProfile.education) && (
+                                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 space-y-3">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                                                <h3 className="font-bold text-slate-800 text-sm">
+                                                    Details
+                                                </h3>
+                                            </div>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                <InfoRow
+                                                    icon={<Briefcase className="w-4 h-4" />}
+                                                    label="Occupation"
+                                                    value={selectedProfile.occupation}
+                                                    iconBg="bg-amber-50"
+                                                    iconColor="text-amber-500"
+                                                />
+                                                <InfoRow
+                                                    icon={<GraduationCap className="w-4 h-4" />}
+                                                    label="Education"
+                                                    value={selectedProfile.education}
+                                                    iconBg="bg-blue-50"
+                                                    iconColor="text-blue-500"
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+
+                                {/* View full profile link */}
+                                {isPremium && (
                                     <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            handlePrevImage();
-                                        }}
-                                        className="absolute left-3 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-black/50 text-white hover:bg-black/75 backdrop-blur-md transition-all active:scale-95"
-                                        aria-label="Previous photo"
+                                        onClick={handleOpenPartnerProfile}
+                                        className="w-full py-3 rounded-2xl bg-violet-500/10 text-violet-700 border border-violet-200 hover:bg-violet-500/20 transition-colors font-semibold text-sm flex items-center justify-center gap-2"
                                     >
-                                        <ChevronLeft size={22} />
+                                        <User size={16} />
+                                        View Full Profile
                                     </button>
-
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleNextImage();
-                                        }}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-black/50 text-white hover:bg-black/75 backdrop-blur-md transition-all active:scale-95"
-                                        aria-label="Next photo"
-                                    >
-                                        <ChevronRight size={22} />
-                                    </button>
-                                </>
-                            )}
-
-                            <div className="absolute bottom-4 left-4 right-4 text-white z-10 pointer-events-none">
-                                <h2 className="text-2xl font-bold drop-shadow-md">
-                                    {selectedProfile.name}, {selectedProfile.age}
-                                </h2>
-                                <p className="flex items-center gap-1 text-sm text-pink-400 mt-1 drop-shadow-md">
-                                    <MapPin size={14} /> {selectedProfile.distanceFrom ?? selectedProfile.distance ?? '1'} km away
-                                </p>
+                                )}
                             </div>
                         </div>
 
-                        {/* Profile Info Details */}
-                        <div className="p-6 space-y-4 overflow-y-auto flex-1 text-gray-300">
-                            {selectedProfile.bio && (
-                                <div>
-                                    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">About</h4>
-                                    <p className="text-sm leading-relaxed text-gray-200">{selectedProfile.bio}</p>
-                                </div>
-                            )}
-
-                            {selectedProfile.occupation && (
-                                <div className="flex items-center gap-2 text-sm text-gray-300">
-                                    <Briefcase size={16} className="text-pink-400" />
-                                    <span>{selectedProfile.occupation}</span>
-                                </div>
-                            )}
-
-                            {selectedProfile.education && (
-                                <div className="flex items-center gap-2 text-sm text-gray-300">
-                                    <GraduationCap size={16} className="text-violet-400" />
-                                    <span>{selectedProfile.education}</span>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Action Toolbar */}
-                        <div className="p-4 bg-gray-900/90 border-t border-white/5 flex items-center gap-3">
-                            {isPremium && (
-                                <button
-                                    onClick={handleOpenPartnerProfile}
-                                    className="p-3 rounded-2xl bg-violet-500/20 text-violet-300 border border-violet-500/30 hover:bg-violet-500/30 transition-colors"
-                                    aria-label="View Full Profile"
-                                    title="View Full Profile"
-                                >
-                                    <User size={20} />
-                                </button>
-                            )}
+                        {/* -------- Sticky action bar -------- */}
+                        <div className="absolute bottom-0 inset-x-0 p-3 bg-white/95 backdrop-blur-md border-t border-slate-200 flex items-center gap-2.5">
                             <button
                                 onClick={(e) => handleDislike(e, selectedProfile)}
-                                className="p-3 rounded-2xl bg-gray-800 text-gray-300 hover:bg-gray-700 transition-colors"
+                                className="flex-1 py-3 rounded-2xl bg-slate-100 text-slate-600 hover:bg-red-50 hover:text-red-500 transition-colors border border-slate-200 font-semibold flex items-center justify-center"
                                 aria-label="Dislike"
                             >
                                 <X size={20} />
                             </button>
                             <button
                                 onClick={(e) => handleSuperLike(e, selectedProfile)}
-                                className="p-3 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:bg-amber-500/30 transition-colors"
+                                className="flex-1 py-3 rounded-2xl bg-amber-50 text-amber-500 hover:bg-amber-100 transition-colors border border-amber-200 font-semibold flex items-center justify-center"
                                 aria-label="Super Like"
                             >
                                 <Star size={20} fill="currentColor" />
                             </button>
                             <button
-                                onClick={(e) => handleLike(e, selectedProfile)}
-                                className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-pink-500 to-violet-600 text-white font-medium hover:brightness-110 transition-all shadow-lg flex items-center justify-center gap-2"
+                                onClick={(e) => handleMessage(e, selectedProfile)}
+                                className="flex-1 py-3 rounded-2xl bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors border border-blue-200 font-semibold flex items-center justify-center"
+                                aria-label="Message"
                             >
-                                <Heart size={18} fill="currentColor" /> Like Profile
+                                <SendHorizontal size={20} />
+                            </button>
+                            <button
+                                onClick={(e) => handleLike(e, selectedProfile)}
+                                className="flex-[1.6] py-3 rounded-2xl bg-gradient-to-r from-pink-500 to-violet-600 text-white font-bold hover:brightness-110 transition-all shadow-lg flex items-center justify-center gap-2"
+                            >
+                                <Heart size={18} fill="currentColor" />
+                                Like
                             </button>
                         </div>
                     </div>
                 </div>
             )}
 
+            {/* ---------------- FULLSCREEN LIGHTBOX ---------------- */}
+            {isFullscreen && hasPictures && (
+                <div className="fixed inset-0 z-[70] bg-black/95 flex items-center justify-center backdrop-blur-sm fade-in">
+                    <button
+                        onClick={() => setIsFullscreen(false)}
+                        className="absolute top-4 right-4 text-white/80 hover:text-white p-2 rounded-full bg-white/10 hover:bg-white/20 transition-all z-20"
+                        aria-label="Close"
+                    >
+                        <X className="w-6 h-6" />
+                    </button>
+
+                    <div className="absolute top-4 left-4 text-xs font-semibold text-white/80 bg-white/10 px-3 py-1 rounded-full z-20">
+                        {activeImageIndex + 1} / {selectedProfile.pictures.length}
+                    </div>
+
+                    {selectedProfile.pictures.length > 1 && (
+                        <>
+                            <button
+                                onClick={handlePrevImage}
+                                className="absolute left-4 text-white/80 hover:text-white p-3 rounded-full bg-white/10 hover:bg-white/20 transition-all z-20"
+                                aria-label="Previous"
+                            >
+                                <ChevronLeft className="w-6 h-6" />
+                            </button>
+                            <button
+                                onClick={handleNextImage}
+                                className="absolute right-4 text-white/80 hover:text-white p-3 rounded-full bg-white/10 hover:bg-white/20 transition-all z-20"
+                                aria-label="Next"
+                            >
+                                <ChevronRight className="w-6 h-6" />
+                            </button>
+                        </>
+                    )}
+
+                    <div className="w-full h-full p-4 flex items-center justify-center">
+                        <img
+                            src={buildPictureUrl(
+                                baseURL,
+                                selectedProfile.pictures[activeImageIndex]
+                            )}
+                            alt={`${selectedProfile.name} full view`}
+                            className="max-w-full max-h-full object-contain rounded-lg"
+                            draggable={false}
+                        />
+                    </div>
+                </div>
+            )}
+
             {/* ---------------- SUPER LIKE BURST ---------------- */}
             {superLikeBurst && (
-                <div className="pointer-events-none fixed inset-0 z-[60] flex items-center justify-center">
-                    {/* Radiating rings */}
+                <div className="pointer-events-none fixed inset-0 z-[80] flex items-center justify-center">
                     <span className="absolute rounded-full border-4 border-amber-400/70 animate-[superRing_0.9s_ease-out_forwards]" />
                     <span className="absolute rounded-full border-4 border-yellow-300/60 animate-[superRing_0.9s_ease-out_0.1s_forwards]" />
                     <span className="absolute rounded-full border-4 border-pink-400/50 animate-[superRing_0.9s_ease-out_0.2s_forwards]" />
 
-                    {/* Central star burst */}
                     <span className="absolute text-amber-300 animate-[superStar_0.9s_ease-out_forwards]">
                         <Star size={96} fill="currentColor" strokeWidth={0} />
                     </span>
 
-                    {/* Flying sparks */}
                     {[...Array(8)].map((_, i) => {
                         const angle = (i / 8) * Math.PI * 2;
                         const dx = Math.cos(angle) * 140;
@@ -557,11 +743,7 @@ export default function Nearby() {
                                     animationDelay: `${i * 20}ms`,
                                 }}
                             >
-                                <Star
-                                    size={16}
-                                    fill="currentColor"
-                                    strokeWidth={0}
-                                />
+                                <Star size={16} fill="currentColor" strokeWidth={0} />
                             </span>
                         );
                     })}
@@ -570,7 +752,7 @@ export default function Nearby() {
 
             {/* Premium Upgrade Modal */}
             {showPremiumModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
+                <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
                     <div className="relative w-full max-w-sm bg-gray-900 border border-amber-500/30 rounded-3xl p-6 text-center shadow-2xl flex flex-col items-center">
                         <button
                             onClick={() => setShowPremiumModal(false)}
@@ -583,12 +765,15 @@ export default function Nearby() {
                             <Crown size={32} />
                         </div>
 
-                        <h3 className="text-xl font-bold text-white mb-2">Premium Feature</h3>
+                        <h3 className="text-xl font-bold text-white mb-2">
+                            Premium Feature
+                        </h3>
                         <p className="text-sm text-gray-300 mb-6 leading-relaxed">
                             <span className="font-semibold text-amber-400">
                                 {premiumFeatureName || 'This feature'}
                             </span>{' '}
-                            is exclusive to Premium members. Upgrade to connect instantly!
+                            is exclusive to Premium members. Upgrade to connect
+                            instantly!
                         </p>
 
                         <button
