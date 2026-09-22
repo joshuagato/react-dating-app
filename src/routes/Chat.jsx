@@ -1,30 +1,70 @@
+// Chat.jsx
 import { useState, useRef, useCallback, useEffect, Fragment } from 'react';
 import { useLocation, useNavigate } from 'react-router';
-import { LiaCheckSolid, LiaCheckDoubleSolid } from "react-icons/lia";
-import { CornerUpLeft, Info, X, Crown, Copy, Edit2 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { LiaCheckSolid, LiaCheckDoubleSolid } from 'react-icons/lia';
+import { CornerUpLeft, Info, X, Crown, Copy, Edit2, SendHorizontal, Smile } from 'lucide-react';
 import EmojiPicker from 'emoji-picker-react';
 import { Capacitor } from '@capacitor/core';
 
-import { CHAT_TITLE, userId, socket, baseURL } from '../utils/constants';
+import { CHAT_TITLE, userId, socket, baseURL, premiumPath } from '../utils/constants';
 import {
     writeName, isSameDate, formatMessageDate, timeTo12Hour, isCurrentUser,
     getUserProfile, isSame, buildPictureUrl, encryptText, decryptText
 } from '../utils/functions';
-import { getChatMessagesHandler, markMessageAsReadHandler, sendMessageHandler, editMessageHandler } from '../tanstack/chat';
+import {
+    getChatMessagesHandler,
+    markMessageAsReadHandler,
+    sendMessageHandler,
+    editMessageHandler,
+} from '../tanstack/chat';
+import { getPremiumStatusHandler } from '../tanstack/user';
 
 import ChatLayout from '../components/Layouts/ChatLayout';
 import HelmetHeader from '../components/HelmetHeader';
+
+/* ------------------------------------------------------------------ */
+/* Injected CSS                                                       */
+/* ------------------------------------------------------------------ */
+const chatStyles = `
+.typing-dots { display: inline-flex; gap: 3px; align-items: center; }
+.typing-dots .dot {
+    width: 5px; height: 5px; border-radius: 50%;
+    background: currentColor; opacity: 0.5;
+    animation: typing-blink 1.2s infinite ease-in-out;
+}
+.typing-dots .dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dots .dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes typing-blink {
+    0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
+    30% { opacity: 1; transform: translateY(-2px); }
+}
+.emoji-picker-anchor {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    margin-bottom: 8px;
+    z-index: 50;
+}
+`;
+
+/* ------------------------------------------------------------------ */
+/* Timestamp helper — combines the date with a 12-hour clock          */
+/* ------------------------------------------------------------------ */
+const formatFullTimestamp = (iso) => {
+    if (!iso) return null;
+    const datePart = formatMessageDate(iso, false, true);
+    const timePart = timeTo12Hour(iso);
+    if (!datePart && !timePart) return null;
+    return `${datePart} · ${timePart}`;
+};
 
 export default function Chat() {
     const navigate = useNavigate();
     const location = useLocation();
 
-    // User context status
-    const [isPremium] = useState(true);
-
     const [message, setMessage] = useState('');
     const [messages, setMessages] = useState([]);
-    // const [decryptedMessages, setDecryptedMessages] = useState({});
     const [isTyping, setIsTyping] = useState(false);
     const [showPicker, setShowPicker] = useState(false);
 
@@ -37,42 +77,45 @@ export default function Chat() {
     const [showCopyToast, setShowCopyToast] = useState(false);
     const [highlightedMessageId, setHighlightedMessageId] = useState(null);
 
-    const { chat_id, myself, partner = {
-        id: '', name: '', picture: '',
-        is_online: null, last_seen: null
-    } } = location.state || {};
+    const {
+        chat_id,
+        myself,
+        partner = {
+            id: '',
+            name: '',
+            picture: '',
+            is_online: null,
+            last_seen: null,
+        },
+    } = location.state || {};
 
     const isNative = Capacitor.isNativePlatform();
 
-    // Decrypt batch of messages for rendering
-    useEffect(() => {
-        let isMounted = true;
-        const decryptAll = async () => {
-            const map = {};
-            for (const msg of messages) {
-                if (msg.content) {
-                    map[msg.id] = decryptText(msg.content);
-                }
-            }
-            if (isMounted) {
-                // setDecryptedMessages(map);
-            }
-        };
+    /* ---------------------------------------------------------------- */
+    /* Premium status                                                   */
+    /* ---------------------------------------------------------------- */
+    const { data: premiumStatusData } = useQuery({
+        queryKey: ['premium-status'],
+        queryFn: getPremiumStatusHandler,
+    });
 
-        if (messages.length > 0) {
-            // decryptAll();
-        }
-        return () => { isMounted = false; };
-    }, [messages]);
+    const isPremium =
+        premiumStatusData === undefined
+            ? null
+            : Boolean(premiumStatusData?.is_premium);
 
-    // Redirect if no chat_id
+    /* ---------------------------------------------------------------- */
+    /* Redirect if no chat context                                      */
+    /* ---------------------------------------------------------------- */
     useEffect(() => {
         if (!chat_id && !partner.id && !partner.name) {
             navigate('/chats');
         }
     }, [chat_id, navigate]);
 
-    // Refs
+    /* ---------------------------------------------------------------- */
+    /* Refs                                                             */
+    /* ---------------------------------------------------------------- */
     const messagesEndRef = useRef(null);
     const chatContainerRef = useRef(null);
     const inputRef = useRef(null);
@@ -85,9 +128,9 @@ export default function Chat() {
     const clickCountRef = useRef(0);
     const clickTimeoutRef = useRef(null);
 
-    const isDetails = true;
-
-    // ========== SCROLL & HIGHLIGHT FUNCTIONS ==========
+    /* ---------------------------------------------------------------- */
+    /* Scroll helpers                                                   */
+    /* ---------------------------------------------------------------- */
     const scrollToBottom = useCallback((behavior = 'smooth') => {
         if (messagesEndRef.current) {
             messagesEndRef.current.scrollIntoView({ behavior, block: 'end' });
@@ -97,7 +140,9 @@ export default function Chat() {
     const scrollToMessage = useCallback((targetId) => {
         if (!targetId || !chatContainerRef.current) return;
 
-        const targetElement = chatContainerRef.current.querySelector(`[data-message-id="${targetId}"]`);
+        const targetElement = chatContainerRef.current.querySelector(
+            `[data-message-id="${targetId}"]`
+        );
         if (targetElement) {
             targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
             setHighlightedMessageId(targetId);
@@ -124,7 +169,9 @@ export default function Chat() {
         };
     }, [chat_id]);
 
-    // ========== MESSAGE READ HANDLER ==========
+    /* ---------------------------------------------------------------- */
+    /* Mark as read                                                     */
+    /* ---------------------------------------------------------------- */
     const markMessageAsRead = useCallback(async (msg) => {
         if (processedMessageIdsRef.current.has(msg.id)) return;
         if (isCurrentUser(userId, msg.sender_id)) return;
@@ -134,18 +181,20 @@ export default function Chat() {
             processedMessageIdsRef.current.add(msg.id);
             await markMessageAsReadHandler(msg.id);
 
-            setMessages(prevMessages =>
-                prevMessages.map(m =>
+            setMessages((prevMessages) =>
+                prevMessages.map((m) =>
                     m.id === msg.id ? { ...m, read_at: new Date().toISOString() } : m
                 )
             );
         } catch (error) {
             processedMessageIdsRef.current.delete(msg.id);
-            console.error("Failed to mark message as read:", error);
+            console.error('Failed to mark message as read:', error);
         }
     }, []);
 
-    // ========== INTERSECTION OBSERVER SETUP ==========
+    /* ---------------------------------------------------------------- */
+    /* Intersection observer                                            */
+    /* ---------------------------------------------------------------- */
     useEffect(() => {
         if (observerRef.current) {
             observerRef.current.disconnect();
@@ -154,11 +203,11 @@ export default function Chat() {
 
         observerRef.current = new IntersectionObserver(
             (entries) => {
-                entries.forEach(entry => {
+                entries.forEach((entry) => {
                     if (entry.isIntersecting) {
                         const messageId = entry.target.dataset.messageId;
                         if (messageId) {
-                            const msg = messages.find(m => m.id === messageId);
+                            const msg = messages.find((m) => m.id === messageId);
                             if (msg) markMessageAsRead(msg);
                         }
                     }
@@ -167,9 +216,10 @@ export default function Chat() {
             { root: chatContainerRef.current, rootMargin: '0px', threshold: 0.3 }
         );
 
-        const messageElements = chatContainerRef.current?.querySelectorAll('[data-message-id]');
+        const messageElements =
+            chatContainerRef.current?.querySelectorAll('[data-message-id]');
         if (messageElements) {
-            messageElements.forEach(el => observerRef.current.observe(el));
+            messageElements.forEach((el) => observerRef.current.observe(el));
         }
 
         return () => {
@@ -180,7 +230,9 @@ export default function Chat() {
         };
     }, [messages, markMessageAsRead]);
 
-    // ========== FETCH INITIAL DATA ==========
+    /* ---------------------------------------------------------------- */
+    /* Fetch initial messages                                           */
+    /* ---------------------------------------------------------------- */
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -191,26 +243,37 @@ export default function Chat() {
 
                 setTimeout(() => {
                     if (chatContainerRef.current && chat_id) {
-                        const savedPosition = localStorage.getItem(`chat_scroll_${chat_id}`);
+                        const savedPosition = localStorage.getItem(
+                            `chat_scroll_${chat_id}`
+                        );
                         if (savedPosition !== null) {
-                            chatContainerRef.current.scrollTop = parseInt(savedPosition, 10);
+                            chatContainerRef.current.scrollTop = parseInt(
+                                savedPosition,
+                                10
+                            );
                         }
                     }
                 }, 100);
             } catch (error) {
-                console.error("Failed to fetch data:", error);
+                console.error('Failed to fetch data:', error);
             }
         };
 
         if (chat_id) fetchData();
     }, [chat_id]);
 
-    // ========== SOCKET EVENT LISTENERS ==========
+    /* ---------------------------------------------------------------- */
+    /* Socket listeners                                                 */
+    /* ---------------------------------------------------------------- */
     useEffect(() => {
         const handleNewMessage = ({ message: newMsg }) => {
-            if (newMsg && isSame(newMsg.recipient_id, userId) && isSame(newMsg.chat_id, chat_id)) {
-                setMessages(prevMessages => {
-                    const exists = prevMessages.some(m => m.id === newMsg.id);
+            if (
+                newMsg &&
+                isSame(newMsg.recipient_id, userId) &&
+                isSame(newMsg.chat_id, chat_id)
+            ) {
+                setMessages((prevMessages) => {
+                    const exists = prevMessages.some((m) => m.id === newMsg.id);
                     if (exists) return prevMessages;
                     return [...prevMessages, newMsg];
                 });
@@ -219,8 +282,8 @@ export default function Chat() {
 
         const handleMessageEdited = ({ message: editedMsg }) => {
             if (editedMsg && isSame(editedMsg.chat_id, chat_id)) {
-                setMessages(prevMessages =>
-                    prevMessages.map(m => m.id === editedMsg.id ? editedMsg : m)
+                setMessages((prevMessages) =>
+                    prevMessages.map((m) => (m.id === editedMsg.id ? editedMsg : m))
                 );
             }
         };
@@ -233,16 +296,16 @@ export default function Chat() {
 
         const handleMessageDelivered = ({ message: delMsg }) => {
             if (delMsg && isSame(delMsg.sender_id, userId)) {
-                setMessages(prevMessages =>
-                    prevMessages.map(msg => msg.id === delMsg.id ? delMsg : msg)
+                setMessages((prevMessages) =>
+                    prevMessages.map((msg) => (msg.id === delMsg.id ? delMsg : msg))
                 );
             }
         };
 
         const handleMessageRead = ({ message: readMsg }) => {
             if (readMsg && isSame(readMsg.sender_id, userId)) {
-                setMessages(prevMessages =>
-                    prevMessages.map(msg => msg.id === readMsg.id ? readMsg : msg)
+                setMessages((prevMessages) =>
+                    prevMessages.map((msg) => (msg.id === readMsg.id ? readMsg : msg))
                 );
             }
         };
@@ -262,7 +325,9 @@ export default function Chat() {
         };
     }, [chat_id]);
 
-    // ========== CLEANUP TIMERS ==========
+    /* ---------------------------------------------------------------- */
+    /* Cleanup timers                                                   */
+    /* ---------------------------------------------------------------- */
     useEffect(() => {
         return () => {
             if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
@@ -271,13 +336,17 @@ export default function Chat() {
         };
     }, []);
 
-    // ========== AUTO-GROW TEXTAREA ==========
+    /* ---------------------------------------------------------------- */
+    /* Auto-grow textarea                                               */
+    /* ---------------------------------------------------------------- */
     const autoGrow = useCallback((element) => {
         element.style.height = 'auto';
         element.style.height = Math.min(element.scrollHeight, 200) + 'px';
     }, []);
 
-    // ========== TYPING HANDLER ==========
+    /* ---------------------------------------------------------------- */
+    /* Typing handler                                                   */
+    /* ---------------------------------------------------------------- */
     const handleInputChange = (e) => {
         const value = e.target.value;
         setMessage(value);
@@ -305,7 +374,9 @@ export default function Chat() {
         }, 1500);
     };
 
-    // ========== SEND OR EDIT MESSAGE ==========
+    /* ---------------------------------------------------------------- */
+    /* Send or edit                                                     */
+    /* ---------------------------------------------------------------- */
     const handleMessageSending = async (event) => {
         if (event?.preventDefault) event.preventDefault();
         if (!message.trim() || !partner?.id) return;
@@ -317,31 +388,31 @@ export default function Chat() {
             const encryptedContent = encryptText(message);
 
             if (editingMessage) {
-                // Editing mode
                 const response = await editMessageHandler({
                     message_id: editingMessage.id,
                     content: encryptedContent,
-                    sender_id
+                    sender_id,
                 });
 
                 if (response?.success) {
-                    setMessages(prevMessages =>
-                        prevMessages.map(m => m.id === editingMessage.id ? response.message : m)
+                    setMessages((prevMessages) =>
+                        prevMessages.map((m) =>
+                            m.id === editingMessage.id ? response.message : m
+                        )
                     );
                 }
                 setEditingMessage(null);
             } else {
-                // New message mode
                 const response = await sendMessageHandler({
                     message: encryptedContent,
                     sender_id,
                     recipient_id,
-                    reply_to_id: replyingTo ? replyingTo.id : null
+                    reply_to_id: replyingTo ? replyingTo.id : null,
                 });
 
                 const newMessage = response.message;
-                setMessages(prevMessages => {
-                    const exists = prevMessages.some(m => m.id === newMessage?.id);
+                setMessages((prevMessages) => {
+                    const exists = prevMessages.some((m) => m.id === newMessage?.id);
                     if (exists) return prevMessages;
                     return [...prevMessages, newMessage];
                 });
@@ -358,7 +429,7 @@ export default function Chat() {
             socket.emit('sender_typing_stop', { recipient_id, sender_id });
             setTimeout(() => scrollToBottom('smooth'), 100);
         } catch (error) {
-            console.error("Failed to send/edit message:", error);
+            console.error('Failed to send/edit message:', error);
         }
     };
 
@@ -368,40 +439,50 @@ export default function Chat() {
         if (inputRef.current) inputRef.current.style.height = '44px';
     };
 
-    // ========== KEY DOWN HANDLER ==========
-    const handleKeyDown = useCallback((e) => {
-        if (e.key === 'Enter' && e.shiftKey) {
-            e.preventDefault();
-            const value = message;
-            const cursorPosition = e.target.selectionStart;
-            const newValue = value.slice(0, cursorPosition) + '\n' + value.slice(cursorPosition);
-            setMessage(newValue);
+    /* ---------------------------------------------------------------- */
+    /* Key down                                                         */
+    /* ---------------------------------------------------------------- */
+    const handleKeyDown = useCallback(
+        (e) => {
+            if (e.key === 'Enter' && e.shiftKey) {
+                e.preventDefault();
+                const value = message;
+                const cursorPosition = e.target.selectionStart;
+                const newValue =
+                    value.slice(0, cursorPosition) + '\n' + value.slice(cursorPosition);
+                setMessage(newValue);
 
-            setTimeout(() => {
-                if (inputRef.current) {
-                    inputRef.current.selectionStart = cursorPosition + 1;
-                    inputRef.current.selectionEnd = cursorPosition + 1;
-                }
-            }, 10);
-            return;
-        }
+                setTimeout(() => {
+                    if (inputRef.current) {
+                        inputRef.current.selectionStart = cursorPosition + 1;
+                        inputRef.current.selectionEnd = cursorPosition + 1;
+                    }
+                }, 10);
+                return;
+            }
 
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            handleMessageSending(e);
-        }
-    });
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleMessageSending(e);
+            }
+        },
+        [message]
+    );
 
-    // ========== EMOJI HANDLER ==========
+    /* ---------------------------------------------------------------- */
+    /* Emoji                                                            */
+    /* ---------------------------------------------------------------- */
     const handleEmojiClick = useCallback((emojiObject) => {
-        setMessage(prevText => prevText + emojiObject.emoji);
+        setMessage((prevText) => prevText + emojiObject.emoji);
         setShowPicker(false);
         setTimeout(() => {
             if (inputRef.current) inputRef.current.focus();
         }, 100);
     }, []);
 
-    // ========== CONTEXT MENU HANDLERS ==========
+    /* ---------------------------------------------------------------- */
+    /* Context menu handlers                                            */
+    /* ---------------------------------------------------------------- */
     const handleOpenContextMenu = (msg) => setActiveActionMessage(msg);
 
     const handleSelectReply = (msg) => {
@@ -412,11 +493,11 @@ export default function Chat() {
 
     const handleSelectEdit = async (msg) => {
         setActiveActionMessage(null);
+        if (isPremium === null) return;
         if (!isPremium) {
             setShowPremiumModal(true);
         } else {
             setEditingMessage(msg);
-            // const plainContent = decryptedMessages[msg.id] || msg.content;
             const plainContent = decryptText(msg.content);
             setMessage(plainContent);
             if (inputRef.current) inputRef.current.focus();
@@ -425,6 +506,11 @@ export default function Chat() {
 
     const handleSelectDetails = (msg) => {
         setActiveActionMessage(null);
+        // Details is only offered on your own messages, and only for premium.
+        // The context menu already hides the button for partner messages, but
+        // guard here too in case the menu is ever triggered another way.
+        if (!isCurrentUser(userId, msg.sender_id)) return;
+        if (isPremium === null) return;
         if (!isPremium) {
             setShowPremiumModal(true);
         } else {
@@ -433,7 +519,6 @@ export default function Chat() {
     };
 
     const handleCopyMessage = async (msg) => {
-        // const plainText = decryptedMessages[msg.id] || msg.content;
         const plainText = decryptText(msg.content);
         try {
             await navigator.clipboard.writeText(plainText);
@@ -453,7 +538,9 @@ export default function Chat() {
         }
     };
 
-    // ========== MESSAGE CLICK/LONG PRESS HANDLERS ==========
+    /* ---------------------------------------------------------------- */
+    /* Message interaction (double-click / long press)                  */
+    /* ---------------------------------------------------------------- */
     const handleMessageInteraction = (e, msg) => {
         e.preventDefault();
         if (isNative) return;
@@ -492,7 +579,9 @@ export default function Chat() {
         }
     };
 
-    // ========== RENDER MESSAGES ==========
+    /* ---------------------------------------------------------------- */
+    /* Render                                                           */
+    /* ---------------------------------------------------------------- */
     const renderMessages = useCallback(() => {
         if (!messages?.length) return null;
 
@@ -515,138 +604,182 @@ export default function Chat() {
             const isOwn = isCurrentUser(userId, msg.sender_id);
             const isSameDay = isSameDate(message0, message1);
             const profile = getUserProfile(msg.sender_id, [myself, partner]);
-            const { name, picture } = profile;
-            const pictureUrl = buildPictureUrl(baseURL, picture);
+            const { name } = profile;
 
             const { content, sent_at, delivered_at, read_at, id, reply_to_id, edited_at } = msg;
-
-            // const decryptedContent = decryptedMessages[id] || 'Decrypting...';
             const isHighlighted = highlightedMessageId === id;
 
-            // Resolve replied parent message details
-            const repliedMessage = reply_to_id ? messages.find(m => m.id === reply_to_id) : null;
-            const repliedSenderProfile = repliedMessage ? getUserProfile(repliedMessage.sender_id, [myself, partner]) : null;
-            // const decryptedRepliedContent = repliedMessage ? (decryptedMessages[repliedMessage.id] || repliedMessage.content) : null;
-            const decryptedRepliedContent = repliedMessage ? (decryptText(repliedMessage.content)) : null;
+            const repliedMessage = reply_to_id
+                ? messages.find((m) => m.id === reply_to_id)
+                : null;
+            const repliedSenderProfile = repliedMessage
+                ? getUserProfile(repliedMessage.sender_id, [myself, partner])
+                : null;
+            const decryptedRepliedContent = repliedMessage
+                ? decryptText(repliedMessage.content)
+                : null;
+
+            const bubbleBase = isOwn
+                ? 'bg-[#2b5278] text-white'
+                : 'bg-white text-gray-900 border border-gray-200';
 
             return (
                 <Fragment key={id || index}>
                     {!isSameDay && (
-                        <span className='w-fit self-center bg-slate-400 text-amber-50 px-3 my-5 rounded-md text-center text-xs'>
+                        <span className="self-center text-[11px] font-medium text-gray-600 bg-white/70 backdrop-blur-sm px-3 py-1 my-3 rounded-full shadow-sm">
                             {formatMessageDate(sent_at)}
                         </span>
                     )}
 
                     <div
-                        className={`chat ${isOwn ? 'chat-end' : 'chat-start'} 
-                            ${showName && isSameDay ? 'mt-3' : ''} cursor-pointer relative group`}
-                        data-message-id={id}
-                        onClick={(e) => handleMessageInteraction(e, msg)}
-                        onTouchStart={(e) => handleTouchStart(e, msg)}
-                        onTouchEnd={handleTouchEnd}
-                        onTouchMove={handleTouchMove}
-                        onContextMenu={(e) => {
-                            e.preventDefault();
-                            if (!isNative) handleOpenContextMenu(msg);
-                        }}
+                        className={`flex w-full ${isOwn ? 'justify-end' : 'justify-start'} ${showName && isSameDay ? 'mt-3' : 'mt-1'
+                            }`}
                     >
-                        {isDetails && !isSameSenderAsNext && pictureUrl && (
-                            <div className="chat-image avatar">
-                                <div className="w-10 rounded-full">
-                                    <img alt='Profile Picture' src={pictureUrl} />
-                                </div>
-                            </div>
-                        )}
-                        {(!isDetails || isSameSenderAsNext) && (
-                            <div className='block w-10' />
-                        )}
-
-                        <div className="chat-header">
-                            {isDetails && showName && name && (
-                                <span>{name}</span>
-                            )}
-                        </div>
-
-                        <div className={`flex flex-col chat-bubble ${isOwn ? '' : 'chat-bubble-error'} relative max-w-md transition-all duration-300 ${isHighlighted ? 'ring-4 ring-amber-400 scale-[1.02] shadow-lg' : ''
-                            }`}>
-                            {/* Attached Quoted Message Snippet */}
-                            {repliedMessage && (
-                                <div
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        scrollToMessage(repliedMessage.id);
-                                    }}
-                                    className="mb-2 p-2 bg-black/20 hover:bg-black/30 transition-colors rounded border-l-4 border-amber-400 text-xs cursor-pointer select-none"
-                                >
-                                    <span className="font-semibold block text-amber-200">
-                                        {repliedSenderProfile?.name || 'User'}
-                                    </span>
-                                    <p className="line-clamp-2 text-gray-200 italic">{decryptedRepliedContent}</p>
-                                </div>
+                        <div
+                            className="flex flex-col max-w-[85%] sm:max-w-[70%]"
+                            style={{ alignItems: isOwn ? 'flex-end' : 'flex-start' }}
+                        >
+                            {!isOwn && showName && isSameDay && name && (
+                                <span className="text-[11px] font-semibold text-gray-500 mb-1 px-2">
+                                    {name}
+                                </span>
                             )}
 
-                            {/* <span style={{ whiteSpace: 'pre-wrap' }}>{decryptedContent}</span> */}
-                            <span style={{ whiteSpace: 'pre-wrap' }}>{decryptText(content)}</span>
-
-                            <div className="flex items-center justify-end gap-1 mt-1">
-                                {edited_at && (
-                                    <span className="text-[10px] opacity-70 italic">edited</span>
-                                )}
-
-                                {/* Status Indicators */}
-                                {isOwn && isPremium && (
-                                    <>
-                                        <span className="chat-footer opacity-50">{timeTo12Hour(sent_at)}</span>
-
-                                        <span className="text-xs inline-block">
-                                            {sent_at && !delivered_at && !read_at && <LiaCheckSolid color='gray' size={15} />}
-                                            {sent_at && delivered_at && !read_at && <LiaCheckDoubleSolid color='gray' size={15} />}
-                                            {sent_at && delivered_at && read_at && <LiaCheckDoubleSolid color='blue' size={15} />}
+                            <div
+                                className={`relative px-3.5 py-2 text-sm leading-relaxed rounded-2xl ${bubbleBase} ${isHighlighted ? 'ring-4 ring-amber-400 shadow-lg' : ''
+                                    } cursor-pointer transition-all`}
+                                data-message-id={id}
+                                onClick={(e) => handleMessageInteraction(e, msg)}
+                                onTouchStart={(e) => handleTouchStart(e, msg)}
+                                onTouchEnd={handleTouchEnd}
+                                onTouchMove={handleTouchMove}
+                                onContextMenu={(e) => {
+                                    e.preventDefault();
+                                    if (!isNative) handleOpenContextMenu(msg);
+                                }}
+                            >
+                                {repliedMessage && (
+                                    <div
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            scrollToMessage(repliedMessage.id);
+                                        }}
+                                        className={`mb-1.5 rounded-md border-l-[3px] px-2 py-1 text-[11px] cursor-pointer ${isOwn
+                                            ? 'bg-white/15 border-white/70 text-white/90'
+                                            : 'bg-gray-100 border-blue-500 text-gray-700'
+                                            }`}
+                                    >
+                                        <span
+                                            className={`font-semibold block ${isOwn ? 'text-white' : 'text-blue-600'
+                                                }`}
+                                        >
+                                            {repliedSenderProfile?.name || 'User'}
                                         </span>
-                                    </>
+                                        <p className="line-clamp-2 opacity-90">
+                                            {decryptedRepliedContent}
+                                        </p>
+                                    </div>
                                 )}
+
+                                <span
+                                    style={{
+                                        whiteSpace: 'pre-wrap',
+                                        wordBreak: 'break-word',
+                                    }}
+                                >
+                                    {decryptText(content)}
+                                </span>
+
+                                <div
+                                    className={`flex items-center justify-end gap-1 mt-0.5 text-[10px] ${isOwn ? 'text-white/70' : 'text-gray-500'
+                                        }`}
+                                >
+                                    {edited_at && (
+                                        <span className="italic opacity-80">edited</span>
+                                    )}
+
+                                    <span>{timeTo12Hour(sent_at)}</span>
+
+                                    {isOwn && isPremium && (
+                                        <span className="inline-block">
+                                            {sent_at && !delivered_at && !read_at && (
+                                                <LiaCheckSolid
+                                                    color="rgba(255,255,255,0.7)"
+                                                    size={14}
+                                                />
+                                            )}
+                                            {sent_at && delivered_at && !read_at && (
+                                                <LiaCheckDoubleSolid
+                                                    color="rgba(255,255,255,0.7)"
+                                                    size={14}
+                                                />
+                                            )}
+                                            {sent_at && delivered_at && read_at && (
+                                                <LiaCheckDoubleSolid
+                                                    color="#4ade80"
+                                                    size={14}
+                                                />
+                                            )}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>
                 </Fragment>
             );
         });
-    }, [isDetails, messages, myself, partner, isPremium, highlightedMessageId, scrollToMessage]);
+    }, [messages, myself, partner, isPremium, highlightedMessageId, scrollToMessage]);
 
-    // ========== RENDER ==========
     return (
-        <ChatLayout partnerName={partner.name} partnerAge={partner.age} partnerPicture={partner.picture}
-            chat_id={chat_id} lastSeen={partner.last_seen} onlineStatus={partner.is_online}>
+        <ChatLayout
+            partnerId={partner.id}
+            partnerName={partner.name}
+            partnerAge={partner.age}
+            partnerPicture={partner.picture}
+            chat_id={chat_id}
+            lastSeen={partner.last_seen}
+            onlineStatus={partner.is_online}
+        >
             <HelmetHeader pageTitle={CHAT_TITLE} />
 
-            <div className='w-full h-full flex flex-col relative'>
+            <style>{chatStyles}</style>
+
+            <div className="w-full h-full flex flex-col relative">
                 <div
                     ref={chatContainerRef}
                     onScroll={handleScroll}
-                    className="w-full h-full flex flex-col select-none fade-in px-4 py-2 bg-base-100 scroll-bar"
+                    className="w-full h-full flex flex-col select-none fade-in px-3 sm:px-4 py-2 scroll-bar"
+                    style={{
+                        backgroundColor: '#efeae2',
+                        backgroundImage:
+                            'radial-gradient(rgba(0,0,0,0.04) 1px, transparent 1px)',
+                        backgroundSize: '20px 20px',
+                    }}
                 >
                     {renderMessages()}
                     <div ref={messagesEndRef} />
                 </div>
 
                 {isTyping && (
-                    <div className="chat chat-start px-4">
-                        <div className="chat-bubble chat-bubble-accent">
-                            <div className="flex items-center gap-2">
-                                <span className="text-sm">typing</span>
-                                <span className="typing-dots">
-                                    <span className="dot"></span>
-                                    <span className="dot"></span>
-                                    <span className="dot"></span>
-                                </span>
-                            </div>
+                    <div className="px-4 pb-1">
+                        <div className="inline-flex items-center gap-2 bg-white border border-gray-200 rounded-2xl px-3 py-2 shadow-sm">
+                            <span className="text-xs text-gray-500">typing</span>
+                            <span className="typing-dots text-gray-500">
+                                <span className="dot"></span>
+                                <span className="dot"></span>
+                                <span className="dot"></span>
+                            </span>
                         </div>
                     </div>
                 )}
 
-                {/* Input Toolbar Area */}
-                <section className={`p-4 border-t border-gray-200 transition-colors ${editingMessage ? 'bg-amber-50/60 border-amber-300' : 'bg-white'}`}>
-                    {/* Editing Attachment Bar */}
+                <section
+                    className={`relative p-3 sm:p-4 border-t border-gray-200 transition-colors ${editingMessage
+                        ? 'bg-amber-50/60 border-amber-300'
+                        : 'bg-white'
+                        }`}
+                >
                     {editingMessage && (
                         <div className="flex items-center justify-between bg-amber-100 border-l-4 border-amber-500 p-2.5 mb-2 rounded-r-lg">
                             <div className="text-xs overflow-hidden pr-2">
@@ -654,7 +787,6 @@ export default function Chat() {
                                     <Edit2 size={12} /> Editing Message
                                 </span>
                                 <p className="text-gray-600 truncate mt-0.5">
-                                    {/* {decryptedMessages[editingMessage.id] || editingMessage.content} */}
                                     {decryptText(editingMessage.content)}
                                 </p>
                             </div>
@@ -668,15 +800,19 @@ export default function Chat() {
                         </div>
                     )}
 
-                    {/* Replying Attachment Bar */}
                     {replyingTo && !editingMessage && (
                         <div className="flex items-center justify-between bg-gray-100 border-l-4 border-blue-500 p-2.5 mb-2 rounded-r-lg">
                             <div className="text-xs overflow-hidden pr-2">
                                 <span className="font-semibold text-blue-600 block">
-                                    Replying to {getUserProfile(replyingTo.sender_id, [myself, partner]).name}
+                                    Replying to{' '}
+                                    {
+                                        getUserProfile(replyingTo.sender_id, [
+                                            myself,
+                                            partner,
+                                        ]).name
+                                    }
                                 </span>
                                 <p className="text-gray-600 truncate mt-0.5">
-                                    {/* {decryptedMessages[replyingTo.id] || replyingTo.content} */}
                                     {decryptText(replyingTo.content)}
                                 </p>
                             </div>
@@ -690,67 +826,73 @@ export default function Chat() {
                         </div>
                     )}
 
-                    <form onSubmit={handleMessageSending} className="flex flex-col gap-2">
-                        {showPicker && (
-                            <div className="relative">
-                                <div className="absolute bottom-full mb-2 z-50">
-                                    <EmojiPicker
-                                        onEmojiClick={handleEmojiClick}
-                                        width={300}
-                                        height={400}
-                                    />
-                                </div>
-                            </div>
-                        )}
-                        <div className="flex items-end gap-2">
-                            <button
-                                type="button"
-                                onClick={() => setShowPicker(val => !val)}
-                                className="p-2 rounded-full hover:bg-gray-100 transition-colors self-center"
-                            >
-                                {showPicker ? '✕' : '😊'}
-                            </button>
-
-                            <textarea
-                                ref={inputRef}
-                                value={message}
-                                onChange={handleInputChange}
-                                onKeyDown={handleKeyDown}
-                                placeholder={editingMessage ? "Edit message..." : "(Shift+Enter for new line)"}
-                                className={`flex-1 border rounded-lg px-4 py-2 focus:outline-none transition-all resize-none ${editingMessage
-                                    ? 'border-amber-400 focus:border-amber-600 bg-amber-50/30'
-                                    : 'border-slate-200 focus:border-blue-500'
-                                    }`}
-                                style={{
-                                    minHeight: '44px',
-                                    maxHeight: '200px',
-                                    whiteSpace: 'pre-wrap',
-                                    wordBreak: 'break-word',
-                                    lineHeight: '1.5'
-                                }}
-                                rows={1}
+                    {showPicker && (
+                        <div className="emoji-picker-anchor">
+                            <EmojiPicker
+                                onEmojiClick={handleEmojiClick}
+                                width={300}
+                                height={400}
                             />
-
-                            <button
-                                type="submit"
-                                className={`px-4 py-2 text-white rounded-lg transition-colors disabled:opacity-50 self-center ${editingMessage ? 'bg-amber-500 hover:bg-amber-600' : 'bg-blue-500 hover:bg-blue-600'
-                                    }`}
-                                disabled={!message.trim()}
-                            >
-                                {editingMessage ? 'Save' : 'Send'}
-                            </button>
                         </div>
+                    )}
+
+                    <form
+                        onSubmit={handleMessageSending}
+                        className="flex items-end gap-2"
+                    >
+                        <button
+                            type="button"
+                            onClick={() => setShowPicker((val) => !val)}
+                            className="w-11 h-11 flex items-center justify-center rounded-full hover:bg-gray-100 active:bg-gray-200 text-gray-600 transition-colors flex-shrink-0"
+                            aria-label={showPicker ? 'Close emoji picker' : 'Open emoji picker'}
+                        >
+                            {showPicker ? <X size={22} /> : <Smile size={22} />}
+                        </button>
+
+                        <textarea
+                            ref={inputRef}
+                            value={message}
+                            onChange={handleInputChange}
+                            onKeyDown={handleKeyDown}
+                            placeholder={
+                                editingMessage
+                                    ? 'Edit message...'
+                                    : '(Shift+Enter for new line)'
+                            }
+                            className={`flex-1 border rounded-2xl px-4 py-2.5 focus:outline-none transition-all resize-none ${editingMessage
+                                ? 'border-amber-400 focus:border-amber-600 bg-amber-50/30'
+                                : 'border-slate-200 focus:border-blue-500'
+                                }`}
+                            style={{
+                                minHeight: '44px',
+                                maxHeight: '200px',
+                                whiteSpace: 'pre-wrap',
+                                wordBreak: 'break-word',
+                                lineHeight: '1.5',
+                            }}
+                            rows={1}
+                        />
+
+                        <button
+                            type="submit"
+                            className={`w-11 h-11 flex items-center justify-center rounded-full text-white transition-colors disabled:opacity-50 flex-shrink-0 ${editingMessage
+                                ? 'bg-amber-500 hover:bg-amber-600'
+                                : 'bg-blue-500 hover:bg-blue-600'
+                                }`}
+                            disabled={!message.trim()}
+                            aria-label={editingMessage ? 'Save edit' : 'Send message'}
+                        >
+                            <SendHorizontal size={20} />
+                        </button>
                     </form>
                 </section>
 
-                {/* Copy Toast Notification */}
                 {showCopyToast && (
                     <div className="fixed bottom-24 left-1/2 transform -translate-x-1/2 z-50 bg-gray-800 text-white px-4 py-2 rounded-lg shadow-lg text-sm animate-fade-in-up">
                         Copied to clipboard!
                     </div>
                 )}
 
-                {/* Popover Action Menu Modal */}
                 {activeActionMessage && (
                     <div
                         className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4 backdrop-blur-xs animate-fade-in"
@@ -768,15 +910,23 @@ export default function Chat() {
                                 Reply
                             </button>
 
-                            {/* Edit Option (Only available on own messages) */}
                             {isCurrentUser(userId, activeActionMessage.sender_id) && (
-                                <button
-                                    onClick={() => handleSelectEdit(activeActionMessage)}
-                                    className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-xl transition-colors"
-                                >
-                                    <Edit2 size={18} className="text-amber-500" />
-                                    Edit
-                                </button>
+                                <>
+                                    <button
+                                        onClick={() => handleSelectEdit(activeActionMessage)}
+                                        className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-xl transition-colors"
+                                    >
+                                        <Edit2 size={18} className="text-amber-500" />
+                                        Edit
+                                    </button>
+                                    <button
+                                        onClick={() => handleSelectDetails(activeActionMessage)}
+                                        className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-xl transition-colors"
+                                    >
+                                        <Info size={18} className="text-violet-500" />
+                                        Details
+                                    </button>
+                                </>
                             )}
 
                             <button
@@ -786,18 +936,10 @@ export default function Chat() {
                                 <Copy size={18} className="text-gray-500" />
                                 Copy
                             </button>
-                            <button
-                                onClick={() => handleSelectDetails(activeActionMessage)}
-                                className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-xl transition-colors"
-                            >
-                                <Info size={18} className="text-violet-500" />
-                                Details
-                            </button>
                         </div>
                     </div>
                 )}
 
-                {/* Premium Details Info Modal */}
                 {detailsModalMessage && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
                         <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl relative text-gray-800">
@@ -813,24 +955,35 @@ export default function Chat() {
                             </h3>
 
                             <div className="space-y-3 text-sm border-t border-gray-100 pt-3">
-                                <div className="flex justify-between items-center">
+                                <div className="flex justify-between items-center gap-3">
                                     <span className="text-gray-500">Sent:</span>
-                                    <span className="font-semibold">{detailsModalMessage.sent_at ? formatMessageDate(detailsModalMessage.sent_at, true) : 'N/A'}</span>
+                                    <span className="font-semibold text-right">
+                                        {formatFullTimestamp(
+                                            detailsModalMessage.sent_at
+                                        ) || 'N/A'}
+                                    </span>
                                 </div>
-                                <div className="flex justify-between items-center">
+                                <div className="flex justify-between items-center gap-3">
                                     <span className="text-gray-500">Delivered:</span>
-                                    <span className="font-semibold">{detailsModalMessage.delivered_at ? formatMessageDate(detailsModalMessage.delivered_at, true) : 'Not delivered yet'}</span>
+                                    <span className="font-semibold text-right">
+                                        {formatFullTimestamp(
+                                            detailsModalMessage.delivered_at
+                                        ) || 'Not delivered yet'}
+                                    </span>
                                 </div>
-                                <div className="flex justify-between items-center">
+                                <div className="flex justify-between items-center gap-3">
                                     <span className="text-gray-500">Read:</span>
-                                    <span className="font-semibold text-blue-600">{detailsModalMessage.read_at ? formatMessageDate(detailsModalMessage.read_at, true) : 'Unread'}</span>
+                                    <span className="font-semibold text-blue-600 text-right">
+                                        {formatFullTimestamp(
+                                            detailsModalMessage.read_at
+                                        ) || 'Unread'}
+                                    </span>
                                 </div>
                             </div>
                         </div>
                     </div>
                 )}
 
-                {/* Free User Premium Feature Upsell Modal */}
                 {showPremiumModal && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
                         <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl text-center relative flex flex-col items-center">
@@ -845,13 +998,20 @@ export default function Chat() {
                                 <Crown size={30} />
                             </div>
 
-                            <h3 className="text-xl font-bold text-gray-900 mb-2">Premium Feature</h3>
+                            <h3 className="text-xl font-bold text-gray-900 mb-2">
+                                Premium Feature
+                            </h3>
                             <p className="text-sm text-gray-600 mb-6 leading-relaxed">
-                                Message editing and detailed read/delivery timestamps are exclusive to Premium members. Upgrade to unlock full access!
+                                Message editing and detailed read/delivery timestamps
+                                are exclusive to Premium members. Upgrade to unlock
+                                full access!
                             </p>
 
                             <button
-                                onClick={() => navigate('/premium')}
+                                onClick={() => {
+                                    setShowPremiumModal(false);
+                                    navigate(premiumPath);
+                                }}
                                 className="w-full py-3 px-6 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 text-white font-semibold shadow-lg hover:brightness-110 transition-all flex items-center justify-center gap-2"
                             >
                                 <Crown size={18} />
