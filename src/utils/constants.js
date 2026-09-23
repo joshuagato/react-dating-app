@@ -60,6 +60,7 @@ export const profilePath = '/profile';
 export const premiumPath = '/premium';
 export const homePath = '/';
 export const partnerProfilePath = '/partner-profile';
+export const cloudFactorPath = 'https://';
 
 export const VERIFICATION_CHANNEL = {
     SIGNUP: 'signup', LOGIN: 'login'
