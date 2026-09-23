@@ -19,7 +19,8 @@ import {
 } from "../utils/functions";
 import {
     SIGNUP_TEXT, SWITCH_TO_LOGIN_TEXT, VERIFICATION_CHANNEL,
-    verifyEmailPath, encountersPath, basicProfilePath, advancedProfilePath, finalProfilePath, baseURL
+    verifyEmailPath, encountersPath, basicProfilePath, advancedProfilePath,
+    profilePagePath, finalProfilePath, baseURL
 } from "../utils/constants";
 
 const SignUp = () => {
@@ -50,10 +51,10 @@ const SignUp = () => {
         toast.success(response.message, { autoClose: 7000, theme: 'colored' });
 
         const { user_id, email_verified, basic_profile_setup, advanced_profile_setup,
-            final_profile_setup, first_name, last_name } = response;
+            final_profile_setup, profile_page_setup, first_name, last_name } = response;
         connectSocket(baseURL, user_id);
 
-        if (email_verified && basic_profile_setup && advanced_profile_setup) {
+        if (email_verified && basic_profile_setup && advanced_profile_setup && profilePagePath) {
             navigate(encountersPath, { replace: true });
         } else {
             if (!email_verified)
@@ -67,6 +68,9 @@ const SignUp = () => {
 
             if (!final_profile_setup)
                 return navigate(finalProfilePath, { replace: true });
+
+            if (!profile_page_setup)
+                return navigate(profilePagePath, { replace: true });
         }
     };
 
