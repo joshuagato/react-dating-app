@@ -1,6 +1,7 @@
 import { io } from 'socket.io-client';
 import { format, isToday, isYesterday, differenceInDays } from 'date-fns';
 import CryptoJS from 'crypto-js';
+import { cloudFactorPath, baseURL } from '../utils/constants';
 
 export const organizeErrors = errorsArray => {
     const errorsData = {};
@@ -187,6 +188,11 @@ export const timeTo12Hour = time => {
 }
 
 export const buildPictureUrl = (baseUrl, pictureUrl) => `${baseUrl}/${pictureUrl}`;
+
+export const renderImageUrl = url => {
+    if (url.includes(cloudFactorPath)) return url;
+    return buildPictureUrl(baseURL, url);
+}
 
 export const isCurrentUser = (currentUserId, otherUserId) => {
     if (!currentUserId || !otherUserId) return false;
