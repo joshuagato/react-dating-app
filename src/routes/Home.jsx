@@ -1,10 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link } from "react-router";
-import { encountersPath } from '../utils/constants';
-import { APP_NAME, installPagePath } from '../utils/constants';
+import { APP_NAME, installPagePath, encountersPath, profilePath, userId } from '../utils/constants';
 
 const Home = () => {
-    const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -12,13 +10,8 @@ const Home = () => {
             setLoading(false);
         }, 1000);
 
-        const timer2 = setTimeout(() => {
-            setUser({});
-        }, 1000 * 10);
-
         return () => {
             clearTimeout(timer1);
-            clearTimeout(timer2);
         };
     }, []);
 
@@ -51,11 +44,11 @@ const Home = () => {
                     </h1>
 
                     <p className="text-slate-300 text-lg lg:text-xl max-w-2xl mx-auto mb-10 leading-relaxed">
-                        Connect with like-minded people through live streaming, meaningful conversations, and authentic connections.
+                        Connect with like-minded people through authentic connections and meaningful conversations.
                     </p>
 
                     {/* Action Buttons */}
-                    {user ? (
+                    {userId ? (
                         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
                             <Link
                                 to={encountersPath}
@@ -77,7 +70,7 @@ const Home = () => {
                                 </svg>
                             </Link>
                             <Link
-                                to={encountersPath}
+                                to={profilePath}
                                 className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-4 bg-slate-900/60 border border-slate-700/60 text-slate-200 hover:text-white text-base font-semibold rounded-xl hover:bg-slate-700/50 hover:border-slate-600 transition-all duration-300"
                             >
                                 View Profile
