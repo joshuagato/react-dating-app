@@ -5,10 +5,11 @@ import { useQuery } from '@tanstack/react-query';
 import { LiaCheckDoubleSolid, LiaCheckSolid } from 'react-icons/lia';
 
 import {
-    CHATS_TITLE, CHATS_TEXT, baseURL, userId, socket, chatPath,
+    CHATS_TITLE, CHATS_TEXT, userId, socket, chatPath,
 } from '../utils/constants';
 import {
-    buildPictureUrl, formatMessageDate, isCurrentUser, isSame, decryptText,
+    formatMessageDate, isCurrentUser, isSame, decryptText,
+    renderImageUrl,
 } from '../utils/functions';
 import { getChatsHandler } from '../tanstack/chat';
 import { getPremiumStatusHandler } from '../tanstack/user';
@@ -212,7 +213,7 @@ export default function Chats() {
 
                             const isOwn = isCurrentUser(userId, sender_id);
                             const formatted = formatMessageDate(sent_at, true);
-                            const pictureUrl = buildPictureUrl(baseURL, picture);
+                            const pictureUrl = renderImageUrl(picture);
 
                             // Read receipts are premium-only. Free users
                             // still see their messages, just no tick marks.

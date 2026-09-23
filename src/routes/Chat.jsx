@@ -7,10 +7,10 @@ import { CornerUpLeft, Info, X, Crown, Copy, Edit2, SendHorizontal, Smile } from
 import EmojiPicker from 'emoji-picker-react';
 import { Capacitor } from '@capacitor/core';
 
-import { CHAT_TITLE, userId, socket, baseURL, premiumPath } from '../utils/constants';
+import { CHAT_TITLE, userId, socket, premiumPath } from '../utils/constants';
 import {
     writeName, isSameDate, formatMessageDate, timeTo12Hour, isCurrentUser,
-    getUserProfile, isSame, buildPictureUrl, encryptText, decryptText
+    getUserProfile, isSame, encryptText, decryptText
 } from '../utils/functions';
 import {
     getChatMessagesHandler,
