@@ -8,11 +8,11 @@ import {
 } from 'lucide-react';
 
 import {
-    baseURL, chatsPath, encountersPath, likesPath, nearbyPath, profilePath,
+    chatsPath, encountersPath, likesPath, nearbyPath, profilePath,
     partnerProfilePath, premiumPath, socket, userId,
 } from '../../utils/constants';
 import {
-    chooseColour, chooseTextColour, isSame, formatLastSeenDate, buildPictureUrl,
+    chooseColour, chooseTextColour, isSame, formatLastSeenDate, renderImageUrl,
 } from '../../utils/functions';
 import { getUnreadChatsCountHandler } from '../../tanstack/chat';
 import { getNewLikesCountHandler } from '../../tanstack/encounter';
@@ -88,7 +88,7 @@ const ChatLayout = ({
         };
     }, [chat_id]);
 
-    const pictureUrl = buildPictureUrl(baseURL, partnerPicture);
+    const pictureUrl = renderImageUrl(partnerPicture);
 
     const openPartnerProfile = () => {
         if (!partnerId) return;
