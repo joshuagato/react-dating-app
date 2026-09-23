@@ -9,10 +9,10 @@ import {
 } from 'lucide-react';
 
 import {
-    LIKES_TITLE, LIKES_TEXT, baseURL, premiumPath, partnerProfilePath,
+    LIKES_TITLE, LIKES_TEXT, premiumPath, partnerProfilePath,
     chatPath, ENCOUNTER_ACTION,
 } from '../utils/constants';
-import { buildPictureUrl } from '../utils/functions';
+import { renderImageUrl } from '../utils/functions';
 import { getPremiumStatusHandler } from '../tanstack/user';
 import {
     usersWhoLikeMeHandler,
@@ -441,11 +441,8 @@ export default function Likes() {
                                             : ''
                                             }`}
                                         src={
-                                            buildPictureUrl(
-                                                baseURL,
-                                                profile.pictures?.[0]?.path
-                                            ) || '/placeholder-avatar.png'
-                                        }
+                                            renderImageUrl(profile.pictures?.[0]?.path)
+                                            || '/placeholder-avatar.png'}
                                         alt={`${profile.name}'s profile picture`}
                                         loading="lazy"
                                     />
@@ -588,14 +585,8 @@ export default function Likes() {
                                         >
                                             <img
                                                 src={
-                                                    buildPictureUrl(
-                                                        baseURL,
-                                                        selectedProfile.pictures[activeImageIndex]?.path
-                                                    ) ||
-                                                    buildPictureUrl(
-                                                        baseURL,
-                                                        selectedProfile.pictures[0]?.path
-                                                    ) ||
+                                                    renderImageUrl(selectedProfile.pictures[activeImageIndex]?.path) ||
+                                                    renderImageUrl(selectedProfile.pictures[0]?.path) ||
                                                     '/placeholder-avatar.png'
                                                 }
                                                 alt={`${selectedProfile.name} - Picture ${activeImageIndex + 1}`}
@@ -828,10 +819,7 @@ export default function Likes() {
 
                     <div className="w-full h-full p-4 flex items-center justify-center">
                         <img
-                            src={buildPictureUrl(
-                                baseURL,
-                                selectedProfile.pictures[activeImageIndex]?.path
-                            )}
+                            src={renderImageUrl(selectedProfile.pictures[activeImageIndex]?.path)}
                             alt={`${selectedProfile.name} full view`}
                             className="max-w-full max-h-full object-contain rounded-lg"
                             draggable={false}

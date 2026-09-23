@@ -20,7 +20,7 @@ import { likeUserHandler, dislikeUserHandler } from '../tanstack/encounter';
 
 import MainLayout from '../components/Layouts/MainLayout';
 import HelmetHeader from '../components/HelmetHeader';
-import { buildPictureUrl } from '../utils/functions';
+import { renderImageUrl } from '../utils/functions';
 
 /* ------------------------------------------------------------------ */
 /* Injected keyframes for the super-like burst                        */
@@ -357,7 +357,7 @@ export default function Nearby() {
                             >
                                 <img
                                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                                    src={buildPictureUrl(baseURL, profile.pictures?.[0]) || '/placeholder-avatar.png'}
+                                    src={renderImageUrl(profile.pictures?.[0]) || '/placeholder-avatar.png'}
                                     alt={`${profile.name}'s profile picture`}
                                     loading="lazy"
                                 />
@@ -456,14 +456,8 @@ export default function Nearby() {
                                         >
                                             <img
                                                 src={
-                                                    buildPictureUrl(
-                                                        baseURL,
-                                                        selectedProfile.pictures[activeImageIndex]
-                                                    ) ||
-                                                    buildPictureUrl(
-                                                        baseURL,
-                                                        selectedProfile.pictures[0]
-                                                    ) ||
+                                                    renderImageUrl(selectedProfile.pictures[activeImageIndex]) ||
+                                                    renderImageUrl(selectedProfile.pictures[0]) ||
                                                     '/placeholder-avatar.png'
                                                 }
                                                 alt={`${selectedProfile.name} - Picture ${activeImageIndex + 1}`}
@@ -705,10 +699,7 @@ export default function Nearby() {
 
                     <div className="w-full h-full p-4 flex items-center justify-center">
                         <img
-                            src={buildPictureUrl(
-                                baseURL,
-                                selectedProfile.pictures[activeImageIndex]
-                            )}
+                            src={renderImageUrl(selectedProfile.pictures[activeImageIndex])}
                             alt={`${selectedProfile.name} full view`}
                             className="max-w-full max-h-full object-contain rounded-lg"
                             draggable={false}

@@ -15,8 +15,7 @@ import 'swiper/css/navigation';
 import 'swiper/css/pagination';
 
 import { getPartnerProfileHandler } from '../tanstack/user';
-import { baseURL } from '../utils/constants';
-import { buildPictureUrl } from '../utils/functions';
+import { renderImageUrl } from '../utils/functions';
 import PartnerProfileLayout from '../components/Layouts/PartnerProfileLayout';
 
 /* ------------------------------------------------------------------ */
@@ -176,7 +175,7 @@ const PartnerProfile = () => {
 
     return (
         <PartnerProfileLayout pageTitle={partner.name || 'Partner Profile'}>
-            <div className="max-w-lg mx-auto pb-10 space-y-5">
+            <div className="max-w-lg mx-auto pb-10 space-y-5 scroll-bar">
                 {/* ------------------------------------------------ */}
                 {/* Hero image area                                  */}
                 {/* ------------------------------------------------ */}
@@ -205,10 +204,7 @@ const PartnerProfile = () => {
                                             as much as its aspect ratio
                                             allows. */}
                                         <img
-                                            src={buildPictureUrl(
-                                                baseURL,
-                                                pic.path
-                                            )}
+                                            src={renderImageUrl(pic.path)}
                                             alt={`${partner.name} ${idx + 1}`}
                                             className="w-full h-full object-contain"
                                             draggable={false}
@@ -397,10 +393,7 @@ const PartnerProfile = () => {
 
                         <div className="w-full h-full p-4 flex items-center justify-center">
                             <img
-                                src={buildPictureUrl(
-                                    baseURL,
-                                    partner.pictures[activeImageIndex].path
-                                )}
+                                src={renderImageUrl(partner.pictures[activeImageIndex].path)}
                                 alt={`${partner.name} full view`}
                                 className="max-w-full max-h-full object-contain rounded-lg"
                                 draggable={false}

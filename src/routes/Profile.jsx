@@ -45,13 +45,9 @@ import { Capacitor } from '@capacitor/core';
 import MainLayout from '../components/Layouts/MainLayout';
 import HelmetHeader from '../components/HelmetHeader';
 import {
-    PROFILE_TITLE,
-    PROFILE_TEXT,
-    GENDER,
-    baseURL,
-    premiumPath,
+    PROFILE_TITLE, PROFILE_TEXT, GENDER, premiumPath,
 } from '../utils/constants';
-import { buildPictureUrl } from '../utils/functions';
+import { renderImageUrl } from '../utils/functions';
 import { compressImage, compareFaces } from '../utils/imageProcessing';
 import {
     getVerificationSelfieHandler,
@@ -430,9 +426,7 @@ export default function Profile() {
 
                 if (existingPic) {
                     const imageUrl = existingPic.image_url || existingPic.path;
-                    const fullImageUrl = imageUrl
-                        ? buildPictureUrl(baseURL, imageUrl)
-                        : null;
+                    const fullImageUrl = renderImageUrl(imageUrl);
 
                     return {
                         ...item,
