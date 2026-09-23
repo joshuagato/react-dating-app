@@ -16,13 +16,12 @@ import 'swiper/css/navigation';
 import './Encounters.css';
 
 import {
-    ENCOUNTERS_TITLE, ENCOUNTERS_TEXT, baseURL, ENCOUNTER_ACTION, chatPath,
+    ENCOUNTERS_TITLE, ENCOUNTERS_TEXT, ENCOUNTER_ACTION, chatPath,
     partnerProfilePath, premiumPath, GENDER,
     AD_EVERY_N_CARDS as FALLBACK_AD_EVERY_N,
 } from '../utils/constants';
-import { buildPictureUrl } from '../utils/functions';
-import { getEncountersProfilesHandler } from '../tanstack/encounter';
-import { likeUserHandler, dislikeUserHandler } from '../tanstack/encounter';
+import { renderImageUrl } from '../utils/functions';
+import { getEncountersProfilesHandler, likeUserHandler, dislikeUserHandler, saveEncountersFilterHandler } from '../tanstack/encounter';
 import { getPremiumStatusHandler } from '../tanstack/user';
 
 import MainLayout from '../components/Layouts/MainLayout';
@@ -46,6 +45,10 @@ const burstStyles = `
 @keyframes superSpark {
     0%   { opacity: 1; transform: translate(0, 0) scale(0.6); }
     100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(1.2); }
+}
+@keyframes cardIn {
+    0%   { opacity: 0; transform: scale(0.96); }
+    100% { opacity: 1; transform: scale(1);    }
 }
 `;
 
@@ -77,10 +80,13 @@ export default function Encounters() {
     const [showPremiumModal, setShowPremiumModal] = useState(false);
     const [premiumFeatureName, setPremiumFeatureName] = useState('');
 
-    // Filter modal state
+    // Filter modal state.
+    // `filterDraft` is what the modal edits.
+    // `activeFilter` is the filter the deck was last seeded with (used
+    // only for display/tracking; the server is the source of truth).
     const [showFilterModal, setShowFilterModal] = useState(false);
     const [filterDraft, setFilterDraft] = useState(DEFAULT_FILTER);
-    const [activeFilter, setActiveFilter] = useState(DEFAULT_FILTER);
+    const [activeFilter, setActiveFilter] = useState(null);
 
     // Match overlay state. When non-null, the overlay is shown and the
     // card stack is paused.
@@ -115,39 +121,28 @@ export default function Encounters() {
     const isFreeUser = isPremium === null ? null : !isPremium;
 
     /* ---------------------------------------------------------------- */
-    /* Build query string from a filter object                          */
-    /* ---------------------------------------------------------------- */
-    const buildEncounterQuery = useCallback((f) => {
-        const params = new URLSearchParams();
-        if (f?.max_distance_km) params.set('max_distance', f.max_distance_km);
-        if (f?.interested_in) params.set('interested_in', f.interested_in);
-        if (f?.min_age) params.set('min_age', f.min_age);
-        if (f?.max_age) params.set('max_age', f.max_age);
-        f?.online_only ? params.set('online_only', 'true') : params.set('online_only', 'false');
-        (f?.premium_only) ? params.set('premium_only', 'true') : params.set('premium_only', 'false');
-        return params.toString();
-    }, []);
-
-    /* ---------------------------------------------------------------- */
     /* Fetch                                                            */
     /* ---------------------------------------------------------------- */
+    // The GET is now read-only on the server. It returns the stored
+    // filter (or lazily-created defaults) and the matched users. We do
+    // NOT send filter params on this call.
     const {
         data: encounterData,
         refetch: refetchEncounters,
+        isFetching: isFetchingEncounters,
     } = useQuery({
-        queryKey: ['encounters', activeFilter],
-        queryFn: () =>
-            getEncountersProfilesHandler(buildEncounterQuery(activeFilter)),
+        queryKey: ['encounters'],
+        queryFn: () => getEncountersProfilesHandler(),
     });
 
-    // Seed the draft from the server once, unless the user has started
-    // editing it already.
+    // Seed the draft from the server's stored filter, unless the user is
+    // mid-edit. Also track it as `activeFilter` for reference.
     useEffect(() => {
         const serverFilter = encounterData?.filter;
         if (!serverFilter) return;
         if (filterDraftTouched.current) return;
-        setFilterDraft((prev) => ({ ...prev, ...serverFilter }));
-        setActiveFilter((prev) => ({ ...prev, ...serverFilter }));
+        setFilterDraft({ ...DEFAULT_FILTER, ...serverFilter });
+        setActiveFilter({ ...DEFAULT_FILTER, ...serverFilter });
     }, [encounterData]);
 
     useEffect(() => {
@@ -208,16 +203,8 @@ export default function Encounters() {
                 id,
                 type: 'end',
                 variant: item.variant || 'default',
-                title:
-                    item.title ||
-                    (item.variant === 'quota'
-                        ? "You've reached today's limit"
-                        : "You're All Caught Up!"),
-                description:
-                    item.description ||
-                    (item.variant === 'quota'
-                        ? 'Come back later for more encounters.'
-                        : 'You have seen all potential matches for today. Check back tomorrow for more matches!'),
+                title: item.title || null,
+                description: item.description || null,
                 resetsAt: item.resetsAt || null,
                 isDismissing: false,
                 transform: '',
@@ -502,7 +489,7 @@ export default function Encounters() {
     /* ---------------------------------------------------------------- */
     const handleOpenFilters = () => {
         filterDraftTouched.current = false;
-        setFilterDraft({ ...activeFilter });
+        setFilterDraft({ ...DEFAULT_FILTER, ...filterDraft });
         setShowFilterModal(true);
     };
 
@@ -511,6 +498,14 @@ export default function Encounters() {
         setFilterDraft((prev) => ({ ...prev, ...patch }));
     };
 
+    /**
+     * Apply Filters — calls a dedicated PUT endpoint that persists the
+     * filter row on the server, then refetches the (now read-only) GET.
+     *
+     * This is the key fix: the GET no longer mutates the row. The PUT is
+     * the single source of truth for persistence. Refreshing the page
+     * afterwards will return the freshly-saved filter from the GET.
+     */
     const handleApplyFilters = async () => {
         setShowFilterModal(false);
         filterDraftTouched.current = false;
@@ -518,24 +513,21 @@ export default function Encounters() {
         const nextFilter = { ...filterDraft };
         setActiveFilter(nextFilter);
 
-        // Wipe the deck so the new query result seeds a fresh one.
+        // Wipe the deck so the new GET result seeds a fresh one.
         setCards([]);
         setProfiles([]);
         nextCardId.current = 0;
 
-        await queryClient.invalidateQueries({ queryKey: ['encounters'] });
-        const result = await refetchEncounters();
-        // If the query key change hasn't triggered a refetch yet (rare),
-        // this explicit fetch guarantees fresh data with the new filter.
-        if (!result?.data) {
-            await queryClient.fetchQuery({
-                queryKey: ['encounters', nextFilter],
-                queryFn: () =>
-                    getEncountersProfilesHandler(
-                        buildEncounterQuery(nextFilter)
-                    ),
-            });
+        try {
+            await saveEncountersFilterHandler(nextFilter);
+        } catch (err) {
+            console.error('Failed to save filters:', err);
         }
+
+        // Invalidate cached data and refetch so the deck reflects the
+        // server's newly-persisted filter.
+        await queryClient.invalidateQueries({ queryKey: ['encounters'] });
+        await refetchEncounters();
     };
 
     /* ---------------------------------------------------------------- */
@@ -641,7 +633,6 @@ export default function Encounters() {
         setProfiles([]);
         nextCardId.current = 0;
         await refetchEncounters();
-        queryClient.invalidateQueries({ queryKey: ['encounters'] });
     };
 
     const handleMatchDismiss = () => {
@@ -670,13 +661,6 @@ export default function Encounters() {
     const renderBullet = (index, className) =>
         '<span class="' + className + '">' + (index + 1) + '</span>';
 
-    const formatResetTime = (iso) => {
-        if (!iso) return null;
-        const d = new Date(iso);
-        if (Number.isNaN(d.getTime())) return null;
-        return d.toLocaleString();
-    };
-
     return (
         <MainLayout
             pageTitle={ENCOUNTERS_TITLE}
@@ -687,210 +671,227 @@ export default function Encounters() {
             <style>{burstStyles}</style>
 
             <div className="relative w-full h-full flex flex-col overflow-hidden select-none rounded-xl fade-in">
+                {/* ---------------- CARD AREA ---------------- */}
                 <div
                     id="swiper"
-                    className="relative pt-[5vh] w-full h-[64vh] flex justify-center items-center perspective"
+                    className="relative w-full flex-1 flex justify-center items-center overflow-hidden"
                 >
-                    {cards.map((card) => {
-                        const stackIndex = activeCards.indexOf(card);
-                        const visualIndex = card.isDismissing
-                            ? 0
-                            : Math.max(0, activeCards.length - 1 - stackIndex);
+                    {isFetchingEncounters && !topCard ? (
+                        <div className="w-full h-full flex items-center justify-center">
+                            <span className="loading loading-spinner loading-lg text-violet-400" />
+                        </div>
+                    ) : (
+                        (() => {
+                            const card = topCard;
+                            if (!card) return null;
 
-                        const stackStyle = !card.isDismissing
-                            ? {
-                                transform: `translateZ(calc(-30px * ${visualIndex})) translateY(calc(-20px * ${visualIndex})) rotate(calc(-4deg * ${visualIndex}))`,
-                            }
-                            : {};
+                            const interactiveProps =
+                                card.type !== 'end'
+                                    ? isTouchDevice()
+                                        ? {
+                                            onTouchStart: handleDragStart,
+                                            onTouchMove: handleDragMove,
+                                            onTouchEnd: handleDragEnd,
+                                        }
+                                        : {
+                                            onMouseDown: handleDragStart,
+                                            onMouseMove: handleDragMove,
+                                            onMouseUp: handleDragEnd,
+                                            onMouseLeave: handleDragEnd,
+                                        }
+                                    : {};
 
-                        const isTopCard =
-                            stackIndex === activeCards.length - 1;
-
-                        const interactiveProps =
-                            isTopCard && card.type !== 'end'
-                                ? isTouchDevice()
-                                    ? {
-                                        onTouchStart: handleDragStart,
-                                        onTouchMove: handleDragMove,
-                                        onTouchEnd: handleDragEnd,
-                                    }
-                                    : {
-                                        onMouseDown: handleDragStart,
-                                        onMouseMove: handleDragMove,
-                                        onMouseUp: handleDragEnd,
-                                        onMouseLeave: handleDragEnd,
-                                    }
-                                : {};
-
-                        return (
-                            <div
-                                key={card.id}
-                                className={`absolute rounded-[20px] overflow-hidden shadow-[2px_2px_20px_rgba(0,0,0,0.5)] card-token transition-all ${card.isDismissing ? 'pointer-events-none' : ''
-                                    } ${card.type === 'end'
-                                        ? 'cursor-default'
-                                        : 'cursor-grab active:cursor-grabbing'
-                                    }`}
-                                style={{
-                                    ...stackStyle,
-                                    transform:
-                                        card.transform || stackStyle.transform,
-                                    transition:
-                                        card.transition || 'transform 0.5s ease',
-                                    zIndex: stackIndex,
-                                }}
-                                {...interactiveProps}
-                                onDragStart={(e) => e.preventDefault()}
-                            >
-                                {/* AD CARD */}
-                                {card.type === 'ad' && (
-                                    <div className="w-full h-full bg-slate-900 text-white flex flex-col justify-between p-6 relative">
-                                        <div className="absolute top-3 right-3 bg-yellow-500 text-black text-xs px-2 py-1 rounded-full font-bold flex items-center gap-1">
-                                            <Megaphone size={12} /> Sponsored
-                                        </div>
-                                        <div className="mt-8 flex-1 flex flex-col justify-center items-center text-center">
-                                            <img
-                                                src={card.image}
-                                                alt="Ad"
-                                                className="w-full h-48 object-cover rounded-xl mb-4 shadow-md"
-                                            />
-                                            <h3 className="text-xl font-bold text-yellow-400">
-                                                {card.title}
-                                            </h3>
-                                            <p className="text-sm text-gray-300 mt-2 px-2">
-                                                {card.description}
-                                            </p>
-                                        </div>
-                                        <button className="w-full py-3 bg-gradient-to-r from-yellow-500 to-amber-600 text-black font-bold rounded-xl shadow-lg hover:brightness-110">
-                                            Learn More
-                                        </button>
-                                    </div>
-                                )}
-
-                                {/* END CARD */}
-                                {card.type === 'end' && (
-                                    <div className="w-full h-full bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 text-white flex flex-col justify-center items-center p-6 text-center">
-                                        {card.variant === 'quota' ? (
-                                            <Clock
-                                                size={64}
-                                                className="text-amber-400 mb-4"
-                                            />
-                                        ) : (
-                                            <CheckCircle
-                                                size={64}
-                                                className="text-emerald-400 mb-4 animate-bounce"
-                                            />
-                                        )}
-                                        <h3 className="text-2xl font-bold mb-2">
-                                            {card.title}
-                                        </h3>
-                                        <p className="text-sm text-gray-300 max-w-xs mb-6">
-                                            {card.description}
-                                        </p>
-                                        {card.variant === 'quota' &&
-                                            card.resetsAt && (
-                                                <p className="text-xs text-amber-200 mb-4">
-                                                    Resets at{' '}
-                                                    {formatResetTime(card.resetsAt)}
-                                                </p>
-                                            )}
-                                        {card.variant !== 'quota' && (
-                                            <button
-                                                onClick={handleRefreshList}
-                                                className="px-6 py-2.5 bg-white/10 border border-white/20 rounded-full text-sm font-semibold hover:bg-white/20 transition-all"
-                                            >
-                                                Refresh List
-                                            </button>
-                                        )}
-                                    </div>
-                                )}
-
-                                {/* PROFILE CARD */}
-                                {card.type === 'profile' && (
-                                    <>
-                                        <ReactSwiper
-                                            key={`swiper-${card.id}-${isTopCard ? 'top' : 'stacked'
-                                                }`}
-                                            pagination={{
-                                                clickable: true,
-                                                renderBullet,
-                                            }}
-                                            navigation={isTopCard}
-                                            modules={[Pagination, Navigation]}
-                                            allowTouchMove={false}
-                                            className="w-full h-full"
-                                        >
-                                            {card.pictures.map((picture, idx) => (
-                                                <SwiperSlide key={idx}>
-                                                    <img
-                                                        src={buildPictureUrl(
-                                                            baseURL,
-                                                            picture.path
-                                                        )}
-                                                        alt={`${card.name || 'Profile'
-                                                            } picture ${idx + 1}`}
-                                                        className="w-full h-full object-cover pointer-events-none"
-                                                    />
-                                                </SwiperSlide>
-                                            ))}
-                                        </ReactSwiper>
-
-                                        <div
-                                            onClick={(e) =>
-                                                handleOpenPartnerProfile(
-                                                    e,
-                                                    card.profileId
-                                                )
-                                            }
-                                            className="profile-click-area absolute bottom-0 left-0 right-0 z-20 p-4 bg-gradient-to-t from-black/80 via-black/70 to-transparent text-white cursor-pointer hover:via-black/80 transition-all flex justify-between items-end pointer-events-auto"
-                                        >
-                                            <div>
-                                                <h3 className="text-lg font-bold leading-tight flex items-center gap-1.5">
-                                                    {card.name}
-                                                    {card.age ? `, ${card.age}` : ''}
+                            return (
+                                <div
+                                    key={card.id}
+                                    className={`absolute rounded-[20px] overflow-hidden shadow-[2px_2px_20px_rgba(0,0,0,0.5)] card-token animate-[cardIn_0.25s_ease-out] ${card.isDismissing
+                                        ? 'pointer-events-none'
+                                        : ''
+                                        } ${card.type === 'end'
+                                            ? 'cursor-default'
+                                            : 'cursor-grab active:cursor-grabbing'
+                                        }`}
+                                    style={{
+                                        transform: card.transform || '',
+                                        transition:
+                                            card.transition ||
+                                            'transform 0.5s ease',
+                                        zIndex: 1,
+                                    }}
+                                    {...interactiveProps}
+                                    onDragStart={(e) => e.preventDefault()}
+                                >
+                                    {/* AD CARD */}
+                                    {card.type === 'ad' && (
+                                        <div className="w-full h-full bg-slate-900 text-white flex flex-col justify-between p-6 relative">
+                                            <div className="absolute top-3 right-3 bg-yellow-500 text-black text-xs px-2 py-1 rounded-full font-bold flex items-center gap-1">
+                                                <Megaphone size={12} /> Sponsored
+                                            </div>
+                                            <div className="mt-8 flex-1 flex flex-col justify-center items-center text-center">
+                                                <img
+                                                    src={card.image}
+                                                    alt="Ad"
+                                                    className="w-full h-48 object-cover rounded-xl mb-4 shadow-md"
+                                                />
+                                                <h3 className="text-xl font-bold text-yellow-400">
+                                                    {card.title}
                                                 </h3>
-                                                {card.distanceFrom !== undefined && (
-                                                    <p className="text-xs text-gray-200 mt-1">
-                                                        📍{' '}
-                                                        <span className="font-bold">
-                                                            {card.distanceFrom}
-                                                        </span>{' '}
-                                                        KM Away, (
-                                                        <span className="font-bold">
-                                                            {card.city}
-                                                        </span>
-                                                        )
-                                                    </p>
-                                                )}
+                                                <p className="text-sm text-gray-300 mt-2 px-2">
+                                                    {card.description}
+                                                </p>
                                             </div>
-
-                                            <div className="bg-white/20 hover:bg-white/30 backdrop-blur-md p-2 rounded-full border border-white/30 text-white transition-all">
-                                                <User size={18} />
-                                            </div>
+                                            <button className="w-full py-3 bg-gradient-to-r from-yellow-500 to-amber-600 text-black font-bold rounded-xl shadow-lg hover:brightness-110">
+                                                Learn More
+                                            </button>
                                         </div>
-                                    </>
-                                )}
-                            </div>
-                        );
-                    })}
+                                    )}
+
+                                    {/* END CARD */}
+                                    {card.type === 'end' && (
+                                        <div className="w-full h-full bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900 text-white flex flex-col justify-center items-center p-6 text-center">
+                                            {card.variant === 'quota' ? (
+                                                <>
+                                                    <Clock
+                                                        size={64}
+                                                        className="text-amber-400 mb-4"
+                                                    />
+                                                    <h3 className="text-2xl font-bold mb-2">
+                                                        You've reached today's
+                                                        limit
+                                                    </h3>
+                                                    <p className="text-sm text-gray-300 max-w-xs mb-6">
+                                                        You have seen all
+                                                        potential matches for
+                                                        today. Check back
+                                                        tomorrow for more
+                                                        matches!
+                                                    </p>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <CheckCircle
+                                                        size={64}
+                                                        className="text-emerald-400 mb-4 animate-bounce"
+                                                    />
+                                                    <h3 className="text-2xl font-bold mb-2">
+                                                        No more profiles for now
+                                                    </h3>
+                                                    <p className="text-sm text-gray-300 max-w-xs mb-6">
+                                                        Try widening your search
+                                                        filters to see more
+                                                        people.
+                                                    </p>
+                                                    <button
+                                                        onClick={
+                                                            handleOpenFilters
+                                                        }
+                                                        className="px-6 py-2.5 bg-white/10 border border-white/20 rounded-full text-sm font-semibold hover:bg-white/20 transition-all flex items-center gap-2"
+                                                    >
+                                                        <SlidersHorizontal
+                                                            size={16}
+                                                        />
+                                                        Adjust Filters
+                                                    </button>
+                                                </>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* PROFILE CARD */}
+                                    {card.type === 'profile' && (
+                                        <>
+                                            <ReactSwiper
+                                                pagination={{
+                                                    clickable: true,
+                                                    renderBullet,
+                                                }}
+                                                navigation
+                                                modules={[
+                                                    Pagination,
+                                                    Navigation,
+                                                ]}
+                                                allowTouchMove={false}
+                                                className="w-full h-full"
+                                            >
+                                                {card.pictures.map(
+                                                    (picture, idx) => (
+                                                        <SwiperSlide key={idx}>
+                                                            <img
+                                                                src={renderImageUrl(picture.path)}
+                                                                alt={`${card.name ||
+                                                                    'Profile'
+                                                                    } picture ${idx + 1
+                                                                    }`}
+                                                                className="w-full h-full object-cover pointer-events-none"
+                                                            />
+                                                        </SwiperSlide>
+                                                    )
+                                                )}
+                                            </ReactSwiper>
+
+                                            <div
+                                                onClick={(e) =>
+                                                    handleOpenPartnerProfile(
+                                                        e,
+                                                        card.profileId
+                                                    )
+                                                }
+                                                className="profile-click-area absolute bottom-0 left-0 right-0 z-20 p-4 bg-gradient-to-t from-black/80 via-black/70 to-transparent text-white cursor-pointer hover:via-black/80 transition-all flex justify-between items-end pointer-events-auto"
+                                            >
+                                                <div>
+                                                    <h3 className="text-lg font-bold leading-tight flex items-center gap-1.5">
+                                                        {card.name}
+                                                        {card.age
+                                                            ? `, ${card.age}`
+                                                            : ''}
+                                                    </h3>
+                                                    {card.distanceFrom !==
+                                                        undefined && (
+                                                            <p className="text-xs text-gray-200 mt-1">
+                                                                📍{' '}
+                                                                <span className="font-bold">
+                                                                    {
+                                                                        card.distanceFrom
+                                                                    }
+                                                                </span>{' '}
+                                                                KM Away, (
+                                                                <span className="font-bold">
+                                                                    {card.city}
+                                                                </span>
+                                                                )
+                                                            </p>
+                                                        )}
+                                                </div>
+
+                                                <div className="bg-white/20 hover:bg-white/30 backdrop-blur-md p-2 rounded-full border border-white/30 text-white transition-all">
+                                                    <User size={18} />
+                                                </div>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            );
+                        })()
+                    )}
                 </div>
 
-                {/* Control buttons */}
+                {/* ---------------- CONTROL BUTTONS ---------------- */}
                 {topCard?.type !== 'end' && !matchInfo && (
-                    <article className="w-full h-[12vh] flex justify-center items-center gap-3 bottom-buttons">
+                    <article className="w-full py-4 flex justify-center items-center gap-3 flex-shrink-0">
                         {partner.id && partner.name && (
                             <div
                                 id="star"
                                 onClick={handleSuperLikeClick}
-                                className={`icon-button star-color cursor-pointer ${likeTrigger ? 'trigger-alt' : 'trigger'
+                                className={`icon-button star-color ${likeTrigger ? 'trigger-alt' : 'trigger'
                                     }`}
                             >
-                                <Star size={17} />
+                                <Star size={20} />
                             </div>
                         )}
                         <div
                             id="dislike"
                             onClick={() => handleButtonClick('dislike')}
-                            className={`icon-button dislike-color cursor-pointer ${dislikeTrigger ? 'trigger-alt' : 'trigger'
+                            className={`icon-button dislike-color ${dislikeTrigger ? 'trigger-alt' : 'trigger'
                                 }`}
                         >
                             <X size={30} />
@@ -898,7 +899,7 @@ export default function Encounters() {
                         <div
                             id="like"
                             onClick={() => handleButtonClick('like')}
-                            className={`icon-button like-color cursor-pointer ${likeTrigger ? 'trigger-alt' : 'trigger'
+                            className={`icon-button like-color ${likeTrigger ? 'trigger-alt' : 'trigger'
                                 }`}
                         >
                             <Heart size={30} />
@@ -907,10 +908,10 @@ export default function Encounters() {
                             <div
                                 id="message"
                                 onClick={handleMessageClick}
-                                className={`icon-button message-color cursor-pointer ${likeTrigger ? 'trigger-alt' : 'trigger'
+                                className={`icon-button message-color ${likeTrigger ? 'trigger-alt' : 'trigger'
                                     }`}
                             >
-                                <SendHorizontal size={17} />
+                                <SendHorizontal size={20} />
                             </div>
                         )}
                     </article>
@@ -918,7 +919,7 @@ export default function Encounters() {
 
                 {/* Quota hint — only shown to free users */}
                 {isFreeUser && quota && !quotaExhausted && !matchInfo && (
-                    <div className="text-xs text-gray-400 text-center pb-1">
+                    <div className="text-xs text-gray-400 text-center pb-2 flex-shrink-0">
                         {quota.remaining} of {quota.limit} encounters left today
                     </div>
                 )}
@@ -965,7 +966,10 @@ export default function Encounters() {
                     <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm fade-in">
                         <div className="w-[88%] max-w-sm rounded-3xl bg-gradient-to-br from-pink-600 via-rose-600 to-fuchsia-700 p-6 text-white shadow-2xl text-center">
                             <div className="flex justify-center mb-3">
-                                <Sparkles size={42} className="text-yellow-300" />
+                                <Sparkles
+                                    size={42}
+                                    className="text-yellow-300"
+                                />
                             </div>
                             <h2 className="text-2xl font-extrabold mb-1">
                                 It's a Match!
@@ -980,10 +984,7 @@ export default function Encounters() {
 
                             {matchInfo.picture && (
                                 <img
-                                    src={buildPictureUrl(
-                                        baseURL,
-                                        matchInfo.picture
-                                    )}
+                                    src={renderImageUrl(matchInfo.picture)}
                                     alt={matchInfo.name}
                                     className="w-28 h-28 rounded-full object-cover mx-auto mb-5 ring-4 ring-white/30"
                                 />
@@ -1024,8 +1025,8 @@ export default function Encounters() {
                                     {premiumFeatureName}
                                 </span>{' '}
                                 is a premium feature. Upgrade your plan to send
-                                direct messages, super likes, and enjoy unlimited
-                                encounters!
+                                direct messages, super likes, and enjoy
+                                unlimited encounters!
                             </p>
 
                             <div className="flex flex-col gap-3">
@@ -1121,8 +1122,14 @@ export default function Encounters() {
                                     <div className="grid grid-cols-3 gap-2">
                                         {[
                                             { key: GENDER.MEN, label: 'Men' },
-                                            { key: GENDER.WOMEN, label: 'Women' },
-                                            { key: GENDER.EVERYONE, label: 'Everyone' },
+                                            {
+                                                key: GENDER.WOMEN,
+                                                label: 'Women',
+                                            },
+                                            {
+                                                key: GENDER.EVERYONE,
+                                                label: 'Everyone',
+                                            },
                                         ].map((opt) => {
                                             const active =
                                                 filterDraft.interested_in ===
@@ -1165,7 +1172,9 @@ export default function Encounters() {
                                         <div>
                                             <div className="flex justify-between text-[11px] text-slate-400 mb-1">
                                                 <span>Min</span>
-                                                <span>{filterDraft.min_age}</span>
+                                                <span>
+                                                    {filterDraft.min_age}
+                                                </span>
                                             </div>
                                             <input
                                                 type="range"
@@ -1189,7 +1198,9 @@ export default function Encounters() {
                                         <div>
                                             <div className="flex justify-between text-[11px] text-slate-400 mb-1">
                                                 <span>Max</span>
-                                                <span>{filterDraft.max_age}</span>
+                                                <span>
+                                                    {filterDraft.max_age}
+                                                </span>
                                             </div>
                                             <input
                                                 type="range"
@@ -1288,9 +1299,7 @@ function ToggleRow({ label, description, checked, locked, onToggle }) {
             <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
                     <span className="text-sm font-semibold">{label}</span>
-                    {locked && (
-                        <Lock size={12} className="text-amber-400" />
-                    )}
+                    {locked && <Lock size={12} className="text-amber-400" />}
                 </div>
                 <p className="text-[11px] text-slate-400 mt-0.5">
                     {description}
