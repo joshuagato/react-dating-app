@@ -226,15 +226,17 @@ const MainLayout = ({
                 {/* AdSense Section: 7vh */}
                 <section
                     id="adsense"
-                    className="w-full flex justify-center items-center bg-white border-t border-x border-[#e2e8f0] overflow-hidden z-10"
+                    className="h-[7vh] w-full flex justify-center items-center bg-white border-t border-x border-[#e2e8f0] overflow-hidden z-10"
                 >
                     <div className="w-full h-full flex justify-center items-center">
-                        <AdSense
+
+                        Advertisements Here
+                        {/* <AdSense
                             client="ca-pub-1951941014525314"
                             slot="4437680249"
                             format="horizontal"
                             responsive="true"
-                        />
+                        /> */}
                     </div>
                 </section>
 
