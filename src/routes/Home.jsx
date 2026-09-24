@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Link } from "react-router";
 import Cookies from 'js-cookie';
-import { APP_NAME, installPagePath, encountersPath, profilePath } from '../utils/constants';
+import { APP_NAME, installPagePath, encountersPath, profilePath, userId } from '../utils/constants';
 
 const Home = () => {
     const [loading, setLoading] = useState(true);
     const currentUserId = Cookies.get('user_id');
+
+    console.log({ userId, currentUserId })
 
     useEffect(() => {
         const timer1 = setTimeout(() => {
