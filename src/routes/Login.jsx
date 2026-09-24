@@ -50,23 +50,41 @@ const Auth = () => {
 
         const { user_id, email_verified, basic_profile_setup, advanced_profile_setup,
             final_profile_setup, profile_page_setup, first_name, last_name } = response;
-        connectSocket(baseURL, user_id);
+
+        // Wrap socket connection to prevent navigation blocking
+        try {
+            if (baseURL && user_id) {
+                connectSocket(baseURL, user_id);
+            }
+        } catch (socketError) {
+            console.error("Socket connection failed, proceeding with navigation:", socketError);
+        }
 
         console.log({ baseURL, user_id, email_verified, basic_profile_setup, advanced_profile_setup, final_profile_setup, profile_page_setup })
 
+        // Explicit Route Execution
         if (email_verified && basic_profile_setup && advanced_profile_setup && final_profile_setup && profile_page_setup) {
-            navigate(encountersPath, { replace: true });
-        } else {
-            if (!email_verified)
-                return navigate(verifyEmailPath, { replace: true, state: { verification_channel: VERIFICATION_CHANNEL.LOGIN } });
+            return navigate(encountersPath, { replace: true });
+        }
 
-            if (!basic_profile_setup) return navigate(basicProfilePath, { replace: true, state: { first_name, last_name } });
+        if (!email_verified) {
+            return navigate(verifyEmailPath, { replace: true, state: { verification_channel: VERIFICATION_CHANNEL.LOGIN } });
+        }
 
-            if (!advanced_profile_setup) return navigate(advancedProfilePath, { replace: true });
+        if (!basic_profile_setup) {
+            return navigate(basicProfilePath, { replace: true, state: { first_name, last_name } });
+        }
 
-            if (!final_profile_setup) return navigate(finalProfilePath, { replace: true });
+        if (!advanced_profile_setup) {
+            return navigate(advancedProfilePath, { replace: true });
+        }
 
-            if (!profile_page_setup) return navigate(profilePagePath, { replace: true });
+        if (!final_profile_setup) {
+            return navigate(finalProfilePath, { replace: true });
+        }
+
+        if (!profile_page_setup) {
+            return navigate(profilePagePath, { replace: true });
         }
     };
 
