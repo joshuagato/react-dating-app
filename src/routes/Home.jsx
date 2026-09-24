@@ -7,7 +7,7 @@ const Home = () => {
     const [loading, setLoading] = useState(true);
     const currentUserId = Cookies.get('user_id');
 
-    console.log({ userId, currentUserId })
+    console.log({ userId, currentUserId });
 
     useEffect(() => {
         const timer1 = setTimeout(() => {
