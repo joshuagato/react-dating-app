@@ -36,7 +36,7 @@ const Home = () => {
                         </svg>
                     </div>
 
-                    <h1 className="text-4xl lg:text-6xl font-extrabold text-white mb-6 tracking-tight">
+                    <h1 className="text-3xl lg:text-6xl font-extrabold text-white mb-6 tracking-tight">
                         Find Your Perfect{' '}
                         <span className="block bg-gradient-to-r from-pink-400 via-rose-400 to-violet-400 bg-clip-text text-transparent">
                             {APP_NAME}
