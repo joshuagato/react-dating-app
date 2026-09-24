@@ -46,7 +46,7 @@ const Auth = () => {
     const handleAuthSuccess = async (response) => {
         unsetErrorSetMessage(setError, setMessage, response.message);
         unsetEmailPasswordField(setEmail, setPassword);
-        toast.success(response.message, { autoClose: 7000, theme: 'colored' });
+        // toast.success(response.message, { autoClose: 7000, theme: 'colored' });
 
         const { user_id, email_verified, basic_profile_setup, advanced_profile_setup,
             final_profile_setup, profile_page_setup, first_name, last_name } = response;
@@ -66,6 +66,8 @@ const Auth = () => {
 
             if (!profile_page_setup) return navigate(profilePagePath, { replace: true });
         }
+
+        toast.success(response.message, { autoClose: 7000, theme: 'colored' });
     };
 
     async function handleAuth(event) {
