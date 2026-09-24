@@ -44,6 +44,15 @@ export const CHAT_TITLE = 'Chat';
 export const PROFILE_TITLE = 'Profile';
 export const PROFILE_TEXT = 'My Profile Details';
 
+export const FEEDBACK_TITLE = 'Send Us a Message';
+export const FEEDBACK_TEXT = 'We read every note — tell us what you think';
+
+export const PASSED_TITLE = 'People Who Passed';
+export const PASSED_TEXT = 'Everyone gets a second chance';
+
+export const DISLIKED_BY_ME_TITLE = 'People You Passed';
+export const DISLIKED_BY_ME_TEXT = 'A second look never hurts';
+
 export const verifyEmailPath = '/verify-email';
 export const basicProfilePath = '/basic-profile';
 export const advancedProfilePath = '/advanced-profile';
@@ -60,6 +69,9 @@ export const profilePath = '/profile';
 export const premiumPath = '/premium';
 export const homePath = '/';
 export const partnerProfilePath = '/partner-profile';
+export const feedbackPath = '/feedback';
+export const passedPath = '/passed';
+export const dislikedByMePath = '/disliked-by-me';
 export const cloudFactorPath = 'https://';
 
 export const VERIFICATION_CHANNEL = {
