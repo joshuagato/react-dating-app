@@ -19,10 +19,13 @@ import InstallApp from './routes/InstallApp';
 import PremiumPackages from './routes/PremiumPackages';
 import ProfilePageSetup from './routes/ProfilePageSetup';
 import PartnerProfile from './routes/PartnerProfile';
+import SendMessage from './routes/SendMessage';
+import Passed from './routes/Passed';
+import DislikedByMe from './routes/DislikedByMe';
 import Others from "./routes/Others";
 import ProtectedRoute from "./components/ProtectedRoute"; // 👈 Import Guard Component
 import { PWAProvider } from './components/PWAContext';
-import { baseURL, userId } from './utils/constants';
+import { baseURL, dislikedByMePath, passedPath, userId } from './utils/constants';
 import { connectSocket } from './utils/functions';
 
 import './App.css';
@@ -56,6 +59,9 @@ function App() {
                     <Route path="chats" element={<Chats />} />
                     <Route path="chat" element={<Chat />} />
                     <Route path="profile" element={<Profile />} />
+                    <Route path="feedback" element={<SendMessage />} />
+                    <Route path={passedPath} element={<Passed />} />
+                    <Route path={dislikedByMePath} element={<DislikedByMe />} />
 
                     <Route path="premium" element={<PremiumPackages />} />
                     <Route path="others" element={<Others />} />
