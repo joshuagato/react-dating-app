@@ -52,6 +52,8 @@ const Auth = () => {
             final_profile_setup, profile_page_setup, first_name, last_name } = response;
         connectSocket(baseURL, user_id);
 
+        console.log({ baseURL, user_id, email_verified, basic_profile_setup, advanced_profile_setup, final_profile_setup, profile_page_setup })
+
         if (email_verified && basic_profile_setup && advanced_profile_setup && final_profile_setup && profile_page_setup) {
             navigate(encountersPath, { replace: true });
         } else {
