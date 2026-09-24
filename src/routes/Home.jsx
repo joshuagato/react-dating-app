@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Link } from "react-router";
-import { APP_NAME, installPagePath, encountersPath, profilePath, userId } from '../utils/constants';
+import Cookies from 'js-cookie';
+import { APP_NAME, installPagePath, encountersPath, profilePath } from '../utils/constants';
 
 const Home = () => {
     const [loading, setLoading] = useState(true);
+    const currentUserId = Cookies.get('user_id');
 
     useEffect(() => {
         const timer1 = setTimeout(() => {
@@ -48,7 +50,7 @@ const Home = () => {
                     </p>
 
                     {/* Action Buttons */}
-                    {userId ? (
+                    {currentUserId ? (
                         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
                             <Link
                                 to={encountersPath}
