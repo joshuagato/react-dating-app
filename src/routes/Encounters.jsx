@@ -1,12 +1,15 @@
 // Encounters.jsx
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { Swiper as ReactSwiper, SwiperSlide } from 'swiper/react';
 import { Pagination, Navigation } from 'swiper/modules';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
     Heart, X, SendHorizontal, Star, Megaphone, CheckCircle, Clock,
-    Sparkles, User, Crown, SlidersHorizontal, Lock,
+    Sparkles, User, Crown, SlidersHorizontal, Lock, MapPin,
+    Briefcase, GraduationCap, ChevronLeft, ChevronRight, Maximize2,
+    Users, CheckCircle2, Ruler, Cigarette, Wine,
+    Heart as HeartIcon,
 } from 'lucide-react';
 
 import 'swiper/css';
@@ -21,14 +24,19 @@ import {
     AD_EVERY_N_CARDS as FALLBACK_AD_EVERY_N,
 } from '../utils/constants';
 import { renderImageUrl } from '../utils/functions';
-import { getEncountersProfilesHandler, likeUserHandler, dislikeUserHandler, saveEncountersFilterHandler } from '../tanstack/encounter';
+import {
+    getEncountersProfilesHandler,
+    likeUserHandler,
+    dislikeUserHandler,
+    saveEncountersFilterHandler,
+} from '../tanstack/encounter';
 import { getPremiumStatusHandler } from '../tanstack/user';
 
 import MainLayout from '../components/Layouts/MainLayout';
 import HelmetHeader from '../components/HelmetHeader';
 
 /* ------------------------------------------------------------------ */
-/* Injected keyframes for the super-like burst                        */
+/* Injected keyframes for the super-like burst and card entry         */
 /* ------------------------------------------------------------------ */
 const burstStyles = `
 @keyframes superRing {
@@ -61,6 +69,28 @@ const DEFAULT_FILTER = {
     premium_only: false,
 };
 
+/* ------------------------------------------------------------------ */
+/* Reusable InfoRow (matches DislikedByMe / Passed)                   */
+/* ------------------------------------------------------------------ */
+function InfoRow({ icon, label, value, iconBg = 'bg-violet-50', iconColor = 'text-violet-600' }) {
+    if (!value) return null;
+    return (
+        <div className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
+            <div className={`flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center ${iconBg} ${iconColor}`}>
+                {icon}
+            </div>
+            <div className="min-w-0">
+                <p className="text-[11px] uppercase tracking-wider font-semibold text-slate-400">
+                    {label}
+                </p>
+                <p className="text-sm font-medium text-slate-700 capitalize break-words">
+                    {value}
+                </p>
+            </div>
+        </div>
+    );
+}
+
 export default function Encounters() {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
@@ -73,28 +103,33 @@ export default function Encounters() {
     const [quotaExhausted, setQuotaExhausted] = useState(false);
     const [adEveryN, setAdEveryN] = useState(FALLBACK_AD_EVERY_N);
 
-    // Premium status — null while loading, true/false once resolved.
+    // Premium status
     const [isPremium, setIsPremium] = useState(null);
 
-    // Premium Feature Modal State
+    // Premium Feature Modal
     const [showPremiumModal, setShowPremiumModal] = useState(false);
     const [premiumFeatureName, setPremiumFeatureName] = useState('');
 
-    // Filter modal state.
-    // `filterDraft` is what the modal edits.
-    // `activeFilter` is the filter the deck was last seeded with (used
-    // only for display/tracking; the server is the source of truth).
+    // Filter modal
     const [showFilterModal, setShowFilterModal] = useState(false);
     const [filterDraft, setFilterDraft] = useState(DEFAULT_FILTER);
     const [activeFilter, setActiveFilter] = useState(null);
 
-    // Match overlay state. When non-null, the overlay is shown and the
-    // card stack is paused.
+    // Match overlay
     const [matchInfo, setMatchInfo] = useState(null);
 
-    // Super-like burst overlay. Non-null while the burst is playing.
-    // Shape: { cardId }
+    // Super-like burst
     const [superLikeBurst, setSuperLikeBurst] = useState(null);
+
+    // ----------------------------------------------------------------
+    // Profile detail modal (NEW — replaces the old navigate-to-page
+    // behavior when tapping the profile area of a card).
+    // ----------------------------------------------------------------
+    const [selectedProfile, setSelectedProfile] = useState(null);
+    const [activeImageIndex, setActiveImageIndex] = useState(0);
+    const [isFullscreen, setIsFullscreen] = useState(false);
+    const [touchStartX, setTouchStartX] = useState(0);
+    const [touchEndX, setTouchEndX] = useState(0);
 
     const [likeTrigger, setLikeTrigger] = useState(false);
     const [dislikeTrigger, setDislikeTrigger] = useState(false);
@@ -105,7 +140,7 @@ export default function Encounters() {
     const filterDraftTouched = useRef(false);
 
     /* ---------------------------------------------------------------- */
-    /* Premium status query                                             */
+    /* Premium status                                                   */
     /* ---------------------------------------------------------------- */
     const { data: premiumStatusData } = useQuery({
         queryKey: ['premium-status'],
@@ -117,15 +152,11 @@ export default function Encounters() {
         setIsPremium(Boolean(premiumStatusData.is_premium));
     }, [premiumStatusData]);
 
-    // Derived convenience flag. `null` while the query is loading.
     const isFreeUser = isPremium === null ? null : !isPremium;
 
     /* ---------------------------------------------------------------- */
     /* Fetch                                                            */
     /* ---------------------------------------------------------------- */
-    // The GET is now read-only on the server. It returns the stored
-    // filter (or lazily-created defaults) and the matched users. We do
-    // NOT send filter params on this call.
     const {
         data: encounterData,
         refetch: refetchEncounters,
@@ -135,8 +166,6 @@ export default function Encounters() {
         queryFn: () => getEncountersProfilesHandler(),
     });
 
-    // Seed the draft from the server's stored filter, unless the user is
-    // mid-edit. Also track it as `activeFilter` for reference.
     useEffect(() => {
         const serverFilter = encounterData?.filter;
         if (!serverFilter) return;
@@ -171,15 +200,9 @@ export default function Encounters() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [encounterData, isFreeUser]);
 
-    // Navigate directly to partner profile with user_id state
-    const handleOpenPartnerProfile = (e, userId) => {
-        e.stopPropagation();
-        if (!userId) return;
-        navigate(partnerProfilePath, { state: { user_id: userId } });
-    };
-
     /* ---------------------------------------------------------------- */
-    /* Card factory                                                     */
+    /* Card factory — now preserves the profile-sourced fields so the   */
+    /* modal can display them without a second fetch.                   */
     /* ---------------------------------------------------------------- */
     const createCardData = useCallback((item, id) => {
         if (item.type === 'ad') {
@@ -221,10 +244,19 @@ export default function Encounters() {
             name: item.name,
             age: item.age,
             city: item.city,
+            gender: item.gender,
             is_online: item.is_online,
             last_seen: item.last_seen,
             distanceFrom: item.distance_from,
             pictures,
+            // Profile-sourced fields — carried through for the modal.
+            bio: item.bio,
+            education: item.education,
+            reason_on_app: item.reason_on_app,
+            relationship_status: item.relationship_status,
+            height_cm: item.height_cm,
+            smoking: item.smoking,
+            drinking: item.drinking,
             isDismissing: false,
             transform: '',
             transition: '',
@@ -310,7 +342,7 @@ export default function Encounters() {
     };
 
     /* ---------------------------------------------------------------- */
-    /* Swipe decision — handles like / dislike / super_like             */
+    /* Swipe decision                                                   */
     /* ---------------------------------------------------------------- */
     const handleSwipeDecision = async (direction, card) => {
         if (card.type !== 'profile') return;
@@ -359,7 +391,7 @@ export default function Encounters() {
     };
 
     /* ---------------------------------------------------------------- */
-    /* Swipe animation for a card                                       */
+    /* Swipe animation                                                  */
     /* ---------------------------------------------------------------- */
     const triggerSwipe = (direction) => {
         if (isProcessingDismiss.current) return;
@@ -406,11 +438,10 @@ export default function Encounters() {
         });
     };
 
-    // Public entry point for the bottom action buttons (dislike, like)
     const handleButtonClick = (direction) => triggerSwipe(direction);
 
     /* ---------------------------------------------------------------- */
-    /* Super like button — burst, then swipe                            */
+    /* Super like                                                       */
     /* ---------------------------------------------------------------- */
     const handleSuperLikeClick = () => {
         if (isFreeUser === null) return;
@@ -438,7 +469,6 @@ export default function Encounters() {
         setTimeout(() => triggerSwipe('super_like'), 80);
     };
 
-    // Safety net — clears the burst if something interrupts the flow
     useEffect(() => {
         if (!superLikeBurst) return;
         const t = setTimeout(() => setSuperLikeBurst(null), 900);
@@ -446,7 +476,7 @@ export default function Encounters() {
     }, [superLikeBurst]);
 
     /* ---------------------------------------------------------------- */
-    /* Keep `partner` in sync with the top card                         */
+    /* partner sync                                                     */
     /* ---------------------------------------------------------------- */
     useEffect(() => {
         if (cards?.length > 0) {
@@ -470,7 +500,6 @@ export default function Encounters() {
         }
     }, [cards]);
 
-    // Handle clicks on the message button in the bottom bar
     const handleMessageClick = () => {
         if (isFreeUser === null) return;
 
@@ -485,7 +514,7 @@ export default function Encounters() {
     };
 
     /* ---------------------------------------------------------------- */
-    /* Filter modal handlers                                            */
+    /* Filter modal                                                     */
     /* ---------------------------------------------------------------- */
     const handleOpenFilters = () => {
         filterDraftTouched.current = false;
@@ -498,14 +527,6 @@ export default function Encounters() {
         setFilterDraft((prev) => ({ ...prev, ...patch }));
     };
 
-    /**
-     * Apply Filters — calls a dedicated PUT endpoint that persists the
-     * filter row on the server, then refetches the (now read-only) GET.
-     *
-     * This is the key fix: the GET no longer mutates the row. The PUT is
-     * the single source of truth for persistence. Refreshing the page
-     * afterwards will return the freshly-saved filter from the GET.
-     */
     const handleApplyFilters = async () => {
         setShowFilterModal(false);
         filterDraftTouched.current = false;
@@ -513,7 +534,6 @@ export default function Encounters() {
         const nextFilter = { ...filterDraft };
         setActiveFilter(nextFilter);
 
-        // Wipe the deck so the new GET result seeds a fresh one.
         setCards([]);
         setProfiles([]);
         nextCardId.current = 0;
@@ -524,10 +544,138 @@ export default function Encounters() {
             console.error('Failed to save filters:', err);
         }
 
-        // Invalidate cached data and refetch so the deck reflects the
-        // server's newly-persisted filter.
         await queryClient.invalidateQueries({ queryKey: ['encounters'] });
         await refetchEncounters();
+    };
+
+    /* ---------------------------------------------------------------- */
+    /* Profile detail modal handlers (NEW)                              */
+    /* ---------------------------------------------------------------- */
+    const handleOpenProfile = (card) => {
+        if (!card || card.type !== 'profile') return;
+        setSelectedProfile(card);
+        setActiveImageIndex(0);
+        setIsFullscreen(false);
+    };
+
+    const handleCloseProfileModal = () => {
+        setSelectedProfile(null);
+        setActiveImageIndex(0);
+        setIsFullscreen(false);
+    };
+
+    // "View Full Profile" — navigates to the standalone partner page.
+    const handleOpenPartnerProfile = () => {
+        if (!selectedProfile?.profileId) return;
+        const userId = selectedProfile.profileId;
+        setSelectedProfile(null);
+        setActiveImageIndex(0);
+        setIsFullscreen(false);
+        navigate(partnerProfilePath, { state: { user_id: userId } });
+    };
+
+    // Carousel
+    const handlePrevImage = (e) => {
+        if (e) e.stopPropagation();
+        if (!selectedProfile?.pictures?.length) return;
+        setActiveImageIndex((prev) =>
+            prev === 0 ? selectedProfile.pictures.length - 1 : prev - 1
+        );
+    };
+
+    const handleNextImage = (e) => {
+        if (e) e.stopPropagation();
+        if (!selectedProfile?.pictures?.length) return;
+        setActiveImageIndex((prev) =>
+            prev === selectedProfile.pictures.length - 1 ? 0 : prev + 1
+        );
+    };
+
+    const handleTouchStart = (e) => {
+        setTouchStartX(e.targetTouches[0].clientX);
+    };
+    const handleTouchMove = (e) => {
+        setTouchEndX(e.targetTouches[0].clientX);
+    };
+    const handleTouchEnd = () => {
+        if (!touchStartX || !touchEndX) return;
+        const distance = touchStartX - touchEndX;
+        if (distance > 50) handleNextImage();
+        else if (distance < -50) handlePrevImage();
+        setTouchStartX(0);
+        setTouchEndX(0);
+    };
+
+    // Keyboard nav for the modal + lightbox
+    useEffect(() => {
+        if (!selectedProfile) return;
+        const onKey = (e) => {
+            if (isFullscreen) {
+                if (e.key === 'Escape') setIsFullscreen(false);
+                if (e.key === 'ArrowLeft') handlePrevImage();
+                if (e.key === 'ArrowRight') handleNextImage();
+                return;
+            }
+            if (e.key === 'Escape') handleCloseProfileModal();
+            if (e.key === 'ArrowLeft') handlePrevImage();
+            if (e.key === 'ArrowRight') handleNextImage();
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [selectedProfile, activeImageIndex, isFullscreen]);
+
+    /* ---------------------------------------------------------------- */
+    /* Profile modal — action handlers                                  */
+    /* These just call the existing swipe / super-like / message        */
+    /* handlers, but act on the selectedProfile card.                   */
+    /* ---------------------------------------------------------------- */
+    const handleProfileModalLike = (e) => {
+        if (e) e.stopPropagation();
+        if (!selectedProfile) return;
+        setSelectedProfile(null);
+        triggerSwipe('like');
+    };
+
+    const handleProfileModalDislike = (e) => {
+        if (e) e.stopPropagation();
+        if (!selectedProfile) return;
+        setSelectedProfile(null);
+        triggerSwipe('dislike');
+    };
+
+    const handleProfileModalSuperLike = (e) => {
+        if (e) e.stopPropagation();
+        if (!selectedProfile) return;
+        if (isFreeUser) {
+            setPremiumFeatureName('Super Like');
+            setShowPremiumModal(true);
+            return;
+        }
+        // Trigger the burst then swipe, same as the bottom bar button.
+        setSuperLikeBurst({ cardId: selectedProfile.id });
+        setSelectedProfile(null);
+        setTimeout(() => triggerSwipe('super_like'), 80);
+    };
+
+    const handleProfileModalMessage = (e) => {
+        if (e) e.stopPropagation();
+        if (!selectedProfile) return;
+        if (isFreeUser) {
+            setPremiumFeatureName('Direct Messaging');
+            setShowPremiumModal(true);
+            return;
+        }
+        const chatPartner = {
+            id: selectedProfile.profileId,
+            name: selectedProfile.name,
+            picture: selectedProfile.pictures?.[0]?.path || '',
+            age: selectedProfile.age,
+            city: selectedProfile.city,
+        };
+        setSelectedProfile(null);
+        setActiveImageIndex(0);
+        setIsFullscreen(false);
+        navigate(chatPath, { state: { myself, partner: chatPartner } });
     };
 
     /* ---------------------------------------------------------------- */
@@ -538,6 +686,7 @@ export default function Encounters() {
 
     const handleDragStart = (e) => {
         if (matchInfo) return;
+        if (selectedProfile) return; // don't start a drag if the modal is open
         const activeCard = cards[cards.length - 1];
         if (activeCard?.type === 'end') return;
         if (
@@ -568,6 +717,7 @@ export default function Encounters() {
         (e) => {
             if (!dragInfo.current.isDragging) return;
             if (matchInfo) return;
+            if (selectedProfile) return;
 
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
@@ -609,7 +759,7 @@ export default function Encounters() {
                 return updated;
             });
         },
-        [matchInfo]
+        [matchInfo, selectedProfile]
     );
 
     const handleDragEnd = useCallback(() => {
@@ -661,6 +811,10 @@ export default function Encounters() {
     const renderBullet = (index, className) =>
         '<span class="' + className + '">' + (index + 1) + '</span>';
 
+    const hasPictures =
+        Array.isArray(selectedProfile?.pictures) &&
+        selectedProfile.pictures.length > 0;
+
     return (
         <MainLayout
             pageTitle={ENCOUNTERS_TITLE}
@@ -671,7 +825,7 @@ export default function Encounters() {
             <style>{burstStyles}</style>
 
             <div className="relative w-full h-full flex flex-col overflow-hidden select-none rounded-xl fade-in">
-                {/* ---------------- CARD AREA ---------------- */}
+                {/* CARD AREA */}
                 <div
                     id="swiper"
                     className="relative w-full flex-1 flex justify-center items-center overflow-hidden"
@@ -830,12 +984,10 @@ export default function Encounters() {
                                             </ReactSwiper>
 
                                             <div
-                                                onClick={(e) =>
-                                                    handleOpenPartnerProfile(
-                                                        e,
-                                                        card.profileId
-                                                    )
-                                                }
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleOpenProfile(card);
+                                                }}
                                                 className="profile-click-area absolute bottom-0 left-0 right-0 z-20 p-4 bg-gradient-to-t from-black/80 via-black/70 to-transparent text-white cursor-pointer hover:via-black/80 transition-all flex justify-between items-end pointer-events-auto"
                                             >
                                                 <div>
@@ -875,7 +1027,7 @@ export default function Encounters() {
                     )}
                 </div>
 
-                {/* ---------------- CONTROL BUTTONS ---------------- */}
+                {/* CONTROL BUTTONS */}
                 {topCard?.type !== 'end' && !matchInfo && (
                     <article className="w-full py-4 flex justify-center items-center gap-3 flex-shrink-0">
                         {partner.id && partner.name && (
@@ -917,14 +1069,14 @@ export default function Encounters() {
                     </article>
                 )}
 
-                {/* Quota hint — only shown to free users */}
+                {/* Quota hint */}
                 {isFreeUser && quota && !quotaExhausted && !matchInfo && (
                     <div className="text-xs text-gray-400 text-center pb-2 flex-shrink-0">
                         {quota.remaining} of {quota.limit} encounters left today
                     </div>
                 )}
 
-                {/* ---------------- SUPER LIKE BURST ---------------- */}
+                {/* SUPER LIKE BURST */}
                 {superLikeBurst && (
                     <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center">
                         <span className="absolute rounded-full border-4 border-amber-400/70 animate-[superRing_0.9s_ease-out_forwards]" />
@@ -961,7 +1113,7 @@ export default function Encounters() {
                     </div>
                 )}
 
-                {/* ---------------- MATCH OVERLAY ---------------- */}
+                {/* MATCH OVERLAY */}
                 {matchInfo && (
                     <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm fade-in">
                         <div className="w-[88%] max-w-sm rounded-3xl bg-gradient-to-br from-pink-600 via-rose-600 to-fuchsia-700 p-6 text-white shadow-2xl text-center">
@@ -1008,9 +1160,324 @@ export default function Encounters() {
                     </div>
                 )}
 
-                {/* ---------------- PREMIUM FEATURE MODAL ---------------- */}
+                {/* ---------------- PROFILE DETAIL MODAL ---------------- */}
+                {selectedProfile && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-3 sm:p-4 animate-fade-in">
+                        <div className="relative w-full max-w-md bg-slate-50 rounded-3xl overflow-hidden shadow-2xl max-h-[92vh] flex flex-col">
+                            <button
+                                onClick={handleCloseProfileModal}
+                                className="absolute right-3 top-3 z-30 p-2 rounded-full bg-black/50 backdrop-blur-md text-white hover:bg-black/75 transition-colors border border-white/20"
+                                aria-label="Close"
+                            >
+                                <X size={18} />
+                            </button>
+
+                            <div className="overflow-y-auto flex-1 scroll-bar">
+                                {/* Hero image */}
+                                <div className="relative w-full aspect-[4/5] bg-slate-950">
+                                    {hasPictures ? (
+                                        <>
+                                            <div
+                                                className="w-full h-full"
+                                                onTouchStart={handleTouchStart}
+                                                onTouchMove={handleTouchMove}
+                                                onTouchEnd={handleTouchEnd}
+                                            >
+                                                <img
+                                                    src={
+                                                        renderImageUrl(
+                                                            selectedProfile.pictures[activeImageIndex]?.path
+                                                        ) ||
+                                                        renderImageUrl(
+                                                            selectedProfile.pictures[0]?.path
+                                                        ) ||
+                                                        '/placeholder-avatar.png'
+                                                    }
+                                                    alt={`${selectedProfile.name} - Picture ${activeImageIndex + 1}`}
+                                                    className="w-full h-full object-contain"
+                                                    draggable={false}
+                                                />
+                                            </div>
+
+                                            {selectedProfile.pictures.length > 1 && (
+                                                <div className="absolute top-3 inset-x-4 z-20 flex gap-1.5">
+                                                    {selectedProfile.pictures.map((_, idx) => (
+                                                        <div
+                                                            key={idx}
+                                                            onClick={() => setActiveImageIndex(idx)}
+                                                            className="flex-1 h-1 rounded-full cursor-pointer overflow-hidden bg-white/30 backdrop-blur-sm"
+                                                        >
+                                                            <div
+                                                                className={`h-full bg-white transition-all duration-300 ${idx === activeImageIndex ? 'w-full' : 'w-0'
+                                                                    }`}
+                                                            />
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            {selectedProfile.pictures.length > 1 && (
+                                                <>
+                                                    <button
+                                                        onClick={handlePrevImage}
+                                                        className="absolute left-3 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-black/50 text-white hover:bg-black/75 backdrop-blur-md transition-all active:scale-95"
+                                                        aria-label="Previous photo"
+                                                    >
+                                                        <ChevronLeft size={20} />
+                                                    </button>
+                                                    <button
+                                                        onClick={handleNextImage}
+                                                        className="absolute right-3 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-black/50 text-white hover:bg-black/75 backdrop-blur-md transition-all active:scale-95"
+                                                        aria-label="Next photo"
+                                                    >
+                                                        <ChevronRight size={20} />
+                                                    </button>
+                                                </>
+                                            )}
+
+                                            <button
+                                                onClick={() => setIsFullscreen(true)}
+                                                className="absolute bottom-3 right-3 z-20 bg-black/50 hover:bg-black/75 backdrop-blur-md text-white p-2.5 rounded-full transition-all duration-200 border border-white/20 shadow-lg active:scale-95"
+                                                title="View fullscreen"
+                                                aria-label="View fullscreen"
+                                            >
+                                                <Maximize2 className="w-4 h-4" />
+                                            </button>
+
+                                            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/70 via-black/25 to-transparent" />
+                                            <div className="absolute bottom-4 left-4 right-16 z-10 text-white">
+                                                <h2 className="text-2xl font-bold drop-shadow-md leading-tight">
+                                                    {selectedProfile.name}
+                                                    {selectedProfile.age
+                                                        ? `, ${selectedProfile.age}`
+                                                        : ''}
+                                                </h2>
+                                                {selectedProfile.city && (
+                                                    <p className="flex items-center gap-1 text-xs text-white/90 mt-0.5 drop-shadow">
+                                                        <MapPin className="w-3.5 h-3.5 text-pink-400" />
+                                                        {selectedProfile.city}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-slate-400">
+                                            <User size={48} />
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Body content */}
+                                <div className="p-5 space-y-5 pb-28">
+                                    {/* Quick chips */}
+                                    <div className="flex flex-wrap gap-2">
+                                        {selectedProfile.is_online && (
+                                            <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-full">
+                                                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                                                Online now
+                                            </span>
+                                        )}
+                                        {!selectedProfile.is_online &&
+                                            selectedProfile.last_seen && (
+                                                <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-full">
+                                                    <Clock className="w-3.5 h-3.5" />
+                                                    Last seen{' '}
+                                                    {new Date(
+                                                        selectedProfile.last_seen
+                                                    ).toLocaleDateString()}
+                                                </span>
+                                            )}
+                                        {selectedProfile.gender && (
+                                            <span className="flex items-center gap-1.5 text-xs font-semibold text-violet-700 bg-violet-50 border border-violet-100 px-3 py-1.5 rounded-full capitalize">
+                                                <Users className="w-3.5 h-3.5" />
+                                                {selectedProfile.gender}
+                                            </span>
+                                        )}
+                                        {selectedProfile.distanceFrom !==
+                                            undefined && (
+                                                <span className="flex items-center gap-1.5 text-xs font-semibold text-pink-700 bg-pink-50 border border-pink-100 px-3 py-1.5 rounded-full">
+                                                    <MapPin className="w-3.5 h-3.5" />
+                                                    {selectedProfile.distanceFrom} km away
+                                                </span>
+                                            )}
+                                    </div>
+
+                                    {/* Bio */}
+                                    {selectedProfile.bio && (
+                                        <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100">
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <Sparkles className="w-4 h-4 text-violet-500" />
+                                                <h3 className="font-bold text-slate-800 text-sm">
+                                                    About
+                                                </h3>
+                                            </div>
+                                            <p className="text-sm text-slate-600 leading-relaxed italic">
+                                                "{selectedProfile.bio}"
+                                            </p>
+                                        </div>
+                                    )}
+
+                                    {/* Details grid */}
+                                    {(selectedProfile.reason_on_app ||
+                                        selectedProfile.education ||
+                                        selectedProfile.relationship_status ||
+                                        selectedProfile.height_cm ||
+                                        selectedProfile.smoking ||
+                                        selectedProfile.drinking) && (
+                                            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 space-y-3">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                                                    <h3 className="font-bold text-slate-800 text-sm">
+                                                        Details
+                                                    </h3>
+                                                </div>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                    <InfoRow
+                                                        icon={<Briefcase className="w-4 h-4" />}
+                                                        label="Looking for"
+                                                        value={selectedProfile.reason_on_app}
+                                                        iconBg="bg-amber-50"
+                                                        iconColor="text-amber-500"
+                                                    />
+                                                    <InfoRow
+                                                        icon={<GraduationCap className="w-4 h-4" />}
+                                                        label="Education"
+                                                        value={selectedProfile.education}
+                                                        iconBg="bg-blue-50"
+                                                        iconColor="text-blue-500"
+                                                    />
+                                                    <InfoRow
+                                                        icon={<HeartIcon className="w-4 h-4" />}
+                                                        label="Relationship"
+                                                        value={selectedProfile.relationship_status}
+                                                        iconBg="bg-pink-50"
+                                                        iconColor="text-pink-500"
+                                                    />
+                                                    <InfoRow
+                                                        icon={<Ruler className="w-4 h-4" />}
+                                                        label="Height"
+                                                        value={
+                                                            selectedProfile.height_cm
+                                                                ? `${selectedProfile.height_cm} cm`
+                                                                : null
+                                                        }
+                                                        iconBg="bg-indigo-50"
+                                                        iconColor="text-indigo-500"
+                                                    />
+                                                    <InfoRow
+                                                        icon={<Cigarette className="w-4 h-4" />}
+                                                        label="Smoking"
+                                                        value={selectedProfile.smoking}
+                                                        iconBg="bg-slate-100"
+                                                        iconColor="text-slate-500"
+                                                    />
+                                                    <InfoRow
+                                                        icon={<Wine className="w-4 h-4" />}
+                                                        label="Drinking"
+                                                        value={selectedProfile.drinking}
+                                                        iconBg="bg-purple-50"
+                                                        iconColor="text-purple-500"
+                                                    />
+                                                </div>
+                                            </div>
+                                        )}
+
+                                    {/* View full profile */}
+                                    <button
+                                        onClick={handleOpenPartnerProfile}
+                                        className="w-full py-3 rounded-2xl bg-violet-500/10 text-violet-700 border border-violet-200 hover:bg-violet-500/20 transition-colors font-semibold text-sm flex items-center justify-center gap-2"
+                                    >
+                                        <User size={16} />
+                                        View Full Profile
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Sticky action bar */}
+                            <div className="absolute bottom-0 inset-x-0 p-3 bg-white/95 backdrop-blur-md border-t border-slate-200 flex items-center gap-2">
+                                <button
+                                    onClick={handleProfileModalDislike}
+                                    className="flex-1 py-3 rounded-2xl bg-slate-100 text-slate-600 hover:bg-red-50 hover:text-red-500 transition-colors border border-slate-200 font-semibold flex items-center justify-center"
+                                    aria-label="Pass"
+                                >
+                                    <X size={20} />
+                                </button>
+                                <button
+                                    onClick={handleProfileModalMessage}
+                                    className="flex-1 py-3 rounded-2xl bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors border border-blue-200 font-semibold flex items-center justify-center"
+                                    aria-label="Message"
+                                >
+                                    <SendHorizontal size={20} />
+                                </button>
+                                <button
+                                    onClick={handleProfileModalSuperLike}
+                                    className="flex-1 py-3 rounded-2xl bg-amber-50 text-amber-500 hover:bg-amber-100 transition-colors border border-amber-200 font-semibold flex items-center justify-center"
+                                    aria-label="Super Like"
+                                >
+                                    <Star size={20} fill="currentColor" />
+                                </button>
+                                <button
+                                    onClick={handleProfileModalLike}
+                                    className="flex-[1.6] py-3 rounded-2xl bg-gradient-to-r from-pink-500 to-violet-600 text-white font-bold hover:brightness-110 transition-all shadow-lg flex items-center justify-center gap-2"
+                                >
+                                    <Heart size={18} fill="currentColor" />
+                                    Like
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* FULLSCREEN LIGHTBOX */}
+                {isFullscreen && hasPictures && (
+                    <div className="fixed inset-0 z-[70] bg-black/95 flex items-center justify-center backdrop-blur-sm fade-in">
+                        <button
+                            onClick={() => setIsFullscreen(false)}
+                            className="absolute top-4 right-4 text-white/80 hover:text-white p-2 rounded-full bg-white/10 hover:bg-white/20 transition-all z-20"
+                            aria-label="Close"
+                        >
+                            <X className="w-6 h-6" />
+                        </button>
+
+                        <div className="absolute top-4 left-4 text-xs font-semibold text-white/80 bg-white/10 px-3 py-1 rounded-full z-20">
+                            {activeImageIndex + 1} / {selectedProfile.pictures.length}
+                        </div>
+
+                        {selectedProfile.pictures.length > 1 && (
+                            <>
+                                <button
+                                    onClick={handlePrevImage}
+                                    className="absolute left-4 text-white/80 hover:text-white p-3 rounded-full bg-white/10 hover:bg-white/20 transition-all z-20"
+                                    aria-label="Previous"
+                                >
+                                    <ChevronLeft className="w-6 h-6" />
+                                </button>
+                                <button
+                                    onClick={handleNextImage}
+                                    className="absolute right-4 text-white/80 hover:text-white p-3 rounded-full bg-white/10 hover:bg-white/20 transition-all z-20"
+                                    aria-label="Next"
+                                >
+                                    <ChevronRight className="w-6 h-6" />
+                                </button>
+                            </>
+                        )}
+
+                        <div className="w-full h-full p-4 flex items-center justify-center">
+                            <img
+                                src={renderImageUrl(
+                                    selectedProfile.pictures[activeImageIndex]?.path
+                                )}
+                                alt={`${selectedProfile.name} full view`}
+                                className="max-w-full max-h-full object-contain rounded-lg"
+                                draggable={false}
+                            />
+                        </div>
+                    </div>
+                )}
+
+                {/* PREMIUM FEATURE MODAL */}
                 {showPremiumModal && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 fade-in">
+                    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 fade-in">
                         <div className="w-full max-w-sm rounded-3xl bg-slate-900 border border-slate-800 p-6 text-white shadow-2xl text-center relative overflow-hidden">
                             <div className="w-16 h-16 bg-gradient-to-tr from-amber-500 to-yellow-300 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-amber-500/20">
                                 <Crown size={32} className="text-slate-950" />
@@ -1050,11 +1517,10 @@ export default function Encounters() {
                     </div>
                 )}
 
-                {/* ---------------- FILTER MODAL ---------------- */}
+                {/* FILTER MODAL */}
                 {showFilterModal && (
                     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-sm p-0 sm:p-4 fade-in">
                         <div className="w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl bg-slate-900 border border-slate-800 text-white shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-                            {/* Header */}
                             <div className="px-6 pt-5 pb-3 border-b border-slate-800 flex items-center justify-between flex-shrink-0">
                                 <div className="flex items-center gap-2">
                                     <SlidersHorizontal
@@ -1074,9 +1540,7 @@ export default function Encounters() {
                                 </button>
                             </div>
 
-                            {/* Body */}
                             <div className="px-6 py-5 space-y-6 overflow-y-auto flex-1">
-                                {/* --- Distance --- */}
                                 <div>
                                     <div className="flex items-center justify-between mb-2">
                                         <label className="text-sm font-semibold">
@@ -1114,7 +1578,6 @@ export default function Encounters() {
                                     )}
                                 </div>
 
-                                {/* --- Gender --- */}
                                 <div>
                                     <label className="text-sm font-semibold mb-2 block">
                                         Show me
@@ -1156,7 +1619,6 @@ export default function Encounters() {
                                     </div>
                                 </div>
 
-                                {/* --- Age range --- */}
                                 <div>
                                     <div className="flex items-center justify-between mb-2">
                                         <label className="text-sm font-semibold">
@@ -1224,7 +1686,6 @@ export default function Encounters() {
                                     </div>
                                 </div>
 
-                                {/* --- Premium-gated toggles --- */}
                                 <div className="space-y-3">
                                     <ToggleRow
                                         label="Online users only"
@@ -1262,7 +1723,6 @@ export default function Encounters() {
                                 </div>
                             </div>
 
-                            {/* Footer */}
                             <div className="px-6 py-4 border-t border-slate-800 flex gap-3 flex-shrink-0">
                                 <button
                                     onClick={() => setShowFilterModal(false)}
