@@ -60,6 +60,7 @@ export const finalProfilePath = '/final-profile';
 export const profilePagePath = '/profile-page';
 export const installPagePath = '/install';
 
+export const loginPath = '/login';
 export const encountersPath = '/encounters';
 export const likesPath = '/likes';
 export const chatsPath = '/chats';
