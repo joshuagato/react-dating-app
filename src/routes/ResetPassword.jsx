@@ -35,11 +35,15 @@ const ResetPassword = () => {
 
             if (response.errors) setErrors(response.errors);
 
-            const { success, message } = response;
+            const { success, message, token } = response;
             const theme = 'colored';
             const autoClose = 10000;
 
             if (success) {
+                if (token) {
+                    localStorage.setItem('token', token);
+                }
+
                 toast.success(message, { autoClose, theme });
                 unsetErrorSetMessage(setError, setMessage, message);
                 navigate('/confirm-reset-password');

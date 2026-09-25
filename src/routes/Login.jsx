@@ -49,7 +49,15 @@ const Auth = () => {
         toast.success(response.message, { autoClose: 7000, theme: 'colored' });
 
         const { user_id, email_verified, basic_profile_setup, advanced_profile_setup,
-            final_profile_setup, profile_page_setup, first_name, last_name } = response;
+            final_profile_setup, profile_page_setup, token, first_name, last_name } = response;
+
+        if (user_id) {
+            localStorage.setItem('user_id', user_id);
+        }
+
+        if (token) {
+            localStorage.setItem('token', token);
+        }
 
         // Wrap socket connection to prevent navigation blocking
         try {

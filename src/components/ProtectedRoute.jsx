@@ -33,6 +33,8 @@ const ProtectedRoute = () => {
                 const response = await getSetupStatusHandler();
 
                 const {
+                    user_id,
+                    token,
                     email_verified,
                     basic_profile_setup,
                     advanced_profile_setup,
@@ -41,6 +43,14 @@ const ProtectedRoute = () => {
                     first_name,
                     last_name,
                 } = response.setup;
+
+                if (user_id) {
+                    localStorage.setItem('user_id', user_id);
+                }
+
+                if (token) {
+                    localStorage.setItem('token', token);
+                }
 
                 const isFullySetup =
                     email_verified &&
