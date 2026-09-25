@@ -1,5 +1,5 @@
-import Cookies from 'js-cookie';
 import axios from "axios";
+import { userToken } from './utils/constants';
 
 const environment = import.meta.env.VITE_REACT_APP_ENVIRONMENT;
 const baseURL = import.meta.env.VITE_REACT_APP_API_BASE_URL;
@@ -7,21 +7,21 @@ const baseURL = import.meta.env.VITE_REACT_APP_API_BASE_URL;
 axios.defaults.withCredentials = true;
 
 const unProtectedApi = axios.create({
-  baseURL,
-//   withCredentials: true
+    baseURL,
+    //   withCredentials: true
 });
 
 const protectedApi = axios.create({
-  baseURL,
-//   withCredentials: true
+    baseURL,
+    //   withCredentials: true
 });
 
 protectedApi.interceptors.request.use((config) => {
-    const token = Cookies.get('token');
-    
+    const token = userToken || localStorage.getItem('token');
+
     // const user = JSON.parse(sessionStorage.getItem('user'));
     // const { token } = user;
-    
+
     if (token) {
         const modifiedConfig = { ...config };
         modifiedConfig.headers.Authorization = token;
@@ -29,7 +29,7 @@ protectedApi.interceptors.request.use((config) => {
     }
     return config;
 
-    },
+},
     (error) => Promise.reject(error)
 );
 
