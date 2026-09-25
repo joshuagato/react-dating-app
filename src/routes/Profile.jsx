@@ -1158,7 +1158,7 @@ export default function Profile() {
                                 >
                                     <option value={GENDER.MEN}>Men</option>
                                     <option value={GENDER.WOMEN}>Women</option>
-                                    <option value={GENDER.EVERONE}>Everyone</option>
+                                    <option value={GENDER.EVERYONE}>Everyone</option>
                                 </select>
                             </div>
                         </div>

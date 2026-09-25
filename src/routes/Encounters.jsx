@@ -824,7 +824,7 @@ export default function Encounters() {
             <HelmetHeader pageTitle={ENCOUNTERS_TITLE} />
             <style>{burstStyles}</style>
 
-            <div className="relative w-full h-full flex flex-col overflow-hidden select-none rounded-xl fade-in">
+            <div className="relative w-full h-[95%] mt-4 flex flex-col overflow-hidden select-none rounded-xl fade-in">
                 {/* CARD AREA */}
                 <div
                     id="swiper"
