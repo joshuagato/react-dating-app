@@ -5,10 +5,6 @@ import { APP_NAME, installPagePath, encountersPath, profilePath, userId } from '
 
 const Home = () => {
     const [loading, setLoading] = useState(true);
-    const currentUserId = Cookies.get('user_id');
-    const currentUserId2 = localStorage.getItem('user_id');
-
-    console.log({ userId, currentUserId, currentUserId2 });
 
     useEffect(() => {
         const timer1 = setTimeout(() => {
@@ -53,7 +49,7 @@ const Home = () => {
                     </p>
 
                     {/* Action Buttons */}
-                    {currentUserId ? (
+                    {userId ? (
                         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
                             <Link
                                 to={encountersPath}
