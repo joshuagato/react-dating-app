@@ -33,64 +33,81 @@ const Auth = () => {
     const [error, setError] = useState('');
     const [errors, setErrors] = useState({});
 
-    const { user, loading: authLoading } = { user: {}, loading: true };
+    const { user, loading: authLoading } = { user: null, loading: false };
     const navigate = useNavigate();
 
     useEffect(() => {
         if (user && !authLoading) {
-            navigate.push("/");
+            navigate("/");
         }
     }, [user, authLoading, navigate]);
 
     // Reusable redirect & socket handler post-auth
     const handleAuthSuccess = async (response) => {
-        unsetErrorSetMessage(setError, setMessage, response.message);
-        unsetEmailPasswordField(setEmail, setPassword);
-        toast.success(response.message, { autoClose: 7000, theme: 'colored' });
-
-        const { user_id, email_verified, basic_profile_setup, advanced_profile_setup,
-            final_profile_setup, profile_page_setup, token, first_name, last_name } = response;
-
-        if (user_id) {
-            localStorage.setItem('user_id', user_id);
-        }
-
-        if (token) {
-            localStorage.setItem('token', token);
-        }
-
-        // Wrap socket connection to prevent navigation blocking
         try {
-            if (baseURL && user_id) {
-                connectSocket(baseURL, user_id);
+            unsetErrorSetMessage(setError, setMessage, response.message);
+            unsetEmailPasswordField(setEmail, setPassword);
+            toast.success(response.message, { autoClose: 3000, theme: 'colored' });
+
+            const {
+                user_id, email_verified, basic_profile_setup, advanced_profile_setup,
+                final_profile_setup, profile_page_setup, token, first_name, last_name
+            } = response;
+
+            if (user_id) {
+                localStorage.setItem('user_id', user_id);
             }
-        } catch (socketError) {
-            console.error("Socket connection failed, proceeding with navigation:", socketError);
-        }
 
-        // Explicit Route Execution
-        if (email_verified && basic_profile_setup && advanced_profile_setup && final_profile_setup && profile_page_setup) {
-            return navigate(encountersPath, { replace: true });
-        }
+            if (token) {
+                localStorage.setItem('token', token);
+            }
 
-        if (!email_verified) {
-            return navigate(verifyEmailPath, { replace: true, state: { verification_channel: VERIFICATION_CHANNEL.LOGIN } });
-        }
+            // Explicitly cancel Google FedCM prompts to prevent signal abort errors
+            if (window.google?.accounts?.id) {
+                window.google.accounts.id.cancel();
+            }
 
-        if (!basic_profile_setup) {
-            return navigate(basicProfilePath, { replace: true, state: { first_name, last_name } });
-        }
+            // Wrap socket connection to prevent navigation blocking
+            try {
+                if (baseURL && user_id) {
+                    connectSocket(baseURL, user_id);
+                }
+            } catch (socketError) {
+                console.error("Socket connection failed, proceeding with navigation:", socketError);
+            }
 
-        if (!advanced_profile_setup) {
-            return navigate(advancedProfilePath, { replace: true });
-        }
+            // Explicit Route Execution with fallback string paths
+            if (email_verified && basic_profile_setup && advanced_profile_setup && final_profile_setup && profile_page_setup) {
+                return navigate(encountersPath || '/encounters', { replace: true });
+            }
 
-        if (!final_profile_setup) {
-            return navigate(finalProfilePath, { replace: true });
-        }
+            if (!email_verified) {
+                return navigate(verifyEmailPath || '/verify-email', {
+                    replace: true,
+                    state: { verification_channel: VERIFICATION_CHANNEL.LOGIN }
+                });
+            }
 
-        if (!profile_page_setup) {
-            return navigate(profilePagePath, { replace: true });
+            if (!basic_profile_setup) {
+                return navigate(basicProfilePath || '/basic-profile', {
+                    replace: true,
+                    state: { first_name, last_name }
+                });
+            }
+
+            if (!advanced_profile_setup) {
+                return navigate(advancedProfilePath || '/advanced-profile', { replace: true });
+            }
+
+            if (!final_profile_setup) {
+                return navigate(finalProfilePath || '/final-profile', { replace: true });
+            }
+
+            if (!profile_page_setup) {
+                return navigate(profilePagePath || '/profile-page', { replace: true });
+            }
+        } catch (err) {
+            console.error("Error encountered during post-auth navigation:", err);
         }
     };
 
@@ -185,7 +202,7 @@ const Auth = () => {
                     <GoogleLogin
                         onSuccess={handleGoogleSuccess}
                         onError={() => toast.error('Google Sign-In failed', { autoClose: 5000, theme: 'colored' })}
-                        useOneTap
+                        useOneTap={false}
                         shape="pill"
                         width="100%"
                     />
