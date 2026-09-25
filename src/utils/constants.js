@@ -5,6 +5,7 @@ export const APP_NAME = 'Crushr';
 
 export const baseURL = import.meta.env.VITE_REACT_APP_BACKEND_BASE_URL;
 export const userId = Cookies.get('user_id') || localStorage.getItem('user_id');
+export const userToken = Cookies.get('token') || localStorage.getItem('token');
 
 export const LOGIN_TEXT = 'Sign in to Your Account';
 export const SIGNUP_TEXT = 'Create Your Account';
