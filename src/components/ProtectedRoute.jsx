@@ -2,8 +2,6 @@
 import { useEffect, useState } from "react";
 import { Navigate, Outlet, useNavigate, useLocation } from "react-router";
 import { getSetupStatusHandler } from "../tanstack/auth";
-import { userToken } from '../utils/constants';
-
 import {
     verifyEmailPath,
     basicProfilePath,
@@ -12,6 +10,7 @@ import {
     profilePagePath,
     loginPath,
     VERIFICATION_CHANNEL,
+    userToken,
 } from "../utils/constants";
 
 const ProtectedRoute = () => {
@@ -20,7 +19,6 @@ const ProtectedRoute = () => {
     const location = useLocation();
 
     const [loading, setLoading] = useState(true);
-    const [isFullyOnboarded, setIsFullyOnboarded] = useState(false);
 
     useEffect(() => {
         if (!token) {
@@ -31,10 +29,11 @@ const ProtectedRoute = () => {
         const checkOnboardingStatus = async () => {
             try {
                 const response = await getSetupStatusHandler();
+                const setup = response?.setup || {};
 
                 const {
                     user_id,
-                    token,
+                    token: newToken,
                     email_verified,
                     basic_profile_setup,
                     advanced_profile_setup,
@@ -42,17 +41,10 @@ const ProtectedRoute = () => {
                     profile_page_setup,
                     first_name,
                     last_name,
-                } = response.setup;
+                } = setup;
 
-                if (user_id) {
-                    localStorage.setItem('user_id', user_id);
-                }
-
-                if (token) {
-                    localStorage.setItem('token', token);
-                }
-
-                console.log({ response })
+                if (user_id) localStorage.setItem('user_id', user_id);
+                if (newToken) localStorage.setItem('token', newToken);
 
                 const isFullySetup =
                     email_verified &&
@@ -61,42 +53,33 @@ const ProtectedRoute = () => {
                     final_profile_setup &&
                     profile_page_setup;
 
-                if (isFullySetup) {
-                    setIsFullyOnboarded(true);
-                } else {
-                    // Evaluate incomplete steps sequentially
+                const currentPath = location.pathname;
+
+                if (!isFullySetup) {
+                    let targetPath = null;
+                    let navState = {};
+
                     if (!email_verified) {
-                        return navigate(verifyEmailPath, {
-                            replace: true,
-                            state: { verification_channel: VERIFICATION_CHANNEL.LOGIN },
-                        });
+                        targetPath = verifyEmailPath;
+                        navState = { verification_channel: VERIFICATION_CHANNEL.LOGIN };
+                    } else if (!basic_profile_setup) {
+                        targetPath = basicProfilePath;
+                        navState = { first_name, last_name };
+                    } else if (!advanced_profile_setup) {
+                        targetPath = advancedProfilePath;
+                    } else if (!final_profile_setup) {
+                        targetPath = finalProfilePath;
+                    } else if (!profile_page_setup) {
+                        targetPath = profilePagePath;
                     }
 
-                    if (!basic_profile_setup) {
-                        return navigate(basicProfilePath, {
-                            replace: true,
-                            state: { first_name, last_name },
-                        });
-                    }
-
-                    if (!advanced_profile_setup) {
-                        return navigate(advancedProfilePath, { replace: true });
-                    }
-
-                    if (!final_profile_setup) {
-                        return navigate(finalProfilePath, { replace: true });
-                    }
-
-                    if (!profile_page_setup) {
-                        return navigate(profilePagePath, { replace: true });
+                    // Avoid re-navigating if the user is ALREADY on the correct setup step
+                    if (targetPath && currentPath !== targetPath) {
+                        return navigate(targetPath, { replace: true, state: navState });
                     }
                 }
             } catch (error) {
                 console.error("Failed to verify user onboarding status:", error);
-
-                // localStorage.removeItem("token");
-                // localStorage.removeItem("user_id");
-
                 navigate(loginPath, { replace: true });
             } finally {
                 setLoading(false);
@@ -104,14 +87,12 @@ const ProtectedRoute = () => {
         };
 
         checkOnboardingStatus();
-    }, [token, navigate]);
+    }, [token, location.pathname, navigate]);
 
-    // 1. Unauthenticated users
     if (!token) {
         return <Navigate to={loginPath} replace />;
     }
 
-    // 2. Loading verification state
     if (loading) {
         return (
             <div className="w-full h-screen flex items-center justify-center bg-gray-900 text-white">
@@ -120,8 +101,8 @@ const ProtectedRoute = () => {
         );
     }
 
-    // 3. Render child routes if onboarding checks pass
-    return isFullyOnboarded ? <Outlet /> : null;
+    // Always render child routes when authentication check passes
+    return <Outlet />;
 };
 
 export default ProtectedRoute;
