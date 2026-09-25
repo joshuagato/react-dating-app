@@ -68,8 +68,6 @@ const Auth = () => {
             console.error("Socket connection failed, proceeding with navigation:", socketError);
         }
 
-        console.log({ baseURL, user_id, email_verified, basic_profile_setup, advanced_profile_setup, final_profile_setup, profile_page_setup })
-
         // Explicit Route Execution
         if (email_verified && basic_profile_setup && advanced_profile_setup && final_profile_setup && profile_page_setup) {
             return navigate(encountersPath, { replace: true });
