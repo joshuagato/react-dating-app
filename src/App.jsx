@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Routes, Route } from "react-router";
 import Home from './routes/Home';
 import Login from './routes/Login';
@@ -31,7 +32,16 @@ import { connectSocket } from './utils/functions';
 import './App.css';
 
 function App() {
-    connectSocket(baseURL, userId);
+    useEffect(() => {
+        const storedUserId = userId || localStorage.getItem('user_id');
+        if (baseURL && storedUserId) {
+            try {
+                connectSocket(baseURL, storedUserId);
+            } catch (err) {
+                console.warn("Socket initialization error:", err);
+            }
+        }
+    }, []);
 
     return (
         <PWAProvider>
