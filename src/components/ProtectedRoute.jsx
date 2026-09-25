@@ -52,6 +52,8 @@ const ProtectedRoute = () => {
                     localStorage.setItem('token', token);
                 }
 
+                console.log({ response })
+
                 const isFullySetup =
                     email_verified &&
                     basic_profile_setup &&
