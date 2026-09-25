@@ -1,8 +1,8 @@
 // components/ProtectedRoute.jsx
 import { useEffect, useState } from "react";
 import { Navigate, Outlet, useNavigate, useLocation } from "react-router";
-import Cookies from "js-cookie";
-import { getSetupStatusHandler } from "../tanstack/auth"; // Replace with your standard API client instance if needed
+import { getSetupStatusHandler } from "../tanstack/auth";
+import { userToken } from '../utils/constants';
 
 import {
     verifyEmailPath,
@@ -15,7 +15,7 @@ import {
 } from "../utils/constants";
 
 const ProtectedRoute = () => {
-    const token = Cookies.get("token");
+    const token = userToken || localStorage.getItem('token');
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -93,7 +93,10 @@ const ProtectedRoute = () => {
                 }
             } catch (error) {
                 console.error("Failed to verify user onboarding status:", error);
-                Cookies.remove("token");
+
+                // localStorage.removeItem("token");
+                // localStorage.removeItem("user_id");
+
                 navigate(loginPath, { replace: true });
             } finally {
                 setLoading(false);
@@ -101,7 +104,7 @@ const ProtectedRoute = () => {
         };
 
         checkOnboardingStatus();
-    }, [token, navigate, location.pathname]);
+    }, [token, navigate]);
 
     // 1. Unauthenticated users
     if (!token) {
