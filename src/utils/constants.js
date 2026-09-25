@@ -85,7 +85,7 @@ export const ENCOUNTER_ACTION = {
 }
 
 export const GENDER = {
-    MAN: 'man', MEN: 'men', WOMAN: 'woman', WOMEN: 'women', EVERONE: 'everyone'
+    MAN: 'man', MEN: 'men', WOMAN: 'woman', WOMEN: 'women', EVERYONE: 'everyone'
 };
 
 
