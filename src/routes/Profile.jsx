@@ -1171,6 +1171,7 @@ export default function Profile() {
                                 type="date"
                                 name="date_of_birth"
                                 value={userData.date_of_birth}
+                                max="2008-12-31"
                                 onChange={handleInputChange}
                                 className="input input-bordered input-sm w-full bg-slate-50 text-slate-800"
                             />
