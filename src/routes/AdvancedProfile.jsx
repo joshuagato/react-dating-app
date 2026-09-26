@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router';
 import { CircleX, CircleCheck, MapPin, Camera, RefreshCw, ShieldCheck, UserCheck, X, Loader2 } from 'lucide-react';
@@ -16,6 +16,7 @@ import { unsetErrorSetMessage, unsetMessageSetError } from '../utils/functions';
 
 export default function AdvancedProfile() {
     const navigate = useNavigate();
+    const videoRef = useRef(null);
 
     // Form & UI States
     const [loading, setLoading] = useState(false);
@@ -23,6 +24,7 @@ export default function AdvancedProfile() {
     const [isCameraActive, setIsCameraActive] = useState(false);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [modelsLoaded, setModelsLoaded] = useState(false);
+    const [webStream, setWebStream] = useState(null);
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
 
@@ -36,9 +38,6 @@ export default function AdvancedProfile() {
 
         const loadFaceModels = async () => {
             try {
-                // Load TinyFaceDetector model from public/models folder
-                // const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model';
-
                 await faceapi.nets.tinyFaceDetector.loadFromUri('/models');
                 if (isMounted) setModelsLoaded(true);
             } catch (err) {
@@ -50,9 +49,20 @@ export default function AdvancedProfile() {
 
         return () => {
             isMounted = false;
-            CameraPreview.stop().catch(() => { });
+            if (Capacitor.isNativePlatform()) {
+                CameraPreview.stop().catch(() => { });
+            }
         };
     }, []);
+
+    // Clean up web stream tracks when component unmounts
+    useEffect(() => {
+        return () => {
+            if (webStream) {
+                webStream.getTracks().forEach(track => track.stop());
+            }
+        };
+    }, [webStream]);
 
     // 2. Location Fetching & Reverse Geocoding
     const handleGetLocation = async () => {
@@ -103,35 +113,74 @@ export default function AdvancedProfile() {
         }
     };
 
-    // 3. Camera Controls & Face API Validation (Strategy A)
+    // 3. Dual-Mode Camera Controls & Face API Validation
     const handleStartCamera = async () => {
         setError('');
         try {
-            const container = document.getElementById('camera-preview-container');
-            const width = container ? container.clientWidth : 280;
-            const height = container ? container.clientHeight : 280;
+            if (Capacitor.isNativePlatform()) {
+                // Native iOS/Android camera preview execution
+                const container = document.getElementById('camera-preview-container');
+                const width = container ? container.clientWidth : 280;
+                const height = container ? container.clientHeight : 280;
 
-            const cameraPreviewOptions = {
-                position: 'front',
-                parent: 'camera-preview-container',
-                width: width,
-                height: height,
-                toBack: false,
-                className: 'camera-preview-element'
-            };
+                const cameraPreviewOptions = {
+                    position: 'front',
+                    parent: 'camera-preview-container',
+                    width: width,
+                    height: height,
+                    toBack: false,
+                    className: 'camera-preview-element'
+                };
 
-            await CameraPreview.start(cameraPreviewOptions);
+                await CameraPreview.start(cameraPreviewOptions);
+            } else {
+                // Browser execution (iOS Safari, Desktop, PWAs)
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    throw new Error('Camera access is not supported or allowed in this browser context.');
+                }
+
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: 'user',
+                        width: { ideal: 640 },
+                        height: { ideal: 640 }
+                    },
+                    audio: false
+                });
+
+                setWebStream(stream);
+                setIsCameraActive(true);
+
+                // Attach stream to video tag after state updates render the element
+                setTimeout(async () => {
+                    if (videoRef.current) {
+                        videoRef.current.srcObject = stream;
+                        try {
+                            await videoRef.current.play();
+                        } catch (e) {
+                            console.error('Error playing web camera stream:', e);
+                        }
+                    }
+                }, 100);
+            }
+
             setIsCameraActive(true);
         } catch (err) {
-            console.error('Camera Preview Error:', err);
-            setError('Unable to start camera. Please check camera permissions.');
+            console.error('Camera Access Error:', err);
+            const message = err.message || 'Unable to start camera. Please check camera permissions.';
+            setError(message);
             toast.error('Unable to start camera.');
         }
     };
 
     const handleStopCamera = async () => {
         try {
-            await CameraPreview.stop();
+            if (Capacitor.isNativePlatform()) {
+                await CameraPreview.stop();
+            } else if (webStream) {
+                webStream.getTracks().forEach(track => track.stop());
+                setWebStream(null);
+            }
         } catch (err) {
             console.error('Error stopping camera:', err);
         } finally {
@@ -144,10 +193,31 @@ export default function AdvancedProfile() {
         setError('');
 
         try {
-            const result = await CameraPreview.capture({ quality: 85 });
-            const base64Image = `data:image/jpeg;base64,${result.value}`;
+            let base64Image = '';
 
-            // Strategy A: Validate face presence and clarity immediately
+            if (Capacitor.isNativePlatform()) {
+                const result = await CameraPreview.capture({ quality: 85 });
+                base64Image = `data:image/jpeg;base64,${result.value}`;
+            } else {
+                // Canvas capture for Web / Safari
+                const video = videoRef.current;
+                if (!video) throw new Error('Video stream not active');
+
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth || 320;
+                canvas.height = video.videoHeight || 320;
+
+                const ctx = canvas.getContext('2d');
+
+                // Flip horizontally on canvas so saved image matches mirrored preview
+                ctx.translate(canvas.width, 0);
+                ctx.scale(-1, 1);
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                base64Image = canvas.toDataURL('image/jpeg', 0.85);
+            }
+
+            // Validate face presence and clarity using Face API
             if (modelsLoaded) {
                 const img = new Image();
                 img.src = base64Image;
@@ -164,17 +234,16 @@ export default function AdvancedProfile() {
                 if (!detection) {
                     toast.error("No clear face detected. Ensure good lighting and look straight at the camera.");
                     setIsAnalyzing(false);
-                    return; // Keeps camera open so user can retry immediately
+                    return;
                 }
 
                 if (detection.score < 0.70) {
                     toast.warn("Photo is too blurry or dark. Hold still in a well-lit area.");
                     setIsAnalyzing(false);
-                    return; // Keeps camera open so user can retry immediately
+                    return;
                 }
             }
 
-            // Quality check passed!
             setCapturedImage(base64Image);
             await handleStopCamera();
             toast.success('Clear selfie verified & captured!');
@@ -289,12 +358,22 @@ export default function AdvancedProfile() {
                     </p>
 
                     <div className="flex flex-col items-center gap-4">
-                        {/* Live Camera Container Mount Point */}
+                        {/* Live Camera Container */}
                         <div
                             id="camera-preview-container"
                             className={`relative w-full aspect-square max-w-[280px] bg-black rounded-xl overflow-hidden shadow-inner ${!isCameraActive ? 'hidden' : 'block'
                                 }`}
                         >
+                            {/* Safari / Web Fallback Video Stream */}
+                            {!Capacitor.isNativePlatform() && (
+                                <video
+                                    ref={videoRef}
+                                    playsInline
+                                    muted
+                                    className="w-full h-full object-cover -scale-x-100"
+                                />
+                            )}
+
                             {/* Analysis Overlay */}
                             {isAnalyzing && (
                                 <div className="absolute inset-0 bg-black/60 z-30 flex flex-col items-center justify-center text-white gap-2">
