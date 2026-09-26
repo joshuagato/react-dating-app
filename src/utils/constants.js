@@ -1,5 +1,6 @@
 import { io } from 'socket.io-client';
 import Cookies from 'js-cookie';
+import { getEighteenYearsAgoCutoff } from '../utils/functions';
 
 export const APP_NAME = 'Crushr';
 
@@ -96,6 +97,7 @@ export const socket = io(baseURL, {
 
 export const AD_EVERY_N_CARDS = 2;
 
+export const eighteenYearAgo = getEighteenYearsAgoCutoff();
 console.log(userId)
 
 export const REASON_FOR_JOINING_OPTIONS = [
