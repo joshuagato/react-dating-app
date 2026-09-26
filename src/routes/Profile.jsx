@@ -46,6 +46,7 @@ import MainLayout from '../components/Layouts/MainLayout';
 import HelmetHeader from '../components/HelmetHeader';
 import {
     PROFILE_TITLE, PROFILE_TEXT, GENDER, premiumPath,
+    eighteenYearAgo,
 } from '../utils/constants';
 import { renderImageUrl } from '../utils/functions';
 import { compressImage, compareFaces } from '../utils/imageProcessing';
@@ -1171,7 +1172,7 @@ export default function Profile() {
                                 type="date"
                                 name="date_of_birth"
                                 value={userData.date_of_birth}
-                                max="2008-12-31"
+                                max={eighteenYearAgo}
                                 onChange={handleInputChange}
                                 className="input input-bordered input-sm w-full bg-slate-50 text-slate-800"
                             />
