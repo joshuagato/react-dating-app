@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import {
-    Sparkles, Check, Zap, Eye, MapPin, Crown, Loader2,
+    Sparkles, Check, Zap, Eye, MapPin, Crown, Loader2, Info,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import PaystackPop from '@paystack/inline-js';
@@ -48,21 +48,17 @@ export default function PremiumPackages() {
     const formatPrice = (amount, currency = displayCurrency) => {
         if (amount == null) return '—';
         const symbol = CURRENCY_SYMBOLS[currency] || `${currency} `;
-        // Display whole numbers without decimals for cleaner chips
-        const numeric = Number(amount);
+        const numeric = Number(amount) / 100;   // smallest unit -> major
         return `${symbol}${Number.isInteger(numeric) ? numeric : numeric.toFixed(2)}`;
     };
 
-    // For the success modal — we show the charge amount in the currency
-    // Paystack actually processed (USD for foreign regions, local for supported).
-    const formatCharge = (amount, currency) => {
+    const formatCharge = (amount, currency = 'GHS') => {
         if (amount == null) return '';
         const symbol = CURRENCY_SYMBOLS[currency] || `${currency} `;
-        const numeric = Number(amount) / 100; // smallest unit -> major
+        const numeric = Number(amount) / 100;
         return `${symbol}${Number.isInteger(numeric) ? numeric : numeric.toFixed(2)}`;
     };
 
-    // Savings vs monthly — shown as a badge on longer cycles
     const monthlyPerCycle = (cycle) => {
         const months = { weekly: 0.25, monthly: 1, quarterly: 3, semiannual: 6, annual: 12 };
         const m = months[cycle];
@@ -73,31 +69,33 @@ export default function PremiumPackages() {
         return pct > 0 ? pct : null;
     };
 
+    const currentCharge = charges[billingCycle];
+    const showChargeNotice =
+        currentCharge &&
+        displayCurrency !== currentCharge.chargeCurrency;
+
     const handleSubscribe = () => {
-        console.log({ publicKey })
         if (submitting || !publicKey) return;
 
-        const charge = charges[billingCycle];
-        if (!charge || !charge.amount) {
+        if (!currentCharge || !currentCharge.chargeAmount) {
             toast.error('Price not available. Try another billing cycle.');
             return;
         }
 
         setSubmitting(true);
 
-        console.log(charge.currency)
-
         const paystack = new PaystackPop();
         paystack.newTransaction({
             key: publicKey,
             email: pricingData?.email || 'customer@crushr.app',
-            amount: charge.amount,               // smallest unit
-            currency: charge.currency,           // what Paystack processes
+            amount: currentCharge.chargeAmount,       // GHS pesewas
+            currency: currentCharge.chargeCurrency,   // 'GHS'
             ref: `CRUSHR-${Date.now()}`,
             metadata: {
                 user_id: userId,
                 billing_cycle: billingCycle,
                 display_currency: displayCurrency,
+                display_amount: prices[billingCycle],
             },
             onSuccess: async (transaction) => {
                 try {
@@ -107,8 +105,8 @@ export default function PremiumPackages() {
                         setShowSuccess({
                             message: result.message || 'Welcome to Crushr Premium!',
                             billingCycle,
-                            amount: charge.amount,
-                            currency: charge.currency,
+                            amount: currentCharge.chargeAmount,
+                            currency: currentCharge.chargeCurrency,
                         });
                     } else {
                         toast.error(result?.message || 'Payment succeeded but activation failed.');
@@ -145,7 +143,7 @@ export default function PremiumPackages() {
                     </p>
                     <button
                         onClick={() => navigate(-1)}
-                        className="text-sm font-semibold text-violet-700"
+                        className="text-sm font-semibold text-violet-700 cursor-pointer"
                     >
                         Go back
                     </button>
@@ -185,7 +183,7 @@ export default function PremiumPackages() {
                                 key={cycle}
                                 type="button"
                                 onClick={() => setBillingCycle(cycle)}
-                                className={`relative px-3 py-1.5 rounded-full text-xs font-semibold border transition ${selected
+                                className={`relative px-3 py-1.5 rounded-full text-xs font-semibold border transition cursor-pointer ${selected
                                     ? 'bg-gradient-to-r from-violet-600 to-pink-600 text-white border-transparent'
                                     : 'bg-white text-slate-600 border-slate-300 hover:border-violet-400'
                                     }`}
@@ -230,11 +228,11 @@ export default function PremiumPackages() {
                         {[
                             'Unlimited Likes',
                             'See Who Liked You',
+                            'See Who Disliked You',
                             'Direct Messages',
                             'Super Swipes',
-                            'Rewind Last Swipe',
+                            'See Who you Disliked',
                             'Global Passport',
-                            'Priority in Feed',
                             'Ad-Free Experience',
                         ].map((feature) => (
                             <li key={feature} className="flex items-center gap-1.5">
@@ -261,13 +259,30 @@ export default function PremiumPackages() {
                     </div>
                 </div>
 
+                {/* Charge Notice — shows the GHS amount when display currency differs */}
+                {showChargeNotice && (
+                    <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200">
+                        <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                        <div className="text-[11px] leading-relaxed text-amber-900">
+                            <p>
+                                Displayed in {displayCurrency} for your convenience.
+                                You will be charged{' '}
+                                <span className="font-bold">
+                                    {formatCharge(currentCharge.chargeAmount, currentCharge.chargeCurrency)}
+                                </span>{' '}
+                                in Ghanaian Cedis (GHS) at checkout.
+                            </p>
+                        </div>
+                    </div>
+                )}
+
                 {/* CTA */}
                 <div className="pt-2 pb-4">
                     <button
                         type="button"
                         disabled={submitting}
                         onClick={handleSubscribe}
-                        className="w-full py-3.5 px-6 rounded-full font-bold text-white text-sm bg-gradient-to-r from-violet-600 via-pink-600 to-amber-500 shadow-lg shadow-violet-500/25 active:scale-[0.98] transition-all disabled:opacity-60 flex items-center justify-center gap-2"
+                        className="w-full py-3.5 px-6 rounded-full font-bold text-white text-sm bg-gradient-to-r from-violet-600 via-pink-600 to-amber-500 shadow-lg shadow-violet-500/25 active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
                     >
                         {submitting ? (
                             <>
@@ -287,7 +302,6 @@ export default function PremiumPackages() {
             {showSuccess && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
                     <div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl text-center relative animate-[scaleIn_0.2s_ease-out]">
-                        {/* Confetti-ish header */}
                         <div className="mx-auto w-20 h-20 rounded-full bg-gradient-to-br from-violet-500 via-pink-500 to-amber-400 flex items-center justify-center shadow-lg mb-4">
                             <Crown className="w-10 h-10 text-white" />
                         </div>
@@ -299,7 +313,6 @@ export default function PremiumPackages() {
                             {showSuccess.message}
                         </p>
 
-                        {/* Receipt summary */}
                         <div className="bg-slate-50 rounded-2xl p-3 mb-5 text-left text-xs text-slate-600 space-y-1">
                             <div className="flex justify-between">
                                 <span>Plan</span>
@@ -339,7 +352,7 @@ export default function PremiumPackages() {
                                 setShowSuccess(null);
                                 navigate('/profile', { replace: false });
                             }}
-                            className="w-full py-3 rounded-full font-bold text-white text-sm bg-gradient-to-r from-violet-600 via-pink-600 to-amber-500 shadow-md active:scale-[0.98] transition-all"
+                            className="w-full py-3 rounded-full font-bold text-white text-sm bg-gradient-to-r from-violet-600 via-pink-600 to-amber-500 shadow-md active:scale-[0.98] transition-all cursor-pointer"
                         >
                             Start Exploring
                         </button>
@@ -347,7 +360,7 @@ export default function PremiumPackages() {
                         <button
                             type="button"
                             onClick={() => setShowSuccess(null)}
-                            className="w-full mt-2 py-2 text-xs text-slate-500 hover:text-slate-700"
+                            className="w-full mt-2 py-2 text-xs text-slate-500 hover:text-slate-700 cursor-pointer"
                         >
                             Stay on this page
                         </button>
