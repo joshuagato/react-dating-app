@@ -234,3 +234,9 @@ export const decryptText = (cipherText) => {
         return null;
     }
 };
+
+export function getEighteenYearsAgoCutoff() {
+    const currentYear = new Date().getFullYear();
+    const targetYear = currentYear - 18;
+    return `${targetYear}-12-31`;
+}
