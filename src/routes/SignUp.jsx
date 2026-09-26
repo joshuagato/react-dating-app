@@ -34,21 +34,13 @@ const SignUp = () => {
     const [error, setError] = useState('');
     const [errors, setErrors] = useState({});
 
-    const { user, loading: authLoading } = { user: {}, loading: true };
     const navigate = useNavigate();
-
-    useEffect(() => {
-        if (user && !authLoading) {
-            navigate.push("/");
-        }
-    }, [user, authLoading, navigate]);
 
     // Handle authentication success (Shared logic)
     const handleAuthSuccess = async (response) => {
 
         unsetErrorSetMessage(setError, setMessage, response.message);
         unsetEmailPasswordField(setEmail, setPassword);
-        toast.success(response.message, { autoClose: 7000, theme: 'colored' });
 
         const { user_id, email_verified, basic_profile_setup, advanced_profile_setup,
             final_profile_setup, profile_page_setup, token, first_name, last_name } = response;
@@ -62,6 +54,8 @@ const SignUp = () => {
         }
 
         connectSocket(baseURL, user_id);
+
+        toast.success(response.message, { autoClose: 7000, theme: 'colored' });
 
         if (email_verified && basic_profile_setup && advanced_profile_setup && profilePagePath) {
             navigate(encountersPath, { replace: true });
@@ -91,12 +85,26 @@ const SignUp = () => {
         try {
             const response = await signUpHandler({ email, password, passwordConfirmation });
 
-            if (response.errors) setErrors(response.errors);
+            const { errors, success, user_id, token } = response;
 
-            if (response.success && !response.session) {
+            if (errors) setErrors(errors);
+
+            if (success) {
                 unsetErrorSetMessage(setError, setMessage, response.message);
                 unsetEmailPasswordFields(setEmail, setPassword, setPasswordConfirmation);
+
+                if (user_id) {
+                    localStorage.setItem('user_id', user_id);
+                }
+
+                if (token) {
+                    localStorage.setItem('token', token);
+                }
+
+                connectSocket(baseURL, user_id);
+
                 toast.success(response.message, { autoClose: 5000 });
+
                 navigate(verifyEmailPath, { replace: true, state: { verification_channel: VERIFICATION_CHANNEL.SIGNUP } });
             } else {
                 unsetMessageSetError(setMessage, setError, response.message);
