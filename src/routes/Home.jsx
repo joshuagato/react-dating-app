@@ -1,10 +1,26 @@
 import { useState, useEffect } from 'react';
-import { Link } from "react-router";
+import { Link, useNavigate } from 'react-router';
+import {
+    MoreHorizontal, LogOut, Info, Heart, Users, MessageCircle,
+    Shield, Globe, Sparkles, X, ArrowLeft,
+} from 'lucide-react';
 import Cookies from 'js-cookie';
-import { APP_NAME, installPagePath, encountersPath, profilePath, userId } from '../utils/constants';
+import {
+    APP_NAME, installPagePath, encountersPath, profilePath,
+} from '../utils/constants';
+import { useLogout } from '../hooks/useLogout';
 
 const Home = () => {
     const [loading, setLoading] = useState(true);
+    const [menuOpen, setMenuOpen] = useState(false);
+    const [aboutOpen, setAboutOpen] = useState(false);
+
+    const navigate = useNavigate();
+    const logout = useLogout();
+
+    // Read the cookie on every render instead of at module load, so the
+    // UI reflects login state changes without a full page reload.
+    const userId = Cookies.get('user_id');
 
     useEffect(() => {
         const timer1 = setTimeout(() => {
@@ -16,6 +32,42 @@ const Home = () => {
         };
     }, []);
 
+    // Close the menu when clicking outside of it
+    useEffect(() => {
+        if (!menuOpen) return;
+
+        const handleClickOutside = (e) => {
+            if (!e.target.closest('[data-menu-root]')) {
+                setMenuOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [menuOpen]);
+
+    // Close the menu with Escape
+    useEffect(() => {
+        const onKey = (e) => {
+            if (e.key === 'Escape') {
+                setMenuOpen(false);
+                setAboutOpen(false);
+            }
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, []);
+
+    const handleLogout = async () => {
+        setMenuOpen(false);
+        await logout();
+    };
+
+    const handleAbout = () => {
+        setMenuOpen(false);
+        setAboutOpen(true);
+    };
+
     if (loading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-violet-900 via-slate-900 to-pink-900">
@@ -25,7 +77,55 @@ const Home = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-violet-900 via-slate-900 to-pink-900 flex items-center justify-center p-4">
+        <div className="min-h-screen bg-gradient-to-br from-violet-900 via-slate-900 to-pink-900 flex items-center justify-center p-4 relative">
+
+            {/* Top-right menu (three dots) */}
+            <div className="absolute top-4 right-4 z-40" data-menu-root>
+                <button
+                    type="button"
+                    onClick={() => setMenuOpen((v) => !v)}
+                    aria-label="More options"
+                    aria-expanded={menuOpen}
+                    className="p-2.5 rounded-full bg-slate-800/70 backdrop-blur-md border 
+                    border-slate-700/60 text-slate-200 hover:text-white hover:bg-slate-700/70 
+                    transition-all active:scale-95 shadow-lg cursor-pointer"
+                >
+                    <MoreHorizontal className="w-5 h-5" />
+                </button>
+
+                {menuOpen && (
+                    <div
+                        className="absolute right-0 mt-2 w-48 rounded-2xl bg-slate-900/95 backdrop-blur-md border 
+                        border-slate-700/60 shadow-2xl overflow-hidden"
+                        role="menu"
+                    >
+                        <button
+                            type="button"
+                            onClick={handleAbout}
+                            className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-slate-200 
+                                hover:bg-slate-800/80 hover:text-white transition-colors text-left cursor-pointer"
+                            role="menuitem"
+                        >
+                            <Info className="w-4 h-4 text-violet-400" />
+                            About
+                        </button>
+
+                        <div className="h-px bg-slate-700/60" />
+
+                        <button
+                            type="button"
+                            onClick={handleLogout}
+                            className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-slate-200 
+                            hover:bg-red-500/10 hover:text-red-400 transition-colors text-left cursor-pointer"
+                            role="menuitem"
+                        >
+                            <LogOut className="w-4 h-4" />
+                            Logout
+                        </button>
+                    </div>
+                )}
+            </div>
+
             {/* Hero Section */}
             <section className="relative overflow-hidden w-full max-w-4xl">
                 <div className="bg-slate-800/90 backdrop-blur-md border border-slate-700/50 rounded-2xl shadow-2xl p-8 lg:p-16 text-center text-white">
@@ -56,18 +156,8 @@ const Home = () => {
                                 className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-4 bg-gradient-to-r from-violet-600 to-pink-500 text-white text-base font-bold rounded-xl hover:from-violet-500 hover:to-pink-400 transition-all duration-300 shadow-lg shadow-pink-500/25 hover:shadow-pink-500/40 transform hover:-translate-y-0.5"
                             >
                                 Start Discovering
-                                <svg
-                                    className="w-5 h-5 ml-2"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M13 7l5 5m0 0l-5 5m5-5H6"
-                                    />
+                                <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                                 </svg>
                             </Link>
                             <Link
@@ -84,18 +174,8 @@ const Home = () => {
                                 className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-4 bg-gradient-to-r from-violet-600 to-pink-500 text-white text-base font-bold rounded-xl hover:from-violet-500 hover:to-pink-400 transition-all duration-300 shadow-lg shadow-pink-500/25 hover:shadow-pink-500/40 transform hover:-translate-y-0.5"
                             >
                                 Get Started
-                                <svg
-                                    className="w-5 h-5 ml-2"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M13 7l5 5m0 0l-5 5m5-5H6"
-                                    />
+                                <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                                 </svg>
                             </Link>
                             <Link
@@ -113,7 +193,6 @@ const Home = () => {
                             Get the App
                         </p>
                         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                            {/* Google Play Store */}
                             <Link
                                 to={installPagePath}
                                 className="flex items-center gap-3 px-6 py-3 bg-slate-900/80 hover:bg-slate-900 text-white rounded-xl border border-slate-700/60 hover:border-pink-500/40 transition-all duration-300 hover:scale-105 shadow-md w-48 justify-center"
@@ -127,7 +206,6 @@ const Home = () => {
                                 </div>
                             </Link>
 
-                            {/* Apple App Store */}
                             <Link
                                 to={installPagePath}
                                 className="flex items-center gap-3 px-6 py-3 bg-slate-900/80 hover:bg-slate-900 text-white rounded-xl border border-slate-700/60 hover:border-pink-500/40 transition-all duration-300 hover:scale-105 shadow-md w-48 justify-center"
@@ -145,6 +223,168 @@ const Home = () => {
 
                 </div>
             </section>
+
+            {/* ============================================================ */}
+            {/* About Modal                                                  */}
+            {/* ============================================================ */}
+            {aboutOpen && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 fade-in"
+                    onClick={() => setAboutOpen(false)}
+                >
+                    <div
+                        className="relative w-full max-w-md bg-slate-900 border border-slate-700/60 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[88vh]"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Close button */}
+                        <button
+                            type="button"
+                            onClick={() => setAboutOpen(false)}
+                            className="absolute top-4 right-4 z-10 p-2 rounded-full bg-slate-800/80 text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
+                            aria-label="Close"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
+
+                        {/* Header */}
+                        <div className="bg-gradient-to-br from-violet-600 via-pink-500 to-amber-500 px-6 pt-8 pb-10 text-center text-white">
+                            <div className="w-16 h-16 mx-auto rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center mb-3 shadow-inner">
+                                <Heart className="w-8 h-8 text-white" fill="currentColor" />
+                            </div>
+                            <h2 className="text-2xl font-black tracking-tight">
+                                About {APP_NAME}
+                            </h2>
+                            <p className="text-xs text-white/80 mt-1">
+                                Real people. Real conversations. Real connections.
+                            </p>
+                        </div>
+
+                        {/* Body */}
+                        <div className="px-6 py-5 overflow-y-auto flex-1 text-slate-300 space-y-5">
+
+                            <p className="text-sm leading-relaxed">
+                                {APP_NAME} is a modern dating app built for people who
+                                want something real — whether that's a meaningful
+                                relationship, a genuine conversation, or just meeting
+                                interesting people in your area and beyond.
+                            </p>
+
+                            {/* Feature grid */}
+                            <div className="grid grid-cols-1 gap-3">
+
+                                <div className="flex items-start gap-3 p-3 rounded-xl bg-slate-800/60 border border-slate-700/60">
+                                    <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-violet-500/20 text-violet-300 flex items-center justify-center">
+                                        <Heart className="w-4 h-4" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-semibold text-slate-100">
+                                            Smart matching
+                                        </p>
+                                        <p className="text-xs text-slate-400 mt-0.5">
+                                            Swipe, like, and get matched with people who
+                                            share your vibe.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-start gap-3 p-3 rounded-xl bg-slate-800/60 border border-slate-700/60">
+                                    <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-pink-500/20 text-pink-300 flex items-center justify-center">
+                                        <MessageCircle className="w-4 h-4" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-semibold text-slate-100">
+                                            Instant messaging
+                                        </p>
+                                        <p className="text-xs text-slate-400 mt-0.5">
+                                            Real-time chat with read receipts and typing
+                                            indicators.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-start gap-3 p-3 rounded-xl bg-slate-800/60 border border-slate-700/60">
+                                    <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-amber-500/20 text-amber-300 flex items-center justify-center">
+                                        <Shield className="w-4 h-4" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-semibold text-slate-100">
+                                            Verified profiles
+                                        </p>
+                                        <p className="text-xs text-slate-400 mt-0.5">
+                                            Selfie verification keeps the community
+                                            authentic and safe.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-start gap-3 p-3 rounded-xl bg-slate-800/60 border border-slate-700/60">
+                                    <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-emerald-500/20 text-emerald-300 flex items-center justify-center">
+                                        <Globe className="w-4 h-4" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-semibold text-slate-100">
+                                            Go global
+                                        </p>
+                                        <p className="text-xs text-slate-400 mt-0.5">
+                                            Find matches nearby or explore connections in
+                                            other countries.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-start gap-3 p-3 rounded-xl bg-slate-800/60 border border-slate-700/60">
+                                    <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-fuchsia-500/20 text-fuchsia-300 flex items-center justify-center">
+                                        <Sparkles className="w-4 h-4" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-semibold text-slate-100">
+                                            70% free
+                                        </p>
+                                        <p className="text-xs text-slate-400 mt-0.5">
+                                            Most features are free forever. Premium unlocks
+                                            the extras.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-start gap-3 p-3 rounded-xl bg-slate-800/60 border border-slate-700/60">
+                                    <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-blue-500/20 text-blue-300 flex items-center justify-center">
+                                        <Users className="w-4 h-4" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-semibold text-slate-100">
+                                            Built for community
+                                        </p>
+                                        <p className="text-xs text-slate-400 mt-0.5">
+                                            No games, no noise — just real people
+                                            connecting.
+                                        </p>
+                                    </div>
+                                </div>
+
+                            </div>
+
+                            <div className="pt-2 border-t border-slate-700/60">
+                                <p className="text-[11px] text-slate-500 text-center leading-relaxed">
+                                    Version 1.0 &middot; Made with care for authentic
+                                    connections.
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="px-6 py-4 border-t border-slate-700/60 flex-shrink-0">
+                            <button
+                                type="button"
+                                onClick={() => setAboutOpen(false)}
+                                className="w-full py-3 rounded-xl bg-gradient-to-r from-violet-600 to-pink-600 text-white font-bold text-sm hover:brightness-110 transition-all shadow-md cursor-pointer"
+                            >
+                                Got it
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
