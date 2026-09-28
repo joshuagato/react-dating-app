@@ -6,7 +6,8 @@ import {
 } from 'lucide-react';
 
 import {
-    APP_NAME, installPagePath, encountersPath, profilePath, userId
+    APP_NAME, installPagePath, encountersPath, profilePath, userId,
+    loginPath
 } from '../utils/constants';
 import { useLogout } from '../hooks/useLogout';
 
@@ -167,7 +168,7 @@ const Home = () => {
                     ) : (
                         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
                             <Link
-                                to="/login"
+                                to={loginPath}
                                 className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-4 bg-gradient-to-r from-violet-600 to-pink-500 text-white text-base font-bold rounded-xl hover:from-violet-500 hover:to-pink-400 transition-all duration-300 shadow-lg shadow-pink-500/25 hover:shadow-pink-500/40 transform hover:-translate-y-0.5"
                             >
                                 Get Started
