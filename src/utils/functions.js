@@ -190,6 +190,7 @@ export const timeTo12Hour = time => {
 export const buildPictureUrl = (baseUrl, pictureUrl) => `${baseUrl}/${pictureUrl}`;
 
 export const renderImageUrl = url => {
+    if (!url) return;
     if (url.includes(cloudFactorPath)) return url;
     return buildPictureUrl(baseURL, url);
 }
