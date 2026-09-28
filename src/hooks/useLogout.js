@@ -17,5 +17,5 @@ export const useLogout = () => {
         navigate('/login');
     };
 
-    return logout();
+    return logout;
 };
