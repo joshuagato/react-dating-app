@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link } from 'react-router';
 import {
     MoreHorizontal, LogOut, Info, Heart, Users, MessageCircle,
     Shield, Globe, Sparkles, X, ArrowLeft,
 } from 'lucide-react';
-import Cookies from 'js-cookie';
+
 import {
-    APP_NAME, installPagePath, encountersPath, profilePath,
+    APP_NAME, installPagePath, encountersPath, profilePath, userId
 } from '../utils/constants';
 import { useLogout } from '../hooks/useLogout';
 
@@ -15,12 +15,9 @@ const Home = () => {
     const [menuOpen, setMenuOpen] = useState(false);
     const [aboutOpen, setAboutOpen] = useState(false);
 
-    const navigate = useNavigate();
     const logout = useLogout();
 
-    // Read the cookie on every render instead of at module load, so the
-    // UI reflects login state changes without a full page reload.
-    const userId = Cookies.get('user_id');
+    const storedUserId = userId || localStorage.getItem('user_id');
 
     useEffect(() => {
         const timer1 = setTimeout(() => {
@@ -149,7 +146,7 @@ const Home = () => {
                     </p>
 
                     {/* Action Buttons */}
-                    {userId ? (
+                    {storedUserId ? (
                         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
                             <Link
                                 to={encountersPath}
