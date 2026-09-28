@@ -58,9 +58,9 @@ const Home = () => {
         return () => window.removeEventListener('keydown', onKey);
     }, []);
 
-    const handleLogout = async () => {
+    const handleLogout = () => {
         setMenuOpen(false);
-        await logout();
+        return logout();
     };
 
     const handleAbout = () => {
