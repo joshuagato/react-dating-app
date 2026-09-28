@@ -48,7 +48,7 @@ function ImageUploadBox({ id, position, imagePreview, onImageUpdate }) {
     };
 
     return (
-        <div className='relative w-27.5 h-36'>
+        <div className='relative w-20 smd:w-27.5 h-30 sm:h-36'>
             {/* Visual Temporary Position Overlay Badge */}
             <div className='absolute top-2 left-2 z-20 flex items-center justify-center w-7 h-7 rounded-full bg-black/80 text-white font-black text-sm shadow-md border-2 border-white pointer-events-none'>
                 {position}
