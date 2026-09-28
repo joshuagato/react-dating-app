@@ -313,7 +313,7 @@ export default function Nearby() {
 
     const hasPictures =
         Array.isArray(selectedProfile?.pictures) &&
-        selectedProfile.pictures.length > 0;
+        selectedProfile?.pictures?.length > 0;
 
     return (
         <MainLayout pageTitle={NEARBY_TITLE} pageDetails={NEARBY_TEXT}>
@@ -347,7 +347,7 @@ export default function Nearby() {
                             />
                         ))}
                     </div>
-                ) : profiles.length > 0 ? (
+                ) : profiles?.length > 0 ? (
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-2 sm:gap-3">
                         {profiles.map((profile, index) => (
                             <article
@@ -357,7 +357,7 @@ export default function Nearby() {
                             >
                                 <img
                                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                                    src={renderImageUrl(profile.pictures?.[0]) || '/placeholder-avatar.png'}
+                                    src={renderImageUrl(profile?.pictures?.[0]) || '/placeholder-avatar.png'}
                                     alt={`${profile.name}'s profile picture`}
                                     loading="lazy"
                                 />
@@ -366,7 +366,7 @@ export default function Nearby() {
 
                                 <div className="absolute top-3 left-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/50 backdrop-blur-md border border-white/10 text-white text-[11px] font-medium">
                                     <MapPin size={12} className="text-pink-500" />
-                                    <span>{profile.distanceFrom ?? profile.distance ?? '1'} km away</span>
+                                    <span>{profile?.distanceFrom ?? profile?.distance ?? '1'} km away</span>
                                 </div>
 
                                 <div className="absolute bottom-0 inset-x-0 p-3 sm:p-4 flex flex-col justify-end">
@@ -456,18 +456,18 @@ export default function Nearby() {
                                         >
                                             <img
                                                 src={
-                                                    renderImageUrl(selectedProfile.pictures[activeImageIndex]) ||
-                                                    renderImageUrl(selectedProfile.pictures[0]) ||
+                                                    renderImageUrl(selectedProfile?.pictures[activeImageIndex]) ||
+                                                    renderImageUrl(selectedProfile?.pictures[0]) ||
                                                     '/placeholder-avatar.png'
                                                 }
-                                                alt={`${selectedProfile.name} - Picture ${activeImageIndex + 1}`}
+                                                alt={`${selectedProfile?.name} - Picture ${activeImageIndex + 1}`}
                                                 className="w-full h-full object-contain"
                                                 draggable={false}
                                             />
                                         </div>
 
                                         {/* Progress indicators */}
-                                        {selectedProfile.pictures.length > 1 && (
+                                        {selectedProfile?.pictures?.length > 1 && (
                                             <div className="absolute top-3 inset-x-4 z-20 flex gap-1.5">
                                                 {selectedProfile.pictures.map((_, idx) => (
                                                     <div
@@ -485,7 +485,7 @@ export default function Nearby() {
                                         )}
 
                                         {/* Prev / Next */}
-                                        {selectedProfile.pictures.length > 1 && (
+                                        {selectedProfile?.pictures?.length > 1 && (
                                             <>
                                                 <button
                                                     onClick={(e) => {
