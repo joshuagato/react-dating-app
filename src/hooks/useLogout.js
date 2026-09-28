@@ -1,5 +1,6 @@
 import Cookies from 'js-cookie';
 import { useNavigate } from 'react-router';
+import { homePath } from '../utils/constants';
 
 export const useLogout = () => {
     const navigate = useNavigate();
@@ -14,7 +15,7 @@ export const useLogout = () => {
         sessionStorage.clear();
 
         // Redirect
-        navigate('/login');
+        navigate(homePath);
     };
 
     return logout;
