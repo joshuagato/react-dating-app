@@ -7,8 +7,8 @@ import {
     MoreHorizontal, ArrowLeft,
 } from 'lucide-react';
 import {
-    chatsPath, dislikedByMePath, encountersPath, feedbackPath, likesPath, nearbyPath, passedPath, premiumPath, profilePath,
-    socket, userId,
+    chatsPath, dislikedByMePath, encountersPath, feedbackPath, homePath, likesPath, nearbyPath, passedPath,
+    premiumPath, profilePath, socket, userId,
 } from '../../utils/constants';
 import {
     chooseColour, chooseTextColour, isSame, pathMatched,
@@ -103,6 +103,9 @@ const MainLayout = ({
                                 tabIndex="-1"
                                 className="dropdown-content menu bg-base-100 rounded-box z-1 w-52 p-2 shadow-sm"
                             >
+                                <li>
+                                    <NavLink to={homePath}>Go Back Home</NavLink>
+                                </li>
                                 <li>
                                     <NavLink to={dislikedByMePath}>People You Passed</NavLink>
                                 </li>
