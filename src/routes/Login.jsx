@@ -33,14 +33,7 @@ const Auth = () => {
     const [error, setError] = useState('');
     const [errors, setErrors] = useState({});
 
-    const { user, loading: authLoading } = { user: {}, loading: true };
     const navigate = useNavigate();
-
-    useEffect(() => {
-        if (user && !authLoading) {
-            navigate.push("/");
-        }
-    }, [user, authLoading, navigate]);
 
     // Reusable redirect & socket handler post-auth
     const handleAuthSuccess = async (response) => {
