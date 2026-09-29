@@ -45,10 +45,9 @@ import { Capacitor } from '@capacitor/core';
 import MainLayout from '../components/Layouts/MainLayout';
 import HelmetHeader from '../components/HelmetHeader';
 import {
-    PROFILE_TITLE, PROFILE_TEXT, GENDER, premiumPath,
-    eighteenYearAgo,
+    PROFILE_TITLE, PROFILE_TEXT, GENDER, premiumPath
 } from '../utils/constants';
-import { renderImageUrl } from '../utils/functions';
+import { renderImageUrl, getEighteenYearsAgoCutoff } from '../utils/functions';
 import { compressImage, compareFaces } from '../utils/imageProcessing';
 import {
     getVerificationSelfieHandler,
@@ -1172,7 +1171,7 @@ export default function Profile() {
                                 type="date"
                                 name="date_of_birth"
                                 value={userData.date_of_birth}
-                                max={eighteenYearAgo}
+                                max={getEighteenYearsAgoCutoff()}
                                 onChange={handleInputChange}
                                 className="input input-bordered input-sm w-full bg-slate-50 text-slate-800"
                             />

@@ -1,6 +1,5 @@
 import { CalendarDays } from 'lucide-react';
-import { lastArrayElement, makeLabelTextId } from '../utils/functions';
-import { eighteenYearAgo } from '../utils/constants';
+import { lastArrayElement, makeLabelTextId, getEighteenYearsAgoCutoff } from '../utils/functions';
 
 const Date = ({ label, date, setDate, errors }) => {
 
@@ -18,7 +17,7 @@ const Date = ({ label, date, setDate, errors }) => {
                 <label className="input">
                     <CalendarDays className="h-[1em] opacity-50" />
                     <input id={fieldId} type="date" className="input w-58 sm:w-72" value={date}
-                        onChange={e => setDate(e.target.value)} max={eighteenYearAgo} required />
+                        onChange={e => setDate(e.target.value)} max={getEighteenYearsAgoCutoff()} required />
                 </label>
                 {errors[fieldId] && (
                     <div className="text-red-400 text-sm text-center mt-1.5 fade-in">
