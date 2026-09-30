@@ -1,85 +1,63 @@
 import { protectedApi } from "../axios";
 
-const getProfile = async () => {
+export const getProfileHandler = async () => {
     const response = await protectedApi.get('/user/profile');
     return response.data;
 }
 
-const getPartnerProfile = async userId => {
+export const getPartnerProfileHandler = async userId => {
     const response = await protectedApi.get(`/user/partner-profile/${userId}`);
     return response.data;
 }
 
-const updateProfile = async data => {
+export const updateProfileHandler = async data => {
     const response = await protectedApi.put('/user/update-profile', data);
     return response.data;
 }
 
-const setupBasicProfile = async data => {
+export const setupBasicProfileHandler = async data => {
     const response = await protectedApi.put('/user/basic-profile', data);
     return response.data;
 }
 
-const setupAdvancedProfile = async data => {
-    const response = await protectedApi.put('/user/advanced-profile', data);
+export const setupAdvancedProfileHandler = async data => {
+    const response = await protectedApi.put('/user/advanced-profile', data, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return response.data;
 }
 
-const setupFinalProfile = async data => {
+export const setupFinalProfileHandler = async data => {
     const response = await protectedApi.put('/user/final-profile', data);
     return response.data;
 }
 
-const getVerificationSelfie = async () => {
+export const getVerificationSelfieHandler = async () => {
     const response = await protectedApi.get('/user/verification-selfie');
     return response.data;
 }
 
-const getPotentialMatchProfiles = async () => {
+export const getPotentialMatchProfilesHandler = async () => {
     const response = await protectedApi.get('/user/get-potential-match-profiles');
     return response.data;
 }
 
-const getNearbyUsers = async () => {
+export const getNearbyUsersHandler = async () => {
     const response = await protectedApi.get('/user/get-nearby-users');
     return response.data;
 }
 
-const getPremiumStatus = async () => {
+export const getPremiumStatusHandler = async () => {
     const response = await protectedApi.get('/user/premium-status');
     return response.data;
 }
 
-const completeProfileSetup = async data => {
+export const completeProfileSetupHandler = async data => {
     const response = await protectedApi.put('/user/complete-profile-setup', data);
     return response.data;
 }
 
-const deletePicture = async id => {
+export const deletePictureHandler = async id => {
     const response = await protectedApi.delete(`/user/delete-picture/${id}`);
     return response.data;
 }
-
-export const getProfileHandler = async () => await getProfile();
-
-export const getPartnerProfileHandler = async userId => await getPartnerProfile(userId);
-
-export const updateProfileHandler = async data => await updateProfile(data);
-
-export const setupBasicProfileHandler = async data => await setupBasicProfile(data);
-
-export const setupAdvancedProfileHandler = async data => await setupAdvancedProfile(data);
-
-export const setupFinalProfileHandler = async data => await setupFinalProfile(data);
-
-export const getVerificationSelfieHandler = async () => await getVerificationSelfie();
-
-export const getPotentialMatchProfilesHandler = async () => await getPotentialMatchProfiles();
-
-export const getNearbyUsersHandler = async () => await getNearbyUsers();
-
-export const getPremiumStatusHandler = async () => await getPremiumStatus();
-
-export const completeProfileSetupHandler = async data => await completeProfileSetup(data);
-
-export const deletePictureHandler = async id => await deletePicture(id);
