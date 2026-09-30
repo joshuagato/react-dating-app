@@ -302,7 +302,7 @@ export default function AdvancedProfile() {
                     return;
                 }
 
-                if (detection.score < 0.7) {
+                if (detection.score < 0.5) {
                     toast.warn(
                         'Photo is too blurry or dark. Hold still in a well-lit area.'
                     );
