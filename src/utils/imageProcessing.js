@@ -92,8 +92,8 @@ export async function compareFaces(selfieImgElement, uploadedImgElement) {
         uploadedDetection.descriptor
     );
 
-    // Strict threshold: <= 0.45 eliminates false positives (0.6 is too forgiving)
-    const MATCH_THRESHOLD = 0.45;
+    // Strict threshold: <= 0.50 eliminates false positives (0.6 is too forgiving)
+    const MATCH_THRESHOLD = 0.50;
     const isMatch = distance <= MATCH_THRESHOLD;
 
     return {
