@@ -3,7 +3,7 @@ import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router';
 import {
     CircleX, CircleCheck, MapPin, Camera, RefreshCw, ShieldCheck,
-    UserCheck, X, Loader2, Edit3,
+    UserCheck, X, Loader2,
 } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { Geolocation } from '@capacitor/geolocation';
@@ -55,10 +55,10 @@ export default function AdvancedProfile() {
     // Verification Data States
     const [locationData, setLocationData] = useState(null);
     const [capturedImage, setCapturedImage] = useState(null);
+    const [capturedImageFile, setCapturedImageFile] = useState(null);
 
-    // Manual location fallback (for Firefox on Android, or when GPS
-    // is unavailable). { city, country } when active, null otherwise.
-    const [manualLocation, setManualLocation] = useState(null);
+    // Non-dismissible location error modal
+    const [showLocationErrorModal, setShowLocationErrorModal] = useState(false);
 
     // 1. Preload Face API Models & Handle Unmount Cleanup
     useEffect(() => {
@@ -141,36 +141,14 @@ export default function AdvancedProfile() {
             };
 
             setLocationData(resolvedLocation);
-            setManualLocation(null);
             toast.success('Location acquired successfully!');
         } catch (err) {
-            const errorMsg = err.message || 'Error acquiring location';
-            setError(errorMsg);
-            toast.error(errorMsg);
-            // FireFox on Android and a few other mobile browsers silently
-            // reject or never resolve geolocation. Guide the user into the
-            // manual fallback rather than leaving them stuck.
-            setManualLocation({ city: '', country: '' });
+            // Show the blocking modal instead of falling back to manual entry.
+            // The user must fix their device permissions and refresh.
+            setShowLocationErrorModal(true);
         } finally {
             setFetchingLocation(false);
         }
-    };
-
-    const handleManualLocationSubmit = () => {
-        if (!manualLocation?.city?.trim() || !manualLocation?.country?.trim()) {
-            toast.warn('Please enter both city and country.');
-            return;
-        }
-        setLocationData({
-            latitude: 0,
-            longitude: 0,
-            city: manualLocation.city.trim(),
-            country: manualLocation.country.trim(),
-            country_code: null,
-            isManual: true,
-        });
-        setManualLocation(null);
-        toast.success('Location saved. You can update it later from your profile.');
     };
 
     // 3. Dual-Mode Camera Controls
@@ -311,9 +289,7 @@ export default function AdvancedProfile() {
                 }
             }
 
-            // Compress aggressively for upload. Targets ~800 KB at 1080px
-            // max dimension, which keeps the multipart payload well under
-            // any hosting platform's body size limit.
+            // Compress aggressively for upload.
             const blob = dataUriToBlob(rawBase64);
             const file = new File([blob], 'selfie.jpg', { type: 'image/jpeg' });
 
@@ -325,8 +301,6 @@ export default function AdvancedProfile() {
                 initialQuality: 0.85,
             });
 
-            // Convert back to a data URI so we can preview it identically
-            // to the uncompressed capture.
             const compressedDataUri = await new Promise((resolve, reject) => {
                 const reader = new FileReader();
                 reader.onload = () => resolve(reader.result);
@@ -335,7 +309,6 @@ export default function AdvancedProfile() {
             });
 
             setCapturedImage(compressedDataUri);
-            // Keep the File object around for submission
             setCapturedImageFile(compressedFile);
             await handleStopCamera();
             toast.success('Clear selfie verified & captured!');
@@ -346,9 +319,6 @@ export default function AdvancedProfile() {
             setIsAnalyzing(false);
         }
     };
-
-    // Holds the compressed File for upload
-    const [capturedImageFile, setCapturedImageFile] = useState(null);
 
     // 4. Final Profile Submission
     const handleSubmit = async (e) => {
@@ -373,22 +343,13 @@ export default function AdvancedProfile() {
         setMessage('');
 
         try {
-            // Send as multipart/form-data. The image is a binary Blob, so
-            // no base64 overhead, and the payload stays small thanks to
-            // the client-side compression above.
             const formData = new FormData();
             formData.append('verifiedSelfie', capturedImageFile, 'selfie.jpg');
             formData.append('city', locationData.city);
             formData.append('country', locationData.country);
-            formData.append(
-                'country_code',
-                locationData.country_code || ''
-            );
+            formData.append('country_code', locationData.country_code || '');
             formData.append('latitude', String(locationData.latitude ?? 0));
             formData.append('longitude', String(locationData.longitude ?? 0));
-            if (locationData.isManual) {
-                formData.append('location_is_manual', 'true');
-            }
 
             const response = await setupAdvancedProfileHandler(formData);
 
@@ -408,6 +369,10 @@ export default function AdvancedProfile() {
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleRefreshPage = () => {
+        window.location.reload();
     };
 
     return (
@@ -431,17 +396,10 @@ export default function AdvancedProfile() {
                                 <p className="font-medium text-success-content">
                                     {locationData.city}, {locationData.country}
                                 </p>
-                                {!locationData.isManual && (
-                                    <p className="text-xs text-base-content/60">
-                                        {locationData.latitude.toFixed(4)},{' '}
-                                        {locationData.longitude.toFixed(4)}
-                                    </p>
-                                )}
-                                {locationData.isManual && (
-                                    <p className="text-xs text-base-content/60">
-                                        Manually entered
-                                    </p>
-                                )}
+                                <p className="text-xs text-base-content/60">
+                                    {locationData.latitude.toFixed(4)},{' '}
+                                    {locationData.longitude.toFixed(4)}
+                                </p>
                             </div>
                             <button
                                 type="button"
@@ -450,74 +408,6 @@ export default function AdvancedProfile() {
                             >
                                 Re-sync
                             </button>
-                        </div>
-                    ) : manualLocation ? (
-                        <div className="space-y-3">
-                            <div className="alert alert-warning text-xs py-2">
-                                <MapPin className="w-4 h-4 shrink-0" />
-                                <span>
-                                    We couldn't get your GPS location. Please
-                                    enter it manually.
-                                </span>
-                            </div>
-
-                            <div>
-                                <label className="text-xs font-semibold text-slate-600 mb-1 block">
-                                    City
-                                </label>
-                                <input
-                                    type="text"
-                                    value={manualLocation.city}
-                                    onChange={(e) =>
-                                        setManualLocation((prev) => ({
-                                            ...prev,
-                                            city: e.target.value,
-                                        }))
-                                    }
-                                    placeholder="e.g. Dwinase"
-                                    className="input input-bordered input-sm w-full"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="text-xs font-semibold text-slate-600 mb-1 block">
-                                    Country
-                                </label>
-                                <input
-                                    type="text"
-                                    value={manualLocation.country}
-                                    onChange={(e) =>
-                                        setManualLocation((prev) => ({
-                                            ...prev,
-                                            country: e.target.value,
-                                        }))
-                                    }
-                                    placeholder="e.g. Ghana"
-                                    className="input input-bordered input-sm w-full"
-                                />
-                            </div>
-
-                            <div className="flex gap-2">
-                                <button
-                                    type="button"
-                                    onClick={handleManualLocationSubmit}
-                                    className="btn btn-primary btn-sm flex-1"
-                                >
-                                    Save Location
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={handleGetLocation}
-                                    disabled={fetchingLocation}
-                                    className="btn btn-ghost btn-sm"
-                                >
-                                    {fetchingLocation ? (
-                                        <span className="loading loading-spinner loading-xs" />
-                                    ) : (
-                                        'Retry GPS'
-                                    )}
-                                </button>
-                            </div>
                         </div>
                     ) : (
                         <button
@@ -653,6 +543,76 @@ export default function AdvancedProfile() {
                     </SubmitButton>
                 </form>
             </div>
+
+            {/* ============================================================ */}
+            {/* Location Error Modal — non-dismissible                        */}
+            {/* ============================================================ */}
+            {showLocationErrorModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+                    <div className="relative w-full max-w-sm bg-slate-900 border border-slate-700/60 rounded-3xl shadow-2xl overflow-hidden text-white">
+                        {/* Header */}
+                        <div className="bg-gradient-to-br from-amber-500 to-rose-500 px-6 pt-7 pb-5 text-center">
+                            <div className="w-14 h-14 mx-auto rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center mb-3">
+                                <MapPin className="w-7 h-7 text-white" />
+                            </div>
+                            <h2 className="text-lg font-black tracking-tight">
+                                Location is required
+                            </h2>
+                        </div>
+
+                        {/* Body */}
+                        <div className="px-6 py-5 space-y-4 text-sm text-slate-300 leading-relaxed">
+                            <p>
+                                We couldn't access your location. To continue
+                                with your profile setup, please:
+                            </p>
+
+                            <ul className="space-y-2.5 text-slate-200">
+                                <li className="flex items-start gap-2.5">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-1.5 flex-shrink-0" />
+                                    <span>
+                                        Turn on <strong>Location</strong> or
+                                        GPS on your device
+                                    </span>
+                                </li>
+                                <li className="flex items-start gap-2.5">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-1.5 flex-shrink-0" />
+                                    <span>
+                                        Allow this site to access your
+                                        location when your browser asks
+                                    </span>
+                                </li>
+                                <li className="flex items-start gap-2.5">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-1.5 flex-shrink-0" />
+                                    <span>
+                                        If you've previously blocked it, open
+                                        your browser settings and set location
+                                        access to <strong>Allow</strong> for
+                                        this site
+                                    </span>
+                                </li>
+                            </ul>
+
+                            <p className="text-xs text-slate-400 pt-1">
+                                Once you've made these changes, tap the button
+                                below to reload the page.
+                            </p>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="px-6 pb-6 pt-1">
+                            <button
+                                type="button"
+                                onClick={handleRefreshPage}
+                                className="w-full py-3.5 rounded-xl bg-gradient-to-r from-violet-600 to-pink-600 text-white font-bold text-sm hover:brightness-110 active:scale-[0.98] transition-all shadow-lg shadow-pink-500/25 flex items-center justify-center gap-2"
+                            >
+                                <RefreshCw className="w-4 h-4" />
+                                Refresh Page
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </Layout>
     );
 }
