@@ -55,7 +55,7 @@ const SignUp = () => {
 
         connectSocket(baseURL, user_id);
 
-        toast.success(response.message, { autoClose: 7000, theme: 'colored' });
+        toast.success(response.message, { autoClose: 4000, theme: 'colored' });
 
         if (email_verified && basic_profile_setup && advanced_profile_setup && profilePagePath) {
             navigate(encountersPath, { replace: true });
@@ -103,7 +103,7 @@ const SignUp = () => {
 
                 connectSocket(baseURL, user_id);
 
-                toast.success(response.message, { autoClose: 5000 });
+                toast.success(response.message, { autoClose: 4000 });
 
                 navigate(verifyEmailPath, { replace: true, state: { verification_channel: VERIFICATION_CHANNEL.SIGNUP } });
             } else {

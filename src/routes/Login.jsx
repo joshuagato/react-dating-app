@@ -40,7 +40,7 @@ const Auth = () => {
     const handleAuthSuccess = async (response) => {
         unsetErrorSetMessage(setError, setMessage, response.message);
         unsetEmailPasswordField(setEmail, setPassword);
-        toast.success(response.message, { autoClose: 7000, theme: 'colored' });
+        toast.success(response.message, { autoClose: 3000, theme: 'colored' });
 
         const { user_id, email_verified, basic_profile_setup, advanced_profile_setup,
             final_profile_setup, profile_page_setup, token, first_name, last_name } = response;

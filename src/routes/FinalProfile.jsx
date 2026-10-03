@@ -258,7 +258,7 @@ export default function FinalProfile() {
 
             if (success) {
                 unsetErrorSetMessage(setError, setMessage, message);
-                toast.success(message, { autoClose: 5000, theme: 'colored' });
+                toast.success(message, { autoClose: 3000, theme: 'colored' });
                 navigate(profilePagePath, { replace: true });
             } else {
                 unsetMessageSetError(setMessage, setError, message);

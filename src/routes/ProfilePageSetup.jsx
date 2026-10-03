@@ -78,7 +78,7 @@ export default function ProfilePageSetup() {
             if (response.success) {
                 const successMsg = response.message || 'Profile setup completed successfully!';
                 setMessage(successMsg);
-                toast.success(successMsg, { autoClose: 5000, theme: 'colored' });
+                toast.success(successMsg, { autoClose: 3000, theme: 'colored' });
                 setTimeout(() => {
                     navigate(encountersPath, { replace: true });
                 }, 1500);
