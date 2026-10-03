@@ -17,9 +17,18 @@ export default defineConfig({
             renderModernChunks: false,
         }),
         VitePWA({
+            strategies: 'injectManifest',
+            srcDir: 'src',
+            filename: 'firebase-messaging-sw.js',
             registerType: 'autoUpdate',
-            devOptions: { enabled: true },
-            workbox: { maximumFileSizeToCacheInBytes: 5242880 },
+            injectManifest: {
+                injectionPoint: undefined, // Prevents Workbox manifest precache injection errors in custom Firebase SW
+                maximumFileSizeToCacheInBytes: 5242880
+            },
+            devOptions: {
+                enabled: true,
+                type: 'module'
+            },
             manifest: {
                 name: 'Crushr',
                 short_name: 'Crushr',
