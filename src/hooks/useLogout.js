@@ -2,7 +2,7 @@ import Cookies from 'js-cookie';
 import { useNavigate } from 'react-router';
 import { homePath } from '../utils/constants';
 
-export const useLogout = () => {
+export const useLogout = (fromHome = false) => {
     const navigate = useNavigate();
 
     const logout = () => {
@@ -16,6 +16,10 @@ export const useLogout = () => {
 
         // Redirect
         navigate(homePath);
+
+        if (fromHome) {
+            window.location.reload(true);
+        }
     };
 
     return logout;
