@@ -83,7 +83,9 @@ export const GENDER = {
     MAN: 'man', MEN: 'men', WOMAN: 'woman', WOMEN: 'women', EVERYONE: 'everyone'
 };
 
-export const AD_EVERY_N_CARDS = 2;
+export const AD_EVERY_N_CARDS = 9;
+export const MAX_DISTANCE_FREE_KM = 1000;
+export const MAX_DISTANCE_PREMIUM_KM = 3000;
 
 export const REASON_FOR_JOINING_OPTIONS = [
     { value: 'friendship', label: 'Friendship' },
