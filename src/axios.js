@@ -1,7 +1,7 @@
 import axios from "axios";
-import { userToken } from './utils/constants';
+import { getUserToken } from './utils/functions';
 
-const environment = import.meta.env.VITE_REACT_APP_ENVIRONMENT;
+// const environment = import.meta.env.VITE_REACT_APP_ENVIRONMENT;
 const baseURL = import.meta.env.VITE_REACT_APP_API_BASE_URL;
 
 axios.defaults.withCredentials = true;
@@ -17,7 +17,7 @@ const protectedApi = axios.create({
 });
 
 protectedApi.interceptors.request.use((config) => {
-    const token = userToken || localStorage.getItem('token');
+    const token = getUserToken();
 
     // const user = JSON.parse(sessionStorage.getItem('user'));
     // const { token } = user;
