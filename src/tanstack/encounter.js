@@ -42,8 +42,10 @@ export const markLikesAsSeenHandler = async initiatorIds => {
     return response.data;
 };
 
-export const saveEncountersFilterHandler = async (filter) => {
+export const saveEncountersFilterHandler = async filter => {
     const res = await protectedApi.put('/encounter/filter', {
+        filter_mode: filter.filter_mode,
+        country: filter.country,
         max_distance_km: filter.max_distance_km,
         interested_in: filter.interested_in,
         min_age: filter.min_age,
@@ -51,5 +53,10 @@ export const saveEncountersFilterHandler = async (filter) => {
         online_only: filter.online_only,
         premium_only: filter.premium_only,
     });
+    return res.data;
+};
+
+export const getFilterCountriesHandler = async () => {
+    const res = await protectedApi.get('/encounter/filter-countries');
     return res.data;
 };
