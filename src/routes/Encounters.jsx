@@ -10,6 +10,7 @@ import {
     Briefcase, GraduationCap, ChevronLeft, ChevronRight, Maximize2,
     Users, CheckCircle2, Ruler, Cigarette, Wine,
     Heart as HeartIcon,
+    Globe,
 } from 'lucide-react';
 
 import 'swiper/css';
@@ -22,6 +23,8 @@ import {
     ENCOUNTERS_TITLE, ENCOUNTERS_TEXT, ENCOUNTER_ACTION, chatPath,
     partnerProfilePath, premiumPath, GENDER,
     AD_EVERY_N_CARDS as FALLBACK_AD_EVERY_N,
+    MAX_DISTANCE_FREE_KM,
+    MAX_DISTANCE_PREMIUM_KM,
 } from '../utils/constants';
 import { renderImageUrl } from '../utils/functions';
 import {
@@ -29,6 +32,7 @@ import {
     likeUserHandler,
     dislikeUserHandler,
     saveEncountersFilterHandler,
+    getFilterCountriesHandler,
 } from '../tanstack/encounter';
 import { getPremiumStatusHandler } from '../tanstack/user';
 
@@ -61,12 +65,14 @@ const burstStyles = `
 `;
 
 const DEFAULT_FILTER = {
-    max_distance_km: 200,
+    max_distance_km: 1000,
     interested_in: GENDER.EVERYONE,
     min_age: 18,
     max_age: 100,
     online_only: false,
     premium_only: false,
+    filter_mode: 'distance', // 'distance' | 'country'
+    country: null,
 };
 
 /* ------------------------------------------------------------------ */
@@ -121,10 +127,7 @@ export default function Encounters() {
     // Super-like burst
     const [superLikeBurst, setSuperLikeBurst] = useState(null);
 
-    // ----------------------------------------------------------------
-    // Profile detail modal (NEW — replaces the old navigate-to-page
-    // behavior when tapping the profile area of a card).
-    // ----------------------------------------------------------------
+    // Profile detail modal
     const [selectedProfile, setSelectedProfile] = useState(null);
     const [activeImageIndex, setActiveImageIndex] = useState(0);
     const [isFullscreen, setIsFullscreen] = useState(false);
@@ -153,6 +156,18 @@ export default function Encounters() {
     }, [premiumStatusData]);
 
     const isFreeUser = isPremium === null ? null : !isPremium;
+
+    /* ---------------------------------------------------------------- */
+    /* Country list for the premium country-mode filter                 */
+    /* ---------------------------------------------------------------- */
+    const { data: countriesData } = useQuery({
+        queryKey: ['encounter-filter-countries'],
+        queryFn: getFilterCountriesHandler,
+        enabled: isPremium === true,
+        staleTime: 5 * 60 * 1000,
+    });
+
+    const availableCountries = countriesData?.countries || [];
 
     /* ---------------------------------------------------------------- */
     /* Fetch                                                            */
@@ -201,8 +216,7 @@ export default function Encounters() {
     }, [encounterData, isFreeUser]);
 
     /* ---------------------------------------------------------------- */
-    /* Card factory — now preserves the profile-sourced fields so the   */
-    /* modal can display them without a second fetch.                   */
+    /* Card factory                                                     */
     /* ---------------------------------------------------------------- */
     const createCardData = useCallback((item, id) => {
         if (item.type === 'ad') {
@@ -249,7 +263,6 @@ export default function Encounters() {
             last_seen: item.last_seen,
             distanceFrom: item.distance_from,
             pictures,
-            // Profile-sourced fields — carried through for the modal.
             bio: item.bio,
             education: item.education,
             reason_on_app: item.reason_on_app,
@@ -524,7 +537,12 @@ export default function Encounters() {
 
     const handleFilterChange = (patch) => {
         filterDraftTouched.current = true;
-        setFilterDraft((prev) => ({ ...prev, ...patch }));
+        setFilterDraft((prev) => {
+            const next = { ...prev, ...patch };
+            // Leaving country mode wipes the stale country value.
+            if (patch.filter_mode === 'distance') next.country = null;
+            return next;
+        });
     };
 
     const handleApplyFilters = async () => {
@@ -549,7 +567,7 @@ export default function Encounters() {
     };
 
     /* ---------------------------------------------------------------- */
-    /* Profile detail modal handlers (NEW)                              */
+    /* Profile detail modal handlers                                    */
     /* ---------------------------------------------------------------- */
     const handleOpenProfile = (card) => {
         if (!card || card.type !== 'profile') return;
@@ -564,7 +582,6 @@ export default function Encounters() {
         setIsFullscreen(false);
     };
 
-    // "View Full Profile" — navigates to the standalone partner page.
     const handleOpenPartnerProfile = () => {
         if (!selectedProfile?.profileId) return;
         const userId = selectedProfile.profileId;
@@ -574,7 +591,6 @@ export default function Encounters() {
         navigate(partnerProfilePath, { state: { user_id: userId } });
     };
 
-    // Carousel
     const handlePrevImage = (e) => {
         if (e) e.stopPropagation();
         if (!selectedProfile?.pictures?.length) return;
@@ -606,7 +622,6 @@ export default function Encounters() {
         setTouchEndX(0);
     };
 
-    // Keyboard nav for the modal + lightbox
     useEffect(() => {
         if (!selectedProfile) return;
         const onKey = (e) => {
@@ -624,11 +639,6 @@ export default function Encounters() {
         return () => window.removeEventListener('keydown', onKey);
     }, [selectedProfile, activeImageIndex, isFullscreen]);
 
-    /* ---------------------------------------------------------------- */
-    /* Profile modal — action handlers                                  */
-    /* These just call the existing swipe / super-like / message        */
-    /* handlers, but act on the selectedProfile card.                   */
-    /* ---------------------------------------------------------------- */
     const handleProfileModalLike = (e) => {
         if (e) e.stopPropagation();
         if (!selectedProfile) return;
@@ -651,7 +661,6 @@ export default function Encounters() {
             setShowPremiumModal(true);
             return;
         }
-        // Trigger the burst then swipe, same as the bottom bar button.
         setSuperLikeBurst({ cardId: selectedProfile.id });
         setSelectedProfile(null);
         setTimeout(() => triggerSwipe('super_like'), 80);
@@ -686,7 +695,7 @@ export default function Encounters() {
 
     const handleDragStart = (e) => {
         if (matchInfo) return;
-        if (selectedProfile) return; // don't start a drag if the modal is open
+        if (selectedProfile) return;
         const activeCard = cards[cards.length - 1];
         if (activeCard?.type === 'end') return;
         if (
@@ -814,6 +823,10 @@ export default function Encounters() {
     const hasPictures =
         Array.isArray(selectedProfile?.pictures) &&
         selectedProfile.pictures.length > 0;
+
+    const sliderMaxKm = isFreeUser
+        ? MAX_DISTANCE_FREE_KM
+        : MAX_DISTANCE_PREMIUM_KM;
 
     return (
         <MainLayout
@@ -1541,42 +1554,154 @@ export default function Encounters() {
                             </div>
 
                             <div className="px-6 py-5 space-y-6 overflow-y-auto flex-1">
+                                {/* ---- FILTER MODE (Distance vs Country) ---- */}
                                 <div>
-                                    <div className="flex items-center justify-between mb-2">
-                                        <label className="text-sm font-semibold">
-                                            Max Distance
-                                        </label>
-                                        <span className="text-sm font-bold text-violet-400">
-                                            {filterDraft.max_distance_km} km
-                                        </span>
+                                    <label className="text-sm font-semibold mb-2 block">
+                                        Search by
+                                    </label>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                handleFilterChange({
+                                                    filter_mode: 'distance',
+                                                })
+                                            }
+                                            className={`py-2.5 rounded-xl text-sm font-semibold border transition-all flex items-center justify-center gap-1.5 ${filterDraft.filter_mode !== 'country'
+                                                ? 'bg-gradient-to-r from-violet-600 to-pink-600 text-white border-transparent shadow-md'
+                                                : 'bg-slate-800 text-slate-300 border-slate-700 hover:border-slate-600'
+                                                }`}
+                                        >
+                                            <MapPin size={14} />
+                                            Distance
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (isFreeUser) return;
+                                                handleFilterChange({
+                                                    filter_mode: 'country',
+                                                });
+                                            }}
+                                            disabled={isFreeUser}
+                                            className={`py-2.5 rounded-xl text-sm font-semibold border transition-all flex items-center justify-center gap-1.5 ${filterDraft.filter_mode === 'country' && !isFreeUser
+                                                ? 'bg-gradient-to-r from-violet-600 to-pink-600 text-white border-transparent shadow-md'
+                                                : isFreeUser
+                                                    ? 'bg-slate-900/50 text-slate-600 border-slate-800 cursor-not-allowed'
+                                                    : 'bg-slate-800 text-slate-300 border-slate-700 hover:border-slate-600'
+                                                }`}
+                                        >
+                                            <Globe size={14} />
+                                            Country
+                                            {isFreeUser && (
+                                                <Lock
+                                                    size={11}
+                                                    className="text-amber-400"
+                                                />
+                                            )}
+                                        </button>
                                     </div>
-                                    <input
-                                        type="range"
-                                        min={1}
-                                        max={isFreeUser ? 200 : 500}
-                                        step={1}
-                                        value={filterDraft.max_distance_km}
-                                        onChange={(e) =>
-                                            handleFilterChange({
-                                                max_distance_km: Number(
-                                                    e.target.value
-                                                ),
-                                            })
-                                        }
-                                        className="w-full range range-xs range-primary"
-                                    />
-                                    {isFreeUser ? (
+                                    {isFreeUser && (
                                         <p className="text-[11px] text-amber-400 mt-2 flex items-center gap-1">
                                             <Crown size={11} />
-                                            Upgrade to Premium to search up to
-                                            500 km.
-                                        </p>
-                                    ) : (
-                                        <p className="text-[11px] text-slate-500 mt-2">
-                                            Premium: up to 500 km.
+                                            Country search requires Premium.
                                         </p>
                                     )}
                                 </div>
+
+                                {/* ---- DISTANCE MODE ---- */}
+                                {filterDraft.filter_mode !== 'country' && (
+                                    <div>
+                                        <div className="flex items-center justify-between mb-2">
+                                            <label className="text-sm font-semibold">
+                                                Max Distance
+                                            </label>
+                                            <span className="text-sm font-bold text-violet-400">
+                                                {filterDraft.max_distance_km} km
+                                            </span>
+                                        </div>
+                                        <input
+                                            type="range"
+                                            min={1}
+                                            max={sliderMaxKm}
+                                            step={1}
+                                            value={Math.min(
+                                                filterDraft.max_distance_km,
+                                                sliderMaxKm
+                                            )}
+                                            onChange={(e) =>
+                                                handleFilterChange({
+                                                    max_distance_km: Number(
+                                                        e.target.value
+                                                    ),
+                                                })
+                                            }
+                                            className="w-full range range-xs range-primary"
+                                        />
+                                        <div className="flex justify-between text-[10px] text-slate-500 mt-1">
+                                            <span>1 km</span>
+                                            <span>{sliderMaxKm} km</span>
+                                        </div>
+                                        {isFreeUser ? (
+                                            <p className="text-[11px] text-amber-400 mt-2 flex items-center gap-1">
+                                                <Crown size={11} />
+                                                Upgrade to Premium to extend
+                                                your range to{' '}
+                                                {MAX_DISTANCE_PREMIUM_KM} km.
+                                            </p>
+                                        ) : (
+                                            <p className="text-[11px] text-slate-500 mt-2">
+                                                Premium: up to{' '}
+                                                {MAX_DISTANCE_PREMIUM_KM} km.
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* ---- COUNTRY MODE ---- */}
+                                {filterDraft.filter_mode === 'country' &&
+                                    !isFreeUser && (
+                                        <div>
+                                            <label className="text-sm font-semibold mb-2 block">
+                                                Country
+                                            </label>
+                                            <select
+                                                value={filterDraft.country || ''}
+                                                onChange={(e) =>
+                                                    handleFilterChange({
+                                                        country:
+                                                            e.target.value ||
+                                                            null,
+                                                    })
+                                                }
+                                                className="select select-bordered select-sm w-full bg-slate-800 text-slate-100 border-slate-700"
+                                            >
+                                                <option value="">
+                                                    Select a country…
+                                                </option>
+                                                {availableCountries.map((c) => (
+                                                    <option
+                                                        key={c.country}
+                                                        value={c.country}
+                                                    >
+                                                        {c.country} (
+                                                        {c.user_count})
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            {availableCountries.length ===
+                                                0 && (
+                                                    <p className="text-[11px] text-slate-500 mt-2 italic">
+                                                        No countries available
+                                                        yet.
+                                                    </p>
+                                                )}
+                                            <p className="text-[11px] text-slate-500 mt-2">
+                                                Distance limits are ignored
+                                                while filtering by country.
+                                            </p>
+                                        </div>
+                                    )}
 
                                 <div>
                                     <label className="text-sm font-semibold mb-2 block">
