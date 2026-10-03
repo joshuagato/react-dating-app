@@ -26,14 +26,16 @@ import DislikedByMe from './routes/DislikedByMe';
 import Others from "./routes/Others";
 import ProtectedRoute from "./components/ProtectedRoute"; // 👈 Import Guard Component
 import { PWAProvider } from './components/PWAContext';
-import { baseURL, dislikedByMePath, passedPath, userId } from './utils/constants';
-import { connectSocket } from './utils/functions';
+import { baseURL, dislikedByMePath, passedPath } from './utils/constants';
+import { connectSocket, getUserId } from './utils/functions';
+import { registerPushNotifications } from './utils/pushNotifications';
 
 import './App.css';
 
 function App() {
+    const storedUserId = getUserId();
+
     useEffect(() => {
-        const storedUserId = userId || localStorage.getItem('user_id');
         if (baseURL && storedUserId) {
             try {
                 connectSocket(baseURL, storedUserId);
@@ -41,7 +43,12 @@ function App() {
                 console.warn("Socket initialization error:", err);
             }
         }
-    }, []);
+
+        if (storedUserId) {
+            registerPushNotifications();
+        }
+
+    }, [storedUserId]);
 
     return (
         <PWAProvider>
