@@ -21,6 +21,7 @@ import {
     encountersPath, verifyEmailPath, basicProfilePath, advancedProfilePath, finalProfilePath,
     profilePagePath, baseURL
 } from "../utils/constants";
+import { registerPushNotifications } from '../utils/pushNotifications';
 
 
 const Auth = () => {
@@ -63,6 +64,7 @@ const Auth = () => {
 
         // Explicit Route Execution
         if (email_verified && basic_profile_setup && advanced_profile_setup && final_profile_setup && profile_page_setup) {
+            registerPushNotifications();
             return navigate(encountersPath, { replace: true });
         }
 

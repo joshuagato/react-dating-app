@@ -12,7 +12,7 @@ import {
     getPremiumPricesHandler,
     verifyPaystackPaymentHandler,
 } from '../tanstack/premium';
-import { userId } from '../utils/constants';
+import { getUserId } from '../utils/functions';
 
 const CYCLE_LABELS = {
     weekly: 'Weekly',
@@ -30,6 +30,7 @@ const CURRENCY_SYMBOLS = {
 };
 
 export default function PremiumPackages() {
+    const userId = getUserId();
     const navigate = useNavigate();
     const [billingCycle, setBillingCycle] = useState('monthly');
     const [submitting, setSubmitting] = useState(false);

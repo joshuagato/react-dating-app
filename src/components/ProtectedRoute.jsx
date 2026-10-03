@@ -10,11 +10,12 @@ import {
     profilePagePath,
     loginPath,
     VERIFICATION_CHANNEL,
-    userToken,
 } from "../utils/constants";
+import { getUserToken } from "../utils/functions";
+import { registerPushNotifications } from '../utils/pushNotifications';
 
 const ProtectedRoute = () => {
-    const token = userToken || localStorage.getItem('token');
+    const token = getUserToken();
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -54,6 +55,8 @@ const ProtectedRoute = () => {
                     profile_page_setup;
 
                 const currentPath = location.pathname;
+
+                if (isFullySetup) registerPushNotifications();
 
                 if (!isFullySetup) {
                     let targetPath = null;

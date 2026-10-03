@@ -7,11 +7,12 @@ import {
     MoreHorizontal, ArrowLeft,
 } from 'lucide-react';
 import {
+    baseURL,
     chatsPath, dislikedByMePath, encountersPath, feedbackPath, homePath, likesPath, nearbyPath, passedPath,
-    premiumPath, profilePath, socket, userId,
+    premiumPath, profilePath,
 } from '../../utils/constants';
 import {
-    chooseColour, chooseTextColour, isSame, pathMatched,
+    chooseColour, chooseTextColour, connectSocket, getUserId, isSame, pathMatched,
 } from '../../utils/functions';
 import { getUnreadChatsCountHandler } from '../../tanstack/chat';
 import { getNewLikesCountHandler } from '../../tanstack/encounter';
@@ -29,7 +30,9 @@ const MainLayout = ({
     const [unreadChatsCount, setUnreadChatsCount] = useState(0);
     const [newLikesCount, setNewLikesCount] = useState(0);
     const navigate = useNavigate();
-    const logout = useLogout();
+    const logout = useLogout(true);
+    const userId = getUserId();
+    const socket = connectSocket(baseURL, userId);
 
     useEffect(() => {
         (async () => {

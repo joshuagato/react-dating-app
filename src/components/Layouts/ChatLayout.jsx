@@ -9,10 +9,11 @@ import {
 
 import {
     chatsPath, encountersPath, likesPath, nearbyPath, profilePath,
-    partnerProfilePath, premiumPath, socket, userId,
+    partnerProfilePath, premiumPath, baseURL,
 } from '../../utils/constants';
 import {
     chooseColour, chooseTextColour, isSame, formatLastSeenDate, renderImageUrl,
+    getUserId, connectSocket,
 } from '../../utils/functions';
 import { getUnreadChatsCountHandler } from '../../tanstack/chat';
 import { getNewLikesCountHandler } from '../../tanstack/encounter';
@@ -34,6 +35,8 @@ const ChatLayout = ({
     const navigate = useNavigate();
     const [unreadChatsCount, setUnreadChatsCount] = useState(0);
     const [newLikesCount, setNewLikesCount] = useState(0);
+    const userId = getUserId();
+    const socket = connectSocket(baseURL, userId);
 
     /* ---------------------------------------------------------------- */
     /* Premium status — shares the cached result with Chat/Encounters/  */

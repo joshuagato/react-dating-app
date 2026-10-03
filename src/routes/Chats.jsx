@@ -5,11 +5,11 @@ import { useQuery } from '@tanstack/react-query';
 import { LiaCheckDoubleSolid, LiaCheckSolid } from 'react-icons/lia';
 
 import {
-    CHATS_TITLE, CHATS_TEXT, userId, socket, chatPath,
+    CHATS_TITLE, CHATS_TEXT, chatPath, baseURL
 } from '../utils/constants';
 import {
     formatMessageDate, isCurrentUser, isSame, decryptText,
-    renderImageUrl,
+    renderImageUrl, getUserId, connectSocket
 } from '../utils/functions';
 import { getChatsHandler } from '../tanstack/chat';
 import { getPremiumStatusHandler } from '../tanstack/user';
@@ -22,6 +22,8 @@ export default function Chats() {
     const [typingUsers, setTypingUsers] = useState([]);
     const [onlineUsers, setOnlineUsers] = useState([]);
     const [loading, setLoading] = useState(true);
+    const userId = getUserId();
+    const socket = connectSocket(baseURL, userId);
 
     /* ---------------------------------------------------------------- */
     /* Premium status — shared query key with the rest of the app       */

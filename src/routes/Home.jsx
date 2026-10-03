@@ -6,19 +6,19 @@ import {
 } from 'lucide-react';
 
 import {
-    APP_NAME, installPagePath, encountersPath, profilePath, userId,
-    loginPath
+    APP_NAME, installPagePath, encountersPath, profilePath, loginPath
 } from '../utils/constants';
 import { useLogout } from '../hooks/useLogout';
+import { getUserId } from '../utils/functions';
 
 const Home = () => {
     const [loading, setLoading] = useState(true);
     const [menuOpen, setMenuOpen] = useState(false);
     const [aboutOpen, setAboutOpen] = useState(false);
 
-    const logout = useLogout();
+    const logout = useLogout(true);
 
-    const storedUserId = userId || localStorage.getItem('user_id');
+    const storedUserId = getUserId();
 
     useEffect(() => {
         const timer1 = setTimeout(() => {

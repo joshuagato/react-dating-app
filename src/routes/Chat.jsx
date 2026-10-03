@@ -7,10 +7,10 @@ import { CornerUpLeft, Info, X, Crown, Copy, Edit2, SendHorizontal, Smile } from
 import EmojiPicker from 'emoji-picker-react';
 import { Capacitor } from '@capacitor/core';
 
-import { CHAT_TITLE, userId, socket, premiumPath } from '../utils/constants';
+import { CHAT_TITLE, premiumPath, baseURL } from '../utils/constants';
 import {
     writeName, isSameDate, formatMessageDate, timeTo12Hour, isCurrentUser,
-    getUserProfile, isSame, encryptText, decryptText
+    getUserProfile, isSame, encryptText, decryptText, getUserId, connectSocket
 } from '../utils/functions';
 import {
     getChatMessagesHandler,
@@ -76,6 +76,8 @@ export default function Chat() {
     const [showPremiumModal, setShowPremiumModal] = useState(false);
     const [showCopyToast, setShowCopyToast] = useState(false);
     const [highlightedMessageId, setHighlightedMessageId] = useState(null);
+    const userId = getUserId();
+    const socket = connectSocket(baseURL, userId);
 
     const {
         chat_id,
@@ -639,11 +641,11 @@ export default function Chat() {
                             className="flex flex-col max-w-[85%] sm:max-w-[70%]"
                             style={{ alignItems: isOwn ? 'flex-end' : 'flex-start' }}
                         >
-                            {!isOwn && showName && isSameDay && name && (
+                            {/* {!isOwn && showName && isSameDay && name && (
                                 <span className="text-[11px] font-semibold text-gray-500 mb-1 px-2">
                                     {name}
                                 </span>
-                            )}
+                            )} */}
 
                             <div
                                 className={`relative px-3.5 py-2 text-sm leading-relaxed rounded-2xl ${bubbleBase} ${isHighlighted ? 'ring-4 ring-amber-400 shadow-lg' : ''
