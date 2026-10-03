@@ -1,6 +1,7 @@
 import { io } from 'socket.io-client';
 import { format, isToday, isYesterday, differenceInDays } from 'date-fns';
 import CryptoJS from 'crypto-js';
+import Cookies from 'js-cookie';
 import { cloudFactorPath, baseURL } from '../utils/constants';
 
 export const organizeErrors = errorsArray => {
@@ -241,3 +242,6 @@ export function getEighteenYearsAgoCutoff() {
     const targetYear = currentYear - 18;
     return `${targetYear}-12-31`;
 }
+
+export const getUserId = () => Cookies.get('user_id') || localStorage.getItem('user_id');
+export const getUserToken = () => Cookies.get('token') || localStorage.getItem('token');
