@@ -38,6 +38,8 @@ import {
     Crown,
     CalendarClock,
     History,
+    Bell,
+    MessageSquare,
 } from 'lucide-react';
 import { Geolocation } from '@capacitor/geolocation';
 import { Capacitor } from '@capacitor/core';
@@ -45,7 +47,10 @@ import { Capacitor } from '@capacitor/core';
 import MainLayout from '../components/Layouts/MainLayout';
 import HelmetHeader from '../components/HelmetHeader';
 import {
-    PROFILE_TITLE, PROFILE_TEXT, GENDER, premiumPath
+    PROFILE_TITLE,
+    PROFILE_TEXT,
+    GENDER,
+    premiumPath,
 } from '../utils/constants';
 import { renderImageUrl, getEighteenYearsAgoCutoff } from '../utils/functions';
 import { compressImage, compareFaces } from '../utils/imageProcessing';
@@ -194,13 +199,14 @@ function PremiumBanner({ premium }) {
                             {formatted && (
                                 <p className="flex items-center gap-1">
                                     <CalendarClock className="w-3 h-3" />
-                                    Last subscription ({billing_cycle}) ended on{' '}
-                                    {formatted}
+                                    Last subscription ({billing_cycle}) ended
+                                    on {formatted}
                                 </p>
                             )}
                             {typeof days_ago === 'number' && (
                                 <p className="font-semibold">
-                                    {days_ago} day{days_ago === 1 ? '' : 's'} ago
+                                    {days_ago} day{days_ago === 1 ? '' : 's'}{' '}
+                                    ago
                                 </p>
                             )}
                         </div>
@@ -285,13 +291,17 @@ function ImageUploadBox({ id, position, imagePreview, onImageUpdate }) {
                 ) : (
                     <div className="w-full h-full flex flex-col items-center justify-center">
                         <span
-                            className={`text-2xl font-extrabold ${isDragActive ? 'text-[#0070f3]' : 'text-slate-400'
+                            className={`text-2xl font-extrabold ${isDragActive
+                                ? 'text-[#0070f3]'
+                                : 'text-slate-400'
                                 }`}
                         >
                             +
                         </span>
                         <p
-                            className={`text-[10px] font-medium ${isDragActive ? 'text-[#0070f3]' : 'text-slate-500'
+                            className={`text-[10px] font-medium ${isDragActive
+                                ? 'text-[#0070f3]'
+                                : 'text-slate-500'
                                 }`}
                         >
                             {isDragActive ? 'Drop here' : 'Add Photo'}
@@ -398,6 +408,11 @@ export default function Profile() {
         gender_on: true,
     });
 
+    const [notificationData, setNotificationData] = useState({
+        notify_new_likes: true,
+        notify_new_messages: true,
+    });
+
     const [items, setItems] = useState([
         { id: '1', dbId: null, imagePreview: null, file: null },
         { id: '2', dbId: null, imagePreview: null, file: null },
@@ -480,6 +495,17 @@ export default function Profile() {
                             country_code: user.country_code || '',
                             longitude: user.longitude || '',
                             latitude: user.latitude || '',
+                        });
+
+                        setNotificationData({
+                            notify_new_likes:
+                                user.notify_new_likes !== undefined
+                                    ? Boolean(user.notify_new_likes)
+                                    : true,
+                            notify_new_messages:
+                                user.notify_new_messages !== undefined
+                                    ? Boolean(user.notify_new_messages)
+                                    : true,
                         });
                     }
 
@@ -687,7 +713,8 @@ export default function Profile() {
             if (Capacitor.isNativePlatform()) {
                 const status = await Geolocation.checkPermissions();
                 if (status.location !== 'granted') {
-                    const requestStatus = await Geolocation.requestPermissions();
+                    const requestStatus =
+                        await Geolocation.requestPermissions();
                     if (
                         requestStatus.location === 'denied' ||
                         requestStatus.location === 'prompt-with-rationale'
@@ -774,6 +801,10 @@ export default function Profile() {
         setVisibilityData((prev) => ({ ...prev, [field]: !prev[field] }));
     };
 
+    const handleNotificationToggle = (field) => {
+        setNotificationData((prev) => ({ ...prev, [field]: !prev[field] }));
+    };
+
     /* ---------------------------------------------------------------------- */
     /* Submit                                                                 */
     /* ---------------------------------------------------------------------- */
@@ -803,6 +834,10 @@ export default function Profile() {
             formData.append('user', JSON.stringify(userData));
             formData.append('profile', JSON.stringify(profileData));
             formData.append('visibility', JSON.stringify(visibilityData));
+            formData.append(
+                'notifications',
+                JSON.stringify(notificationData)
+            );
 
             const pictureMeta = items.map((item, index) => ({
                 dbId: item.dbId,
@@ -843,6 +878,19 @@ export default function Profile() {
             }
             if (refreshRes?.data?.premium) {
                 setPremium(refreshRes.data.premium);
+            }
+            if (refreshRes?.data?.user) {
+                const u = refreshRes.data.user;
+                setNotificationData({
+                    notify_new_likes:
+                        u.notify_new_likes !== undefined
+                            ? Boolean(u.notify_new_likes)
+                            : true,
+                    notify_new_messages:
+                        u.notify_new_messages !== undefined
+                            ? Boolean(u.notify_new_messages)
+                            : true,
+                });
             }
         } catch (error) {
             console.error('Failed to save profile changes:', error);
@@ -1077,7 +1125,9 @@ export default function Profile() {
                                 <button
                                     type="button"
                                     onClick={() =>
-                                        handleVisibilityToggle('other_names_on')
+                                        handleVisibilityToggle(
+                                            'other_names_on'
+                                        )
                                     }
                                     className="flex items-center gap-1 text-[11px] text-slate-500 hover:text-slate-700 transition-colors"
                                 >
@@ -1115,7 +1165,9 @@ export default function Profile() {
                                     <button
                                         type="button"
                                         onClick={() =>
-                                            handleVisibilityToggle('gender_on')
+                                            handleVisibilityToggle(
+                                                'gender_on'
+                                            )
                                         }
                                         className="flex items-center gap-1 text-[11px] text-slate-500 hover:text-slate-700 transition-colors"
                                     >
@@ -1158,7 +1210,9 @@ export default function Profile() {
                                 >
                                     <option value={GENDER.MEN}>Men</option>
                                     <option value={GENDER.WOMEN}>Women</option>
-                                    <option value={GENDER.EVERYONE}>Everyone</option>
+                                    <option value={GENDER.EVERYONE}>
+                                        Everyone
+                                    </option>
                                 </select>
                             </div>
                         </div>
@@ -1400,7 +1454,100 @@ export default function Profile() {
                         </div>
                     </div>
 
-                    {/* 4. AUTO GPS LOCATION */}
+                    {/* 4. NOTIFICATION PREFERENCES */}
+                    <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 space-y-3">
+                        <h2 className="text-sm font-semibold text-gray-700 border-b pb-2 flex items-center gap-1.5">
+                            <Bell className="w-4 h-4 text-violet-600" />
+                            Notification Preferences
+                        </h2>
+
+                        <p className="text-[11px] text-slate-500 leading-snug">
+                            Choose which push notifications you want to receive
+                            on this device.
+                        </p>
+
+                        <div className="space-y-2 pt-1">
+                            {/* New Likes toggle */}
+                            <div className="flex items-center justify-between bg-slate-50 p-3 rounded-xl border border-slate-200">
+                                <div className="flex items-center gap-2 min-w-0">
+                                    <Heart className="w-4 h-4 text-rose-500 shrink-0" />
+                                    <div className="min-w-0">
+                                        <p className="text-xs font-semibold text-slate-700">
+                                            New Likes
+                                        </p>
+                                        <p className="text-[10px] text-slate-400 truncate">
+                                            Get notified when someone likes
+                                            you
+                                        </p>
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    role="switch"
+                                    aria-checked={
+                                        notificationData.notify_new_likes
+                                    }
+                                    onClick={() =>
+                                        handleNotificationToggle(
+                                            'notify_new_likes'
+                                        )
+                                    }
+                                    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 ${notificationData.notify_new_likes
+                                        ? 'bg-violet-600'
+                                        : 'bg-slate-300'
+                                        }`}
+                                >
+                                    <span
+                                        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${notificationData.notify_new_likes
+                                            ? 'translate-x-5'
+                                            : 'translate-x-0.5'
+                                            }`}
+                                    />
+                                </button>
+                            </div>
+
+                            {/* New Messages toggle */}
+                            <div className="flex items-center justify-between bg-slate-50 p-3 rounded-xl border border-slate-200">
+                                <div className="flex items-center gap-2 min-w-0">
+                                    <MessageSquare className="w-4 h-4 text-violet-500 shrink-0" />
+                                    <div className="min-w-0">
+                                        <p className="text-xs font-semibold text-slate-700">
+                                            New Messages
+                                        </p>
+                                        <p className="text-[10px] text-slate-400 truncate">
+                                            Get notified when you receive a
+                                            new chat message
+                                        </p>
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    role="switch"
+                                    aria-checked={
+                                        notificationData.notify_new_messages
+                                    }
+                                    onClick={() =>
+                                        handleNotificationToggle(
+                                            'notify_new_messages'
+                                        )
+                                    }
+                                    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 ${notificationData.notify_new_messages
+                                        ? 'bg-violet-600'
+                                        : 'bg-slate-300'
+                                        }`}
+                                >
+                                    <span
+                                        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${notificationData.notify_new_messages
+                                            ? 'translate-x-5'
+                                            : 'translate-x-0.5'
+                                            }`}
+                                    />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* 5. AUTO GPS LOCATION */}
                     <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 space-y-3">
                         <div className="flex items-center justify-between border-b pb-2">
                             <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-1">
